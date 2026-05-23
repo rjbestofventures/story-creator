@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#FFC837"/>
+      <stop offset="100%" stop-color="#F5A000"/>
+    </linearGradient>
+  </defs>
+  <rect width="32" height="32" rx="8" fill="url(#g)"/>
+  <text
+    x="16"
+    y="23"
+    font-family="system-ui, -apple-system, sans-serif"
+    font-size="20"
+    font-weight="900"
+    text-anchor="middle"
+    fill="#1A1A1A"
+  >S</text>
+</svg>
