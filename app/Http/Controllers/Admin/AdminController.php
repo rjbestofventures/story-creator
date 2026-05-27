@@ -7,6 +7,7 @@ use App\Models\Plan;
 use App\Models\User;
 use App\Models\UserSubscription;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -30,7 +31,7 @@ class AdminController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
-                'tier' => $user->roles->first()?->name ?? 'subscriber',
+                'tier' => $user->roles->first()?->name ?? 'user',
                 'subscription' => $user->activeSubscription ? [
                     'id' => $user->activeSubscription->id,
                     'plan_id' => $user->activeSubscription->plan_id,
@@ -80,6 +81,50 @@ class AdminController extends Controller
     // User management
     // -------------------------------------------------------------------------
 
+    public function storeUser(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email',
+            'password' => 'required|string|min:8|confirmed',
+            'tier' => 'required|in:admin,user',
+        ]);
+
+        $user = User::create([
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'email_verified_at' => now(),
+        ]);
+
+        $user->assignRole($validated['tier']);
+
+        return back();
+    }
+
+    public function updateProfile(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'email' => 'required|email|unique:users,email,'.$user->id,
+        ]);
+
+        $user->update($validated);
+
+        return back();
+    }
+
+    public function resetPassword(Request $request, User $user)
+    {
+        $request->validate([
+            'password' => 'required|string|min:8|confirmed',
+        ]);
+
+        $user->update(['password' => Hash::make($request->password)]);
+
+        return back();
+    }
+
     public function assignPlan(Request $request, User $user)
     {
         $validated = $request->validate([
@@ -128,7 +173,7 @@ class AdminController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'tier' => 'required|in:admin,partner,subscriber,viewer',
+            'tier' => 'required|in:admin,user',
         ]);
 
         $user->syncRoles([$validated['tier']]);
@@ -187,5 +232,18 @@ class AdminController extends Controller
         $plan->update($validated);
 
         return back();
+    }
+
+    public function destroyPlan(Plan $plan)
+    {
+        $active = $plan->subscriptions()->whereIn('status', ['active', 'trialing'])->count();
+
+        if ($active > 0) {
+            return back()->withErrors(['plan' => "Cannot delete \"{$plan->label}\" — it has {$active} active subscriber(s)."]);
+        }
+
+        $plan->delete();
+
+        return to_route('admin.plans.index');
     }
 }

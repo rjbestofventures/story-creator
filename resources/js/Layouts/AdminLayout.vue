@@ -1,6 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, FileText } from '@lucide/vue';
+import { TooltipProvider } from '@/Components/ui/tooltip';
 
 const nav = [
     { label: 'Users & Plans',   name: 'admin.users.index',   icon: Users     },
@@ -60,8 +61,10 @@ const nav = [
         </div>
 
         <!-- Page content -->
-        <div class="max-w-6xl mx-auto px-4 md:px-8 py-6">
-            <slot />
-        </div>
+        <TooltipProvider :delay-duration="300">
+            <div class="max-w-6xl mx-auto px-4 md:px-8 py-6">
+                <slot />
+            </div>
+        </TooltipProvider>
     </div>
 </template>

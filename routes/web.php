@@ -25,7 +25,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
 
     // Module pages
     Route::get('/', fn () => to_route('admin.users.index'))->name('index');
@@ -35,7 +35,10 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     Route::get('/billing', [AdminController::class, 'billingIndex'])->name('billing.index');
 
     // User actions
+    Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
     Route::patch('/users/{user}', [AdminController::class, 'update'])->name('users.update');
+    Route::patch('/users/{user}/profile', [AdminController::class, 'updateProfile'])->name('users.profile');
+    Route::post('/users/{user}/password', [AdminController::class, 'resetPassword'])->name('users.password');
     Route::post('/users/{user}/plan', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
     Route::patch('/users/{user}/subscription', [AdminController::class, 'updateSubscription'])->name('users.subscription');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
@@ -43,6 +46,7 @@ Route::middleware(['auth'])->prefix('admin')->name('admin.')->group(function () 
     // Plan actions
     Route::post('/plans', [AdminController::class, 'storePlan'])->name('plans.store');
     Route::patch('/plans/{plan}', [AdminController::class, 'updatePlan'])->name('plans.update');
+    Route::delete('/plans/{plan}', [AdminController::class, 'destroyPlan'])->name('plans.destroy');
 });
 
 require __DIR__.'/auth.php';

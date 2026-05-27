@@ -48,32 +48,18 @@ class RolesAndPermissionsSeeder extends Seeder
             Permission::firstOrCreate(['name' => $permission]);
         }
 
+        // Admin — full access to everything
         Role::firstOrCreate(['name' => 'admin'])
             ->syncPermissions(Permission::all());
 
-        Role::firstOrCreate(['name' => 'partner'])
+        // User — access to their own stories and billing only
+        Role::firstOrCreate(['name' => 'user'])
             ->syncPermissions([
                 'story.create', 'story.view', 'story.edit', 'story.delete',
                 'episode.create', 'episode.view', 'episode.edit', 'episode.delete', 'episode.publish',
                 'credit.view',
                 'billing.view',
-                'settings.view', 'settings.manage',
-            ]);
-
-        Role::firstOrCreate(['name' => 'subscriber'])
-            ->syncPermissions([
-                'story.create', 'story.view', 'story.edit',
-                'episode.create', 'episode.view', 'episode.edit', 'episode.publish',
-                'credit.view',
-                'billing.view',
                 'settings.view',
-            ]);
-
-        Role::firstOrCreate(['name' => 'viewer'])
-            ->syncPermissions([
-                'story.view',
-                'episode.view',
-                'credit.view',
             ]);
     }
 }

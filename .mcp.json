@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "shadcn-vue": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "shadcn-vue@latest",
+        "mcp"
+      ],
+      "env": {}
+    }
+  }
+}

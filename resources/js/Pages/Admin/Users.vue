@@ -4,9 +4,22 @@ import { Head, useForm, router } from '@inertiajs/vue3';
 import {
     Users, BookOpen, Activity, TrendingUp,
     Search, UserPlus, CircleUser, KeyRound, Trash2, Mail,
-    ChevronDown, ChevronRight, BookMarked, Coins, Layers, Check,
+    ChevronDown, BookMarked, Coins, Layers, Check, Shield,
 } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
+import { Button } from '@/Components/ui/button';
+import { Input } from '@/Components/ui/input';
+import { Label } from '@/Components/ui/label';
+import { Badge } from '@/Components/ui/badge';
+import {
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from '@/Components/ui/select';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/Components/ui/dialog';
+import {
+    Tooltip, TooltipContent, TooltipTrigger,
+} from '@/Components/ui/tooltip';
 
 const props = defineProps({
     users: Array,
@@ -22,6 +35,21 @@ const savedId      = ref(null);
 
 const flash = (id) => { savedId.value = id; setTimeout(() => savedId.value = null, 1800); };
 
+// ── Delete dialog ─────────────────────────────────────────────────────────────
+
+const deletingUser     = ref(null);
+const deleteDialogOpen = computed({
+    get: () => deletingUser.value !== null,
+    set: (val) => { if (!val) deletingUser.value = null; },
+});
+
+const openDeleteDialog = (user) => { deletingUser.value = user; };
+const confirmDelete    = () => {
+    router.delete(route('admin.users.destroy', deletingUser.value.id), {
+        onSuccess: () => { deletingUser.value = null; },
+    });
+};
+
 // ── Derived ───────────────────────────────────────────────────────────────────
 
 const filtered = computed(() =>
@@ -33,27 +61,25 @@ const filtered = computed(() =>
 );
 
 const kpis = computed(() => [
-    { label: 'Total Users', value: props.stats.users,                                                     icon: Users,      color: '#F5A000' },
-    { label: 'Active',      value: props.users.filter(u => u.subscription?.status === 'active').length,   icon: Activity,   color: '#22C55E' },
-    { label: 'Trialing',    value: props.users.filter(u => u.subscription?.status === 'trialing').length, icon: TrendingUp, color: '#F59E0B' },
-    { label: 'Stories',     value: props.stats.stories,                                                   icon: BookOpen,   color: '#6366F1' },
+    { label: 'Total Users', value: props.stats.users,                                                     icon: Users,      color: '#F5A000', bg: 'bg-amber-50',   text: 'text-amber-600'  },
+    { label: 'Active',      value: props.users.filter(u => u.subscription?.status === 'active').length,   icon: Activity,   color: '#22C55E', bg: 'bg-green-50',   text: 'text-green-600'  },
+    { label: 'Trialing',    value: props.users.filter(u => u.subscription?.status === 'trialing').length, icon: TrendingUp, color: '#F59E0B', bg: 'bg-yellow-50',  text: 'text-yellow-600' },
+    { label: 'Stories',     value: props.stats.stories,                                                   icon: BookOpen,   color: '#6366F1', bg: 'bg-indigo-50',  text: 'text-indigo-600' },
 ]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const statusStyle = (status) => ({
-    active:    { bg: '#DCFCE7', color: '#15803D', label: 'Active'    },
-    trialing:  { bg: '#FEF9C3', color: '#A16207', label: 'Trialing'  },
-    cancelled: { bg: '#FEE2E2', color: '#DC2626', label: 'Cancelled' },
-    expired:   { bg: '#F3F4F6', color: '#6B7280', label: 'Expired'   },
-})[status] ?? { bg: '#F3F4F6', color: '#6B7280', label: 'No Plan' };
+const statusMeta = (status) => ({
+    active:    { class: 'bg-green-100 text-green-700 border-green-200',    label: 'Active'    },
+    trialing:  { class: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'Trialing'  },
+    cancelled: { class: 'bg-red-100 text-red-700 border-red-200',          label: 'Cancelled' },
+    expired:   { class: 'bg-gray-100 text-gray-500 border-gray-200',       label: 'Expired'   },
+})[status] ?? { class: 'bg-gray-100 text-gray-500 border-gray-200', label: 'No Plan' };
 
-const tierLabel = (tier) => ({
-    admin:      'Admin',
-    partner:    'Partner',
-    subscriber: 'Subscriber',
-    viewer:     'Viewer',
-})[tier] ?? tier;
+const tierMeta = (tier) => ({
+    admin: { label: 'Admin', class: 'bg-purple-100 text-purple-700 border-purple-200' },
+    user:  { label: 'User',  class: 'bg-gray-100 text-gray-600 border-gray-200'       },
+})[tier] ?? { label: tier, class: 'bg-gray-100 text-gray-500 border-gray-200' };
 
 const initials    = (name) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 const avatarColor = (name) => {
@@ -68,18 +94,16 @@ const planPrice = (planId, interval) => {
     return plan.price_monthly > 0 ? `$${plan.price_monthly}/mo` : 'Free';
 };
 
-// Returns inline style string for the stories chip based on credits remaining
-const storyChipStyle = (sub) => {
-    if (sub.story_credits === 0)                              return 'background:#FEE2E2; color:#DC2626;';
-    if (sub.story_credits * 2 <= sub.stories_per_month)      return 'background:#FEF9C3; color:#A16207;';
-    return 'background:#DCFCE7; color:#15803D;';
-};
-
-// Width % for the stories progress bar (amount used, not remaining)
 const storyBarWidth = (sub) => {
     if (!sub.stories_per_month) return '0%';
     const used = sub.stories_per_month - sub.story_credits;
     return (Math.min(used / sub.stories_per_month, 1) * 100) + '%';
+};
+
+const storyBarColor = (sub) => {
+    if (sub.story_credits === 0) return '#EF4444';
+    if (sub.story_credits * 2 <= sub.stories_per_month) return '#F59E0B';
+    return 'url(#gold)';
 };
 
 // ── Per-user forms ────────────────────────────────────────────────────────────
@@ -112,32 +136,68 @@ const getTierForm = (user) => {
     return tierForms.value[user.id];
 };
 
-const savePlan = (user) => {
-    getPlanForm(user).post(route('admin.users.assign-plan', user.id), {
-        onSuccess: () => flash(user.id),
-    });
-};
+const saveAll = (user) => {
+    const hasPlan = !!getPlanForm(user).plan_id;
+    let remaining = hasPlan ? 3 : 2;
+    const done = () => { if (--remaining === 0) flash(user.id); };
 
-const saveStatus = (user) => {
-    getStatusForm(user).patch(route('admin.users.subscription', user.id), {
-        onSuccess: () => flash(user.id),
-    });
-};
-
-const saveTier = (user) => {
-    getTierForm(user).patch(route('admin.users.update', user.id), {
-        onSuccess: () => flash(user.id),
-    });
-};
-
-const destroyUser = (user) => {
-    if (confirm(`Delete ${user.name}? This cannot be undone.`)) {
-        router.delete(route('admin.users.destroy', user.id));
+    getStatusForm(user).patch(route('admin.users.subscription', user.id), { onSuccess: done, onError: done });
+    getTierForm(user).patch(route('admin.users.update', user.id), { onSuccess: done, onError: done });
+    if (hasPlan) {
+        getPlanForm(user).post(route('admin.users.assign-plan', user.id), { onSuccess: done, onError: done });
     }
 };
 
 const toggleExpand = (id) => {
     expandedUser.value = expandedUser.value === id ? null : id;
+};
+
+// ── Modals ────────────────────────────────────────────────────────────────────
+
+const userModalOpen     = ref(false);
+const userModalMode     = ref('create');
+const userModalUser     = ref(null);
+const passwordModalOpen = ref(false);
+const passwordModalUser = ref(null);
+
+const userForm     = useForm({ name: '', email: '', password: '', password_confirmation: '', tier: 'user' });
+const passwordForm = useForm({ password: '', password_confirmation: '' });
+
+const openCreate = () => {
+    userForm.reset();
+    userModalMode.value = 'create';
+    userModalUser.value = null;
+    userModalOpen.value = true;
+};
+
+const openEdit = (user) => {
+    userForm.name  = user.name;
+    userForm.email = user.email;
+    userForm.tier  = user.tier;
+    userForm.clearErrors();
+    userModalMode.value = 'edit';
+    userModalUser.value = user;
+    userModalOpen.value = true;
+};
+
+const openPassword = (user) => {
+    passwordForm.reset();
+    passwordModalUser.value = user;
+    passwordModalOpen.value = true;
+};
+
+const submitUser = () => {
+    if (userModalMode.value === 'create') {
+        userForm.post(route('admin.users.store'), { onSuccess: () => { userModalOpen.value = false; } });
+    } else {
+        userForm.patch(route('admin.users.profile', userModalUser.value.id), { onSuccess: () => { userModalOpen.value = false; } });
+    }
+};
+
+const submitPassword = () => {
+    passwordForm.post(route('admin.users.password', passwordModalUser.value.id), {
+        onSuccess: () => { passwordModalOpen.value = false; },
+    });
 };
 </script>
 
@@ -145,276 +205,453 @@ const toggleExpand = (id) => {
     <AdminLayout>
         <Head title="Users — Admin" />
 
+        <!-- Page header -->
+        <div class="flex items-start justify-between mb-6">
+            <div>
+                <h1 class="text-lg font-black text-[#1A1A1A]">Users & Plans</h1>
+                <p class="text-xs mt-0.5 text-muted-foreground">Manage accounts, roles, and subscriptions.</p>
+            </div>
+            <Button
+                class="shrink-0 gap-2 font-semibold bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 transition-all duration-300"
+                @click="openCreate"
+            >
+                <UserPlus class="w-4 h-4" />
+                <span class="hidden sm:inline">Add User</span>
+            </Button>
+        </div>
+
         <!-- KPI cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             <div
                 v-for="kpi in kpis" :key="kpi.label"
-                class="bg-white rounded-xl px-4 py-3 flex items-center gap-3"
-                style="border: 1px solid #DDDDDD;"
+                class="bg-white rounded-2xl px-5 py-4 flex items-center gap-4 ring-1 ring-[#DDDDDD]"
             >
-                <div class="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" :style="{ backgroundColor: kpi.color + '18' }">
-                    <component :is="kpi.icon" class="w-4 h-4" :style="{ color: kpi.color }" />
+                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center" :class="kpi.bg">
+                    <component :is="kpi.icon" class="w-5 h-5" :class="kpi.text" />
                 </div>
                 <div>
-                    <p class="text-xs font-medium" style="color: #555555;">{{ kpi.label }}</p>
-                    <p class="text-xl font-black" style="color: #1A1A1A;">{{ kpi.value }}</p>
+                    <p class="text-xs font-medium text-[#555555]">{{ kpi.label }}</p>
+                    <p class="text-2xl font-black text-[#1A1A1A] leading-tight">{{ kpi.value }}</p>
                 </div>
             </div>
         </div>
 
-        <!-- Search + Add -->
-        <div class="flex items-center gap-3 mb-4">
-            <div class="relative flex-1">
-                <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style="color: #AAAAAA;" />
-                <input
-                    v-model="search"
-                    type="text"
-                    placeholder="Search by name, email or tier…"
-                    class="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm outline-none"
-                    style="border: 1px solid #DDDDDD; color: #1A1A1A; background: #FFF;"
-                />
-            </div>
-            <button
-                class="shrink-0 flex items-center gap-2 px-4 py-2.5 rounded-lg text-sm font-semibold cursor-pointer transition hover:opacity-90"
-                style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-            >
-                <UserPlus class="w-4 h-4" />
-                <span class="hidden sm:inline">Add User</span>
-            </button>
+        <!-- Search bar -->
+        <div class="relative mb-4">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+                v-model="search"
+                type="text"
+                placeholder="Search by name, email or tier…"
+                class="pl-9 bg-white"
+            />
         </div>
 
-        <!-- User list -->
-        <div class="flex flex-col gap-2">
+        <!-- User cards -->
+        <div class="flex flex-col gap-3">
             <div
                 v-for="user in filtered" :key="user.id"
-                class="rounded-xl overflow-hidden bg-white transition-all duration-200"
-                :style="savedId === user.id ? 'border: 1.5px solid #F5A000;' : 'border: 1px solid #DDDDDD;'"
+                class="bg-white rounded-2xl overflow-hidden transition-all duration-200"
+                :class="savedId === user.id ? 'ring-2 ring-[#F5A000]' : 'ring-1 ring-[#DDDDDD]'"
             >
-                <!-- Row -->
+                <!-- Card row -->
                 <div
-                    class="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors"
+                    class="flex items-center gap-4 px-5 py-4 cursor-pointer hover:bg-[#FAFAF8] transition-colors duration-150"
                     @click.stop="toggleExpand(user.id)"
                 >
+                    <!-- Avatar -->
                     <div
-                        class="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-xs font-black"
+                        class="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-xs font-black"
                         :style="{ backgroundColor: avatarColor(user.name) + '20', color: avatarColor(user.name) }"
                     >
                         {{ initials(user.name) }}
                     </div>
+
+                    <!-- Identity -->
                     <div class="flex-1 min-w-0">
-                        <div class="flex items-center gap-1.5 flex-wrap">
-                            <span class="font-bold text-sm truncate" style="color: #1A1A1A;">{{ user.name }}</span>
-                            <span
-                                class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold"
-                                :style="{ backgroundColor: statusStyle(user.subscription?.status).bg, color: statusStyle(user.subscription?.status).color }"
-                            >{{ statusStyle(user.subscription?.status).label }}</span>
-                            <span class="shrink-0 px-2 py-0.5 rounded-full text-xs font-semibold" style="background: #F5F5F5; color: #555555;">
-                                {{ tierLabel(user.tier) }}
-                            </span>
-                            <span v-if="user.subscription" class="shrink-0 px-2 py-0.5 rounded-full text-xs font-medium" style="background: #FFF8E7; color: #B45309;">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-bold text-sm text-[#1A1A1A]">{{ user.name }}</span>
+                            <Badge variant="outline" :class="statusMeta(user.subscription?.status).class" class="text-[10px] px-1.5 py-0">
+                                {{ statusMeta(user.subscription?.status).label }}
+                            </Badge>
+                            <Badge variant="outline" :class="tierMeta(user.tier).class" class="text-[10px] px-1.5 py-0">
+                                {{ tierMeta(user.tier).label }}
+                            </Badge>
+                            <Badge v-if="user.subscription" variant="outline" class="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0">
                                 {{ user.subscription.plan_label }}
-                                <span v-if="user.subscription.billing_interval === 'yearly'" class="opacity-60">· yr</span>
-                            </span>
+                                <span v-if="user.subscription.billing_interval === 'yearly'" class="opacity-60 ml-0.5">· yr</span>
+                            </Badge>
                         </div>
-                        <div class="flex items-center gap-1 mt-0.5">
-                            <Mail class="w-3 h-3 shrink-0" style="color: #AAAAAA;" />
-                            <span class="text-xs truncate" style="color: #555555;">{{ user.email }}</span>
+                        <div class="flex items-center gap-1 mt-1">
+                            <Mail class="w-3 h-3 shrink-0 text-muted-foreground" />
+                            <span class="text-xs text-muted-foreground truncate">{{ user.email }}</span>
+                            <span class="hidden md:inline text-xs text-muted-foreground ml-2">· joined {{ user.created_at }}</span>
                         </div>
                     </div>
-                    <div class="shrink-0 flex items-center gap-1" @click.stop>
-                        <span class="hidden md:inline text-xs mr-2" style="color: #AAAAAA;">joined {{ user.created_at }}</span>
 
-                        <!-- Usage chips — desktop only -->
+                    <!-- Usage chips + actions -->
+                    <div class="shrink-0 flex items-center gap-1.5" @click.stop>
                         <template v-if="user.subscription">
-                            <span
-                                class="hidden md:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold mr-0.5"
-                                :style="storyChipStyle(user.subscription)"
-                            >
-                                <BookOpen class="w-3 h-3 shrink-0" />
-                                {{ user.subscription.story_credits }}/{{ user.subscription.stories_per_month }}
-                            </span>
-                            <span class="hidden md:flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold mr-1" style="background:#F5F5F5; color:#555555;">
-                                <Coins class="w-3 h-3 shrink-0" />
-                                {{ user.subscription.refine_credits }}
-                            </span>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <div class="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F8F8F8] text-xs font-semibold text-[#555555] cursor-default">
+                                        <BookOpen class="w-3 h-3 shrink-0" />
+                                        <span>{{ user.subscription.story_credits }}/{{ user.subscription.stories_per_month }}</span>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>Story credits remaining this period</TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <div class="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F8F8F8] text-xs font-semibold text-[#555555] cursor-default">
+                                        <Coins class="w-3 h-3 shrink-0" />
+                                        <span>{{ user.subscription.refine_credits }}</span>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent>Refine credits remaining</TooltipContent>
+                            </Tooltip>
                         </template>
 
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition cursor-pointer" style="color: #AAAAAA;"><CircleUser class="w-4 h-4" /></button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-gray-100 transition cursor-pointer" style="color: #AAAAAA;"><KeyRound class="w-4 h-4" /></button>
-                        <button class="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-red-50 transition cursor-pointer" style="color: #AAAAAA;" @click="destroyUser(user)"><Trash2 class="w-4 h-4" /></button>
-                        <ChevronRight class="w-4 h-4 ml-1 transition-transform duration-200" :class="{ 'rotate-90': expandedUser === user.id }" style="color: #AAAAAA;" />
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="ghost" size="sm"
+                                    class="h-8 w-8 p-0 text-muted-foreground hover:text-[#1A1A1A] hover:bg-[#F0F0F0] cursor-pointer"
+                                    @click.stop="openEdit(user)"
+                                >
+                                    <CircleUser class="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Edit profile</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="ghost" size="sm"
+                                    class="h-8 w-8 p-0 text-muted-foreground hover:text-[#1A1A1A] hover:bg-[#F0F0F0] cursor-pointer"
+                                    @click.stop="openPassword(user)"
+                                >
+                                    <KeyRound class="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Reset password</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="ghost" size="sm"
+                                    class="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                                    @click.stop="openDeleteDialog(user)"
+                                >
+                                    <Trash2 class="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete user</TooltipContent>
+                        </Tooltip>
+
+                        <div class="w-px h-5 bg-[#EBEBEB] mx-1" />
+
+                        <ChevronDown
+                            class="w-4 h-4 text-muted-foreground transition-transform duration-200"
+                            :class="{ 'rotate-180': expandedUser === user.id }"
+                        />
                     </div>
                 </div>
 
-                <!-- Expanded panel -->
+                <!-- Expanded management panel -->
                 <div
                     v-show="expandedUser === user.id"
-                    class="border-t px-4 py-4 space-y-4"
-                    style="border-color: #F0F0F0; background: #FAFAF8;"
+                    class="border-t border-[#F0F0F0] bg-[#FAFAF8]"
                 >
-                    <!-- Assign plan -->
-                    <div>
-                        <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #AAAAAA;">Assign Plan</p>
-                        <div class="flex flex-wrap items-end gap-2">
-                            <div class="flex-1 min-w-40 relative">
-                                <select
-                                    v-model="getPlanForm(user).plan_id"
-                                    class="w-full appearance-none pl-3 pr-7 py-2 rounded-lg text-sm cursor-pointer outline-none"
-                                    style="border: 1px solid #DDDDDD; background: #FFF; color: #1A1A1A;"
+                    <!-- Unified form -->
+                    <div class="px-5 py-5 space-y-4">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                            <!-- Plan -->
+                            <div class="space-y-1.5">
+                                <Label class="text-xs text-[#555555]">Plan</Label>
+                                <Select
+                                    :model-value="String(getPlanForm(user).plan_id)"
+                                    @update:model-value="val => getPlanForm(user).plan_id = val"
                                 >
-                                    <option value="" disabled>— Select plan —</option>
-                                    <option v-for="plan in plans.filter(p => p.is_active)" :key="plan.id" :value="plan.id">
-                                        {{ plan.label }}
-                                    </option>
-                                </select>
-                                <ChevronDown class="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style="color: #AAAAAA;" />
+                                    <SelectTrigger class="w-full bg-white">
+                                        <SelectValue placeholder="— Select —" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem
+                                            v-for="plan in plans.filter(p => p.is_active)"
+                                            :key="plan.id"
+                                            :value="String(plan.id)"
+                                        >{{ plan.label }}</SelectItem>
+                                    </SelectContent>
+                                </Select>
                             </div>
 
-                            <div class="flex rounded-lg p-0.5 shrink-0" style="background: #F0F0F0;">
-                                <button
-                                    class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
-                                    :style="getPlanForm(user).billing_interval === 'monthly'
-                                        ? 'background:#FFF; color:#1A1A1A; box-shadow:0 1px 3px rgba(0,0,0,.1);'
-                                        : 'color:#888;'"
-                                    @click="getPlanForm(user).billing_interval = 'monthly'"
-                                >Monthly</button>
-                                <button
-                                    class="px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer"
-                                    :style="getPlanForm(user).billing_interval === 'yearly'
-                                        ? 'background:#FFF; color:#1A1A1A; box-shadow:0 1px 3px rgba(0,0,0,.1);'
-                                        : 'color:#888;'"
-                                    @click="getPlanForm(user).billing_interval = 'yearly'"
-                                >Yearly</button>
+                            <!-- Billing interval -->
+                            <div class="space-y-1.5">
+                                <Label class="text-xs text-[#555555]">
+                                    Billing
+                                    <span v-if="getPlanForm(user).plan_id" class="ml-1 font-bold text-[#F5A000]">
+                                        · {{ planPrice(Number(getPlanForm(user).plan_id), getPlanForm(user).billing_interval) }}
+                                    </span>
+                                </Label>
+                                <div class="flex rounded-lg p-0.5 h-9" style="background: #EBEBEB;">
+                                    <button
+                                        class="flex-1 rounded-md text-xs font-semibold transition-all cursor-pointer"
+                                        :class="getPlanForm(user).billing_interval === 'monthly' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#888888]'"
+                                        @click="getPlanForm(user).billing_interval = 'monthly'"
+                                    >Monthly</button>
+                                    <button
+                                        class="flex-1 rounded-md text-xs font-semibold transition-all cursor-pointer"
+                                        :class="getPlanForm(user).billing_interval === 'yearly' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#888888]'"
+                                        @click="getPlanForm(user).billing_interval = 'yearly'"
+                                    >Yearly</button>
+                                </div>
                             </div>
 
-                            <span v-if="getPlanForm(user).plan_id" class="text-sm font-bold shrink-0" style="color: #F5A000;">
-                                {{ planPrice(getPlanForm(user).plan_id, getPlanForm(user).billing_interval) }}
-                            </span>
+                            <!-- Status -->
+                            <div class="space-y-1.5">
+                                <Label class="text-xs text-[#555555]">Subscription Status</Label>
+                                <Select
+                                    :model-value="getStatusForm(user).status"
+                                    @update:model-value="val => getStatusForm(user).status = val"
+                                >
+                                    <SelectTrigger class="w-full bg-white">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="active">Active</SelectItem>
+                                        <SelectItem value="trialing">Trialing</SelectItem>
+                                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                                        <SelectItem value="expired">Expired</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
 
-                            <button
-                                :disabled="!getPlanForm(user).plan_id || getPlanForm(user).processing"
-                                class="shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                                style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                                @click="savePlan(user)"
+                            <!-- Role -->
+                            <div class="space-y-1.5">
+                                <Label class="text-xs text-[#555555]">Role</Label>
+                                <Select
+                                    :model-value="getTierForm(user).tier"
+                                    @update:model-value="val => getTierForm(user).tier = val"
+                                >
+                                    <SelectTrigger class="w-full bg-white">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="admin">Admin</SelectItem>
+                                        <SelectItem value="user">User</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        </div>
+
+                        <!-- Save -->
+                        <div class="flex justify-end">
+                            <Button
+                                :disabled="getPlanForm(user).processing || getStatusForm(user).processing || getTierForm(user).processing"
+                                class="gap-1.5 font-semibold bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 transition-all duration-300 disabled:opacity-40"
+                                @click="saveAll(user)"
                             >
-                                <Check class="w-3.5 h-3.5" /> Assign
-                            </button>
+                                <Check class="w-3.5 h-3.5" /> Save Changes
+                            </Button>
                         </div>
                     </div>
 
-                    <!-- Status + Role -->
-                    <div class="flex flex-wrap gap-2 pt-3" style="border-top: 1px solid #EBEBEB;">
-                        <div class="w-36">
-                            <p class="text-xs font-bold tracking-widest uppercase mb-1.5" style="color: #AAAAAA;">Status</p>
-                            <div class="relative">
-                                <select
-                                    v-model="getStatusForm(user).status"
-                                    class="w-full appearance-none pl-3 pr-7 py-2 rounded-lg text-sm cursor-pointer outline-none"
-                                    style="border: 1px solid #DDDDDD; background: #FFF; color: #1A1A1A;"
-                                    @change="saveStatus(user)"
-                                >
-                                    <option value="active">Active</option>
-                                    <option value="trialing">Trialing</option>
-                                    <option value="cancelled">Cancelled</option>
-                                    <option value="expired">Expired</option>
-                                </select>
-                                <ChevronDown class="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style="color: #AAAAAA;" />
-                            </div>
-                        </div>
-                        <div class="w-44">
-                            <p class="text-xs font-bold tracking-widest uppercase mb-1.5" style="color: #AAAAAA;">Role</p>
-                            <div class="relative">
-                                <select
-                                    v-model="getTierForm(user).tier"
-                                    class="w-full appearance-none pl-3 pr-7 py-2 rounded-lg text-sm cursor-pointer outline-none"
-                                    style="border: 1px solid #DDDDDD; background: #FFF; color: #1A1A1A;"
-                                    @change="saveTier(user)"
-                                >
-                                    <option value="admin">Admin</option>
-                                    <option value="partner">Verified Business Partner</option>
-                                    <option value="subscriber">Subscriber</option>
-                                    <option value="viewer">Viewer</option>
-                                </select>
-                                <ChevronDown class="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 pointer-events-none" style="color: #AAAAAA;" />
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Usage summary -->
+                    <!-- Usage section -->
                     <template v-if="user.subscription">
-                        <div class="pt-3 space-y-2.5" style="border-top: 1px solid #EBEBEB;">
-                            <p class="text-xs font-bold tracking-widest uppercase" style="color: #CCCCCC;">Usage This Period</p>
+                        <div class="border-t border-[#EBEBEB] px-5 py-4 space-y-3">
+                            <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Usage This Period</p>
 
-                            <!-- Stories progress bar -->
-                            <div class="px-3 py-2.5 rounded-lg" style="background:#FFF; border:1px solid #EBEBEB;">
-                                <div class="flex items-center justify-between mb-1.5">
-                                    <div class="flex items-center gap-1.5">
-                                        <BookMarked class="w-3.5 h-3.5 shrink-0" style="color:#AAAAAA;" />
-                                        <p class="text-xs font-semibold" style="color:#555555;">Stories this period</p>
-                                    </div>
-                                    <div class="flex items-center gap-2 text-xs">
-                                        <span style="color:#AAAAAA;">
-                                            {{ user.subscription.stories_per_month - user.subscription.story_credits }} of {{ user.subscription.stories_per_month }} used
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                <!-- Stories progress -->
+                                <div class="col-span-1 md:col-span-1 bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB]">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-1.5">
+                                            <BookMarked class="w-3.5 h-3.5 text-muted-foreground" />
+                                            <span class="text-xs font-semibold text-[#555555]">Stories</span>
+                                        </div>
+                                        <span class="text-xs font-bold" :class="user.subscription.story_credits === 0 ? 'text-red-500' : 'text-[#F5A000]'">
+                                            {{ user.subscription.story_credits }} left
                                         </span>
-                                        <span
-                                            class="font-bold"
-                                            :style="user.subscription.story_credits === 0 ? 'color:#DC2626;' : 'color:#F5A000;'"
-                                        >{{ user.subscription.story_credits }} left</span>
+                                    </div>
+                                    <div class="h-1.5 rounded-full overflow-hidden bg-gray-100">
+                                        <div
+                                            class="h-full rounded-full transition-all duration-300"
+                                            :style="{
+                                                width: storyBarWidth(user.subscription),
+                                                background: user.subscription.story_credits === 0
+                                                    ? '#EF4444'
+                                                    : 'linear-gradient(to right, #FFC837, #F5A000)',
+                                            }"
+                                        />
+                                    </div>
+                                    <p class="text-[10px] text-muted-foreground mt-1.5">
+                                        {{ user.subscription.stories_per_month - user.subscription.story_credits }} of {{ user.subscription.stories_per_month }} used
+                                    </p>
+                                </div>
+
+                                <!-- Refine credits -->
+                                <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+                                        <Coins class="w-4 h-4 text-indigo-500" />
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-[#555555] font-semibold">Refine Credits</p>
+                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.subscription.refine_credits }}</p>
+                                        <p class="text-[10px] text-muted-foreground">+{{ user.subscription.refine_monthly }}/mo</p>
                                     </div>
                                 </div>
-                                <div class="h-1.5 rounded-full overflow-hidden" style="background:#F0F0F0;">
-                                    <div
-                                        class="h-full rounded-full transition-all duration-300"
-                                        :style="{
-                                            width: storyBarWidth(user.subscription),
-                                            background: user.subscription.story_credits === 0
-                                                ? '#EF4444'
-                                                : 'linear-gradient(to right, #FFC837, #F5A000)',
-                                        }"
-                                    />
+
+                                <!-- Episode limit -->
+                                <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                                        <Layers class="w-4 h-4 text-amber-500" />
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-[#555555] font-semibold">Episodes / Story</p>
+                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.subscription.effective_episode_limit }}</p>
+                                        <p class="text-[10px] text-muted-foreground">max per story</p>
+                                    </div>
                                 </div>
                             </div>
 
-                            <!-- Refine credits balance -->
-                            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg" style="background:#FFF; border:1px solid #EBEBEB;">
-                                <div class="flex items-center gap-1.5">
-                                    <Coins class="w-3.5 h-3.5 shrink-0" style="color:#AAAAAA;" />
-                                    <p class="text-xs font-semibold" style="color:#555555;">Refine credits</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-bold leading-none" style="color:#1A1A1A;">{{ user.subscription.refine_credits }}</p>
-                                    <p class="text-xs mt-0.5" style="color:#AAAAAA;">+{{ user.subscription.refine_monthly }} added each month</p>
-                                </div>
-                            </div>
-
-                            <!-- Episode limit (static cap) -->
-                            <div class="flex items-center justify-between px-3 py-2.5 rounded-lg" style="background:#FFF; border:1px solid #EBEBEB;">
-                                <div class="flex items-center gap-1.5">
-                                    <Layers class="w-3.5 h-3.5 shrink-0" style="color:#AAAAAA;" />
-                                    <p class="text-xs font-semibold" style="color:#555555;">Episodes per story</p>
-                                </div>
-                                <div class="text-right">
-                                    <p class="text-sm font-bold leading-none" style="color:#1A1A1A;">Up to {{ user.subscription.effective_episode_limit }}</p>
-                                    <p class="text-xs mt-0.5" style="color:#AAAAAA;">usage tracked when stories launch</p>
-                                </div>
-                            </div>
-
-                            <p v-if="user.subscription.expires_at" class="text-xs" style="color:#AAAAAA;">
-                                Expires {{ user.subscription.expires_at }}
+                            <p v-if="user.subscription.expires_at" class="text-xs text-muted-foreground">
+                                Subscription expires {{ user.subscription.expires_at }}
                             </p>
                         </div>
                     </template>
                     <template v-else>
-                        <p class="text-xs pt-3" style="border-top:1px solid #EBEBEB; color:#AAAAAA;">No active subscription — assign a plan above.</p>
+                        <div class="border-t border-[#EBEBEB] px-5 py-3">
+                            <p class="text-xs text-muted-foreground">No active subscription — assign a plan above.</p>
+                        </div>
                     </template>
                 </div>
             </div>
 
-            <div v-if="filtered.length === 0" class="py-16 text-center">
-                <Users class="w-8 h-8 mx-auto mb-3" style="color: #DDDDDD;" />
-                <p class="text-sm font-semibold" style="color: #1A1A1A;">No users found</p>
-                <p class="text-xs mt-1" style="color: #AAAAAA;">Try a different search term</p>
+            <!-- Empty state -->
+            <div v-if="filtered.length === 0" class="py-20 text-center bg-white rounded-2xl ring-1 ring-[#DDDDDD]">
+                <div class="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                    <Users class="w-6 h-6 text-muted-foreground" />
+                </div>
+                <p class="text-sm font-semibold text-[#1A1A1A]">No users found</p>
+                <p class="text-xs mt-1 text-muted-foreground">Try a different search term</p>
             </div>
         </div>
+
+        <!-- Delete user dialog -->
+        <Dialog v-model:open="deleteDialogOpen">
+            <DialogContent class="max-w-sm" v-if="deletingUser">
+                <DialogHeader>
+                    <DialogTitle>Delete User</DialogTitle>
+                    <DialogDescription>
+                        Are you sure you want to permanently delete
+                        <span class="font-semibold text-foreground">{{ deletingUser.name }}</span>?
+                        This cannot be undone.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                    <Button variant="outline" @click="deletingUser = null">Cancel</Button>
+                    <Button variant="destructive" @click="confirmDelete">Delete User</Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Create / Edit user dialog -->
+        <Dialog v-model:open="userModalOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <DialogTitle>{{ userModalMode === 'create' ? 'Add User' : 'Edit Profile' }}</DialogTitle>
+                    <DialogDescription>
+                        {{ userModalMode === 'create' ? 'Create a new user account.' : `Editing ${userModalUser?.name}.` }}
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <Label for="user-name">Name</Label>
+                        <Input id="user-name" v-model="userForm.name" placeholder="Full name" />
+                        <p v-if="userForm.errors.name" class="text-xs text-destructive">{{ userForm.errors.name }}</p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <Label for="user-email">Email</Label>
+                        <Input id="user-email" v-model="userForm.email" type="email" placeholder="email@example.com" />
+                        <p v-if="userForm.errors.email" class="text-xs text-destructive">{{ userForm.errors.email }}</p>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <Label>Role</Label>
+                        <Select v-model="userForm.tier">
+                            <SelectTrigger class="w-full">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="user">User</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <p v-if="userForm.errors.tier" class="text-xs text-destructive">{{ userForm.errors.tier }}</p>
+                    </div>
+
+                    <template v-if="userModalMode === 'create'">
+                        <div class="space-y-1.5">
+                            <Label for="user-password">Password</Label>
+                            <Input id="user-password" v-model="userForm.password" type="password" placeholder="Min. 8 characters" />
+                            <p v-if="userForm.errors.password" class="text-xs text-destructive">{{ userForm.errors.password }}</p>
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label for="user-confirm">Confirm Password</Label>
+                            <Input id="user-confirm" v-model="userForm.password_confirmation" type="password" placeholder="Repeat password" />
+                        </div>
+                    </template>
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" @click="userModalOpen = false">Cancel</Button>
+                    <Button
+                        :disabled="userForm.processing"
+                        class="bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 font-semibold transition-all duration-300"
+                        @click="submitUser"
+                    >
+                        {{ userModalMode === 'create' ? 'Create User' : 'Save Changes' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Reset password dialog -->
+        <Dialog v-model:open="passwordModalOpen">
+            <DialogContent class="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle>Reset Password</DialogTitle>
+                    <DialogDescription>{{ passwordModalUser?.name }}</DialogDescription>
+                </DialogHeader>
+
+                <div class="space-y-4">
+                    <div class="space-y-1.5">
+                        <Label for="new-password">New Password</Label>
+                        <Input id="new-password" v-model="passwordForm.password" type="password" placeholder="Min. 8 characters" />
+                        <p v-if="passwordForm.errors.password" class="text-xs text-destructive">{{ passwordForm.errors.password }}</p>
+                    </div>
+                    <div class="space-y-1.5">
+                        <Label for="confirm-password">Confirm Password</Label>
+                        <Input id="confirm-password" v-model="passwordForm.password_confirmation" type="password" placeholder="Repeat password" />
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <Button variant="outline" @click="passwordModalOpen = false">Cancel</Button>
+                    <Button
+                        :disabled="passwordForm.processing"
+                        class="bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 font-semibold transition-all duration-300"
+                        @click="submitPassword"
+                    >
+                        Reset Password
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AdminLayout>
 </template>
