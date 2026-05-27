@@ -36,6 +36,16 @@ class User extends Authenticatable
         return $this->hasMany(UserSubscription::class)->latest();
     }
 
+    public function businessProfile(): HasOne
+    {
+        return $this->hasOne(BusinessProfile::class)->latestOfMany();
+    }
+
+    public function stories(): HasMany
+    {
+        return $this->hasMany(Story::class)->latest();
+    }
+
     public function activeSubscription(): HasOne
     {
         return $this->hasOne(UserSubscription::class)
