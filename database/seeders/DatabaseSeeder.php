@@ -20,11 +20,6 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
         ]);
 
-        User::factory()->create([
-            'name' => 'Test User',
-            'email' => 'test@example.com',
-        ])->assignRole('admin');
-
         User::firstOrCreate(['email' => 'support@storycreator.bot'], [
             'name' => 'Support',
             'password' => bcrypt('password'),
