@@ -29,14 +29,16 @@ const editingPlan = ref(null);
 const getEditForm = (plan) => {
     if (!editForms.value[plan.id]) {
         editForms.value[plan.id] = useForm({
-            label:             plan.label,
-            episode_limit:     plan.episode_limit,
-            stories_per_month: plan.stories_per_month,
-            refine_monthly:    plan.refine_monthly,
-            price_monthly:     plan.price_monthly,
-            price_yearly:      plan.price_yearly,
-            trial_months:      plan.trial_months,
-            is_active:         plan.is_active,
+            label:                 plan.label,
+            episode_limit:         plan.episode_limit,
+            stories_per_month:     plan.stories_per_month,
+            refine_monthly:        plan.refine_monthly,
+            price_monthly:         plan.price_monthly,
+            price_yearly:          plan.price_yearly,
+            trial_months:          plan.trial_months,
+            is_active:             plan.is_active,
+            stripe_price_monthly:  plan.stripe_price_monthly ?? '',
+            stripe_price_yearly:   plan.stripe_price_yearly  ?? '',
         });
     }
     return editForms.value[plan.id];
@@ -307,6 +309,23 @@ const editDialogOpen = computed({
                             <div class="space-y-1.5">
                                 <Label class="text-xs">Trial months</Label>
                                 <Input v-model.number="getEditForm(editingPlan).trial_months" type="number" min="0" class="text-center" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <Separator />
+
+                    <!-- Stripe Price IDs -->
+                    <div class="space-y-3">
+                        <p class="text-sm font-semibold" style="color: #1A1A1A;">Stripe Price IDs</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <p class="text-xs text-muted-foreground mb-1">Monthly (price_...)</p>
+                                <Input v-model="getEditForm(editingPlan).stripe_price_monthly" placeholder="price_xxx" class="font-mono text-xs" />
+                            </div>
+                            <div>
+                                <p class="text-xs text-muted-foreground mb-1">Yearly (price_...)</p>
+                                <Input v-model="getEditForm(editingPlan).stripe_price_yearly" placeholder="price_xxx" class="font-mono text-xs" />
                             </div>
                         </div>
                     </div>

@@ -15,6 +15,8 @@ class Plan extends Model
         'refine_monthly',
         'price_monthly',
         'price_yearly',
+        'stripe_price_monthly',
+        'stripe_price_yearly',
         'trial_months',
         'is_active',
     ];
@@ -29,6 +31,11 @@ class Plan extends Model
     public function subscriptions(): HasMany
     {
         return $this->hasMany(UserSubscription::class);
+    }
+
+    public function stripePriceId(string $interval): ?string
+    {
+        return $interval === 'yearly' ? $this->stripe_price_yearly : $this->stripe_price_monthly;
     }
 
     public function isFree(): bool

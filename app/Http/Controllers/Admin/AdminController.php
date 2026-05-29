@@ -219,14 +219,16 @@ class AdminController extends Controller
     public function updatePlan(Request $request, Plan $plan)
     {
         $validated = $request->validate([
-            'label' => 'required|string|max:100',
-            'episode_limit' => 'required|integer|min:1',
-            'stories_per_month' => 'required|integer|min:0',
-            'refine_monthly' => 'required|integer|min:0',
-            'price_monthly' => 'required|integer|min:0',
-            'price_yearly' => 'required|integer|min:0',
-            'trial_months' => 'required|integer|min:0',
-            'is_active' => 'required|boolean',
+            'label'                => 'required|string|max:100',
+            'episode_limit'        => 'required|integer|min:1',
+            'stories_per_month'    => 'required|integer|min:0',
+            'refine_monthly'       => 'required|integer|min:0',
+            'price_monthly'        => 'required|integer|min:0',
+            'price_yearly'         => 'required|integer|min:0',
+            'trial_months'         => 'required|integer|min:0',
+            'is_active'            => 'required|boolean',
+            'stripe_price_monthly' => 'nullable|string|max:255',
+            'stripe_price_yearly'  => 'nullable|string|max:255',
         ]);
 
         $plan->update($validated);

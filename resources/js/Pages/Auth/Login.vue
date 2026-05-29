@@ -203,6 +203,25 @@ const submit = () => {
                     </button>
 
                 </form>
+
+                <!-- Divider -->
+                <div class="flex items-center gap-3 my-6">
+                    <div class="flex-1 h-px" style="background:#DDDDDD;" />
+                    <span class="text-xs font-medium" style="color:#AAAAAA;">or</span>
+                    <div class="flex-1 h-px" style="background:#DDDDDD;" />
+                </div>
+
+                <!-- Register CTA -->
+                <Link
+                    :href="route('register')"
+                    class="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer"
+                    style="border: 1.5px solid #DDDDDD; color: #1A1A1A; background: #FFFFFF;"
+                    onmouseover="this.style.borderColor='#F5A000'"
+                    onmouseout="this.style.borderColor='#DDDDDD'"
+                >
+                    Create a free account
+                </Link>
+
             </div>
         </div>
 

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\BillingController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StoryController;
 use Illuminate\Foundation\Application;
@@ -20,7 +21,19 @@ Route::get('/dashboard', function () {
     return to_route('stories.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
+// Billing — auth + verified, no subscription check
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/billing/plans',     [BillingController::class, 'plans'])->name('billing.plans');
+    Route::post('/billing/free',     [BillingController::class, 'selectFree'])->name('billing.free');
+    Route::post('/billing/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
+    Route::get('/billing/success',   [BillingController::class, 'success'])->name('billing.success');
+});
+
+// Stripe webhook — no auth, no CSRF
+Route::post('/stripe/webhook', [BillingController::class, 'webhook'])->name('stripe.webhook');
+
+// Stories — require active subscription
+Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function () {
     Route::get('/stories',                          [StoryController::class, 'index'])->name('stories.index');
     Route::get('/stories/create',                   [StoryController::class, 'create'])->name('stories.create');
     Route::post('/stories',                         [StoryController::class, 'store'])->name('stories.store');
