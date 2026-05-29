@@ -6,7 +6,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Loader2, Check, Pencil } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil } from 'lucide-vue-next';
 
 const props = defineProps({ profile: Object });
 
@@ -22,10 +22,14 @@ const basics = ref({
 const canStartInterview = computed(() => basics.value.business_name.trim().length > 0);
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
-const chatLog      = ref([]);    // { role: 'user'|'assistant', content: string }
+// chatLog contains ONLY real API messages — never display-only content.
+// Anthropic requires: messages must start with role:'user' and alternate.
+const chatLog      = ref([]);
+const welcomeMsg   = ref('');    // shown in UI only, never sent to Claude
 const currentInput = ref('');
 const isLoading    = ref(false);
 const complete     = ref(false);
+const chatError    = ref('');    // shown in UI only — never sent to Claude
 const chatBottom   = ref(null);
 const inputRef     = ref(null);
 
@@ -49,6 +53,14 @@ const scrollDown = () => {
 const callInterview = async () => {
     isLoading.value = true;
     try {
+        // Anthropic requires messages to start with role:'user' and alternate.
+        // chatLog may be empty (first call) or start with assistant (Claude's first question).
+        // In both cases, prepend a hidden bootstrap user message so the sequence is valid.
+        let messages = chatLog.value;
+        if (messages.length === 0 || messages[0].role === 'assistant') {
+            messages = [{ role: 'user', content: 'Please begin the interview.' }, ...messages];
+        }
+
         const res = await fetch(route('stories.interview'), {
             method: 'POST',
             headers: {
@@ -56,7 +68,7 @@ const callInterview = async () => {
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
             },
             body: JSON.stringify({
-                messages:      chatLog.value,
+                messages,
                 business_name: basics.value.business_name,
                 business_url:  basics.value.business_url,
                 industry:      basics.value.industry,
@@ -66,19 +78,18 @@ const callInterview = async () => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
         const data = await res.json();
-        chatLog.value.push({ role: 'assistant', content: data.message });
-        scrollDown();
+        chatError.value = '';
+        if (data.message) {
+            chatLog.value.push({ role: 'assistant', content: data.message });
+            scrollDown();
+        }
 
         if (data.complete) {
             complete.value = true;
             setTimeout(() => { phase.value = 2; }, 1200);
         }
     } catch (err) {
-        chatLog.value.push({
-            role: 'assistant',
-            content: 'Sorry, something went wrong. Please try again.',
-        });
-        scrollDown();
+        chatError.value = 'Something went wrong. Please try again.';
     } finally {
         isLoading.value = false;
         nextTick(() => inputRef.value?.focus());
@@ -91,15 +102,12 @@ const startInterview = async () => {
     phase.value = 1;
     chatLog.value = [];
     complete.value = false;
+    chatError.value = '';
 
-    // Show a static welcome immediately so the chat is never blank
-    chatLog.value.push({
-        role: 'assistant',
-        content: `Hi! I'm StoryBot. I'm going to ask you a few questions about ${basics.value.business_name} — just answer naturally, like you're telling a friend. Let's get started.`,
-    });
+    // Welcome shown in UI only — NOT in chatLog, so it never reaches the API
+    welcomeMsg.value = `Hi! I'm StoryBot. I'm going to ask you a few questions about ${basics.value.business_name} — just answer naturally, like you're telling a friend. Let's get started.`;
     scrollDown();
 
-    // Then load the first real question from Claude
     await callInterview();
 };
 
@@ -128,9 +136,19 @@ onMounted(async () => {
     if (raw) {
         try {
             const s = JSON.parse(raw);
-            basics.value       = s.basics       ?? basics.value;
-            chatLog.value      = s.chatLog       ?? [];
-            complete.value     = s.complete      ?? false;
+            basics.value  = s.basics   ?? basics.value;
+            complete.value = s.complete ?? false;
+            // Strip display-only messages that should never have been in chatLog:
+            // - The old hardcoded welcome ("Hi! I'm StoryBot...")
+            // - Old error messages
+            const STALE = ["Hi! I'm StoryBot", 'Sorry, something went wrong'];
+            chatLog.value = (s.chatLog ?? []).filter(
+                m => !STALE.some(prefix => m.content?.startsWith(prefix))
+            );
+            // Restore welcome display if we're back in the chat phase
+            if ((s.phase ?? 0) === 1 && s.basics?.business_name) {
+                welcomeMsg.value = `Hi! I'm StoryBot. I'm going to ask you a few questions about ${s.basics.business_name} — just answer naturally, like you're telling a friend. Let's get started.`;
+            }
             episodeCount.value = s.episodeCount  ?? 5;
             format.value       = s.format        ?? 'social';
             phase.value        = s.phase         ?? 0;
@@ -178,15 +196,22 @@ const onKeydown = (e) => {
 };
 
 // ─── Final generate ───────────────────────────────────────────────────────────
+const generateError = ref('');
+
 const submit = () => {
-    clearSession(); // wipe saved session so next story starts fresh
+    clearSession();
+    generateError.value = '';
     storeForm.business_name = basics.value.business_name;
     storeForm.business_url  = basics.value.business_url;
     storeForm.industry      = basics.value.industry;
     storeForm.messages      = chatLog.value;
     storeForm.episode_count = episodeCount.value;
     storeForm.format        = format.value;
-    storeForm.post(route('stories.store'));
+    storeForm.post(route('stories.store'), {
+        onError: () => {
+            generateError.value = 'Something went wrong generating your story. Please try again.';
+        },
+    });
 };
 
 // ─── Back navigation ─────────────────────────────────────────────────────────
@@ -355,6 +380,17 @@ const counts = [3, 5, 7, 10];
             >
                 <!-- Messages — flex-1 + min-h-0 allows it to shrink and scroll -->
                 <div class="flex-1 min-h-0 space-y-4 overflow-y-auto pb-4 pr-1">
+
+                    <!-- Welcome bubble — display only, never in chatLog or sent to Claude -->
+                    <div v-if="welcomeMsg" class="flex gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center mt-0.5">
+                            <Sparkles class="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <div class="max-w-[80%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed bg-white border border-[#DDDDDD] text-[#1A1A1A]">
+                            {{ welcomeMsg }}
+                        </div>
+                    </div>
+
                     <div
                         v-for="(msg, i) in chatLog"
                         :key="i"
@@ -395,6 +431,15 @@ const counts = [3, 5, 7, 10];
                     <div ref="chatBottom" />
                 </div>
 
+                <!-- Error banner — shown above input, never sent to Claude -->
+                <div
+                    v-if="chatError"
+                    class="flex-shrink-0 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 mt-2"
+                >
+                    <p class="text-sm text-red-600">{{ chatError }}</p>
+                    <button type="button" @click="chatError = ''" class="text-red-400 hover:text-red-600 cursor-pointer text-xs font-semibold">Dismiss</button>
+                </div>
+
                 <!-- Input — always pinned to the bottom -->
                 <div
                     class="flex-shrink-0 bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end mt-2"
@@ -427,6 +472,36 @@ const counts = [3, 5, 7, 10];
                 </p>
             </div>
 
+            <!-- ─── PHASE 2: Generating (full-screen loader) ─────────────────── -->
+            <div v-else-if="storeForm.processing" class="flex-1 flex items-center justify-center px-4 py-10">
+                <div class="text-center max-w-sm">
+                    <!-- Pulsing logo -->
+                    <div class="relative inline-flex items-center justify-center mb-8">
+                        <div class="absolute w-24 h-24 rounded-full bg-amber-100 animate-ping opacity-40" />
+                        <div class="absolute w-20 h-20 rounded-full bg-amber-100 animate-ping opacity-30" style="animation-delay: 300ms" />
+                        <div class="relative w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center shadow-lg">
+                            <Sparkles class="w-8 h-8 text-white animate-pulse" />
+                        </div>
+                    </div>
+
+                    <h2 class="text-2xl font-black text-[#1A1A1A] mb-2">Crafting your story…</h2>
+                    <p class="text-[#555555] mb-6">
+                        StoryCreator is writing
+                        <span class="font-semibold text-[#1A1A1A]">{{ episodeCount }} episodes</span>
+                        for <span class="font-semibold text-[#1A1A1A]">{{ basics.business_name }}</span>.
+                    </p>
+
+                    <!-- Animated progress dots -->
+                    <div class="flex items-center justify-center gap-2 mb-6">
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:0ms" />
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:150ms" />
+                        <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
+                    </div>
+
+                    <p class="text-xs text-[#AAAAAA]">This takes 15–30 seconds. Please don't close this page.</p>
+                </div>
+            </div>
+
             <!-- ─── PHASE 2: Generate options ───────────────────────────────── -->
             <div v-else class="flex-1 flex items-start justify-center px-4 py-10">
                 <div class="w-full max-w-lg">
@@ -440,6 +515,11 @@ const counts = [3, 5, 7, 10];
                             <strong>{{ basics.business_name }}</strong>.
                             Now choose your episode format.
                         </p>
+                    </div>
+
+                    <!-- Error message -->
+                    <div v-if="generateError" class="mb-4 bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-600">
+                        {{ generateError }}
                     </div>
 
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-8">
@@ -500,13 +580,11 @@ const counts = [3, 5, 7, 10];
 
                         <Button
                             type="button"
-                            :disabled="storeForm.processing"
                             @click="submit"
-                            class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-12 rounded-xl transition-all duration-300 cursor-pointer disabled:opacity-60"
+                            class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-12 rounded-xl transition-all duration-300 cursor-pointer"
                         >
-                            <Loader2 v-if="storeForm.processing" class="w-4 h-4 animate-spin" />
-                            <Sparkles v-else class="w-4 h-4" />
-                            {{ storeForm.processing ? 'Generating your story…' : 'Generate My Story' }}
+                            <Sparkles class="w-4 h-4" />
+                            Generate My Story
                         </Button>
                     </div>
                 </div>

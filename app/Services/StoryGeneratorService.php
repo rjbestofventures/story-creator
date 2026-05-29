@@ -77,7 +77,15 @@ PROMPT;
             temperature: 0.8,
         );
 
-        $content = $response->content[0]->text;
+        // The model may return a thinking block first — find the actual text block
+        $textBlock = null;
+        foreach ($response->content as $block) {
+            if ($block->type === 'text') {
+                $textBlock = $block;
+                break;
+            }
+        }
+        $content = $textBlock?->text ?? '';
 
         // Strip any accidental markdown fences
         $content = preg_replace('/^```(?:json)?\s*/m', '', $content);

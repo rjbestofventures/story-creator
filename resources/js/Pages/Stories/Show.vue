@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue';
+import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
@@ -8,62 +8,58 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/Components/ui/dialog';
 import {
-    ArrowLeft, RefreshCcw, Copy, Check, Sparkles,
-    BookOpen, ChevronLeft, ChevronRight, Loader2
+    ArrowLeft, Copy, Check, RefreshCcw, Sparkles, Loader2, Plus
 } from 'lucide-vue-next';
 
 const props = defineProps({
     story: Object,
 });
 
-const episodes  = computed(() => props.story.episodes ?? []);
-const activeIdx = ref(0);
-const active    = computed(() => episodes.value[activeIdx.value] ?? null);
+const episodes = props.story.episodes ?? [];
+const businessName = props.story.business_profile?.business_name ?? 'Your Business';
 
-const copiedIdx = ref(null);
-const copyText = async (text, idx) => {
-    await navigator.clipboard.writeText(text);
-    copiedIdx.value = idx;
-    setTimeout(() => { copiedIdx.value = null; }, 2000);
+const formatLabel = { social: 'Social Post', linkedin: 'LinkedIn', blog: 'Blog' };
+const formatColor = {
+    social:   'bg-blue-50 text-blue-700 border-blue-200',
+    linkedin: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    blog:     'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 
-// Regenerate
+// ─── Copy ─────────────────────────────────────────────────────────────────────
+const copied = ref(null);
+const copyEpisode = async (ep) => {
+    await navigator.clipboard.writeText(ep.content);
+    copied.value = ep.id;
+    setTimeout(() => { copied.value = null; }, 2000);
+};
+
+// ─── Regenerate ───────────────────────────────────────────────────────────────
 const regenOpen    = ref(false);
+const regenTarget  = ref(null);
 const regenForm    = useForm({ episode_number: null });
 
 const openRegen = (ep) => {
+    regenTarget.value = ep;
     regenForm.episode_number = ep.episode_number;
     regenOpen.value = true;
 };
 
 const confirmRegen = () => {
     regenForm.post(route('stories.regenerate', props.story.id), {
-        onSuccess: () => { regenOpen.value = false; },
+        onSuccess: () => { regenOpen.value = false; regenTarget.value = null; },
         onFinish:  () => { regenOpen.value = false; },
     });
-};
-
-const formatLabel = {
-    social:   'Social Post',
-    linkedin: 'LinkedIn',
-    blog:     'Blog',
-};
-
-const formatColor = {
-    social:   'bg-blue-50 text-blue-700 border-blue-200',
-    linkedin: 'bg-indigo-50 text-indigo-700 border-indigo-200',
-    blog:     'bg-emerald-50 text-emerald-700 border-emerald-200',
 };
 </script>
 
 <template>
-    <Head :title="story.title" />
+    <Head :title="`The Story of ${businessName}`" />
     <AuthenticatedLayout>
         <div class="min-h-screen bg-[#FAFAF8]">
 
             <!-- Top bar -->
             <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-4">
-                <div class="max-w-5xl mx-auto flex items-center justify-between">
+                <div class="max-w-3xl mx-auto flex items-center justify-between">
                     <Link
                         :href="route('stories.index')"
                         class="flex items-center gap-2 text-sm text-[#555555] hover:text-[#1A1A1A] transition-colors cursor-pointer"
@@ -71,136 +67,119 @@ const formatColor = {
                         <ArrowLeft class="w-4 h-4" />
                         My Stories
                     </Link>
-                    <div class="flex items-center gap-2">
-                        <Sparkles class="w-4 h-4 text-[#F5A000]" />
-                        <span class="text-sm font-semibold text-[#1A1A1A] truncate max-w-xs">{{ story.title }}</span>
-                    </div>
-                    <div class="w-24" />
+                    <Link :href="route('stories.create')">
+                        <Button
+                            class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-9 px-4 rounded-xl text-sm transition-all duration-300 cursor-pointer"
+                        >
+                            <Plus class="w-3.5 h-3.5" />
+                            New Story
+                        </Button>
+                    </Link>
                 </div>
             </div>
 
-            <div class="max-w-5xl mx-auto px-4 md:px-8 py-6">
-                <div class="grid grid-cols-1 lg:grid-cols-[260px_1fr] gap-6">
+            <div class="max-w-3xl mx-auto px-4 md:px-8 py-10">
 
-                    <!-- Episode list sidebar -->
-                    <div class="space-y-2">
-                        <p class="text-xs font-semibold text-[#555555] uppercase tracking-wide px-1 mb-3">
-                            {{ episodes.length }} Episodes
-                        </p>
-                        <button
-                            v-for="(ep, i) in episodes"
-                            :key="ep.id"
-                            type="button"
-                            @click="activeIdx = i"
-                            class="w-full text-left p-3.5 rounded-xl border-2 transition-all duration-150 cursor-pointer"
-                            :class="activeIdx === i
-                                ? 'border-[#F5A000] bg-amber-50'
-                                : 'border-[#DDDDDD] bg-white hover:border-[#F5A000]/40'"
-                        >
-                            <div class="flex items-center gap-2 mb-1">
-                                <span
-                                    class="text-xs font-black px-1.5 py-0.5 rounded-md"
-                                    :class="activeIdx === i
-                                        ? 'bg-[#F5A000] text-white'
-                                        : 'bg-gray-100 text-[#555555]'"
-                                >
-                                    Ep {{ ep.episode_number }}
-                                </span>
-                            </div>
-                            <p class="text-sm font-semibold text-[#1A1A1A] leading-snug line-clamp-2">
-                                {{ ep.title }}
-                            </p>
-                        </button>
+                <!-- Story header -->
+                <div class="mb-10 text-center">
+                    <div class="inline-flex items-center gap-2 text-xs font-semibold text-[#F5A000] uppercase tracking-widest mb-3">
+                        <Sparkles class="w-3.5 h-3.5" />
+                        AI Generated Story
                     </div>
+                    <h1 class="text-3xl md:text-4xl font-black text-[#1A1A1A] mb-3">
+                        The Story of {{ businessName }}
+                    </h1>
+                    <p class="text-[#555555] text-lg">
+                        Here's what StoryCreator generated from your interview.
+                        <span class="text-[#F5A000] font-semibold">{{ episodes.length }} episodes</span> ready to publish.
+                    </p>
+                </div>
 
-                    <!-- Active episode -->
-                    <div v-if="active" class="bg-white rounded-2xl border border-[#DDDDDD] flex flex-col">
-
+                <!-- Episodes — stacked as full articles -->
+                <div class="space-y-6">
+                    <article
+                        v-for="ep in episodes"
+                        :key="ep.id"
+                        class="bg-white rounded-2xl border border-[#DDDDDD] hover:border-[#F5A000]/30 hover:shadow-sm transition-all duration-200 overflow-hidden"
+                    >
                         <!-- Episode header -->
-                        <div class="flex items-start justify-between gap-4 p-6 border-b border-[#DDDDDD]">
-                            <div>
-                                <div class="flex items-center gap-2 mb-2">
-                                    <span class="text-xs font-black bg-[#F5A000] text-white px-2 py-0.5 rounded-md">
-                                        Episode {{ active.episode_number }}
-                                    </span>
-                                    <Badge
-                                        :class="formatColor[active.format]"
-                                        class="text-xs font-semibold border"
-                                    >
-                                        {{ formatLabel[active.format] ?? active.format }}
-                                    </Badge>
-                                </div>
-                                <h2 class="text-xl font-black text-[#1A1A1A]">{{ active.title }}</h2>
+                        <div class="flex items-start justify-between gap-4 px-6 pt-6 pb-4 border-b border-[#F5F5F5]">
+                            <div class="flex items-center gap-3">
+                                <span class="flex-shrink-0 text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg">
+                                    Episode {{ ep.episode_number }}
+                                </span>
+                                <Badge
+                                    :class="formatColor[ep.format]"
+                                    class="text-xs font-semibold border"
+                                >
+                                    {{ formatLabel[ep.format] ?? ep.format }}
+                                </Badge>
                             </div>
+                            <!-- Actions -->
                             <div class="flex items-center gap-1.5 flex-shrink-0">
                                 <button
                                     type="button"
-                                    @click="openRegen(active)"
-                                    title="Regenerate this episode"
-                                    class="flex items-center gap-1.5 text-xs font-semibold text-[#555555] hover:text-[#F5A000] px-3 h-8 rounded-lg hover:bg-amber-50 border border-[#DDDDDD] hover:border-[#F5A000]/40 transition-all duration-150 cursor-pointer"
+                                    @click="openRegen(ep)"
+                                    class="flex items-center gap-1.5 text-xs font-semibold text-[#555555] hover:text-[#F5A000] px-3 h-8 rounded-lg border border-[#DDDDDD] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
                                 >
                                     <RefreshCcw class="w-3.5 h-3.5" />
-                                    Regenerate
+                                    <span class="hidden sm:inline">Regenerate</span>
                                 </button>
                                 <button
                                     type="button"
-                                    @click="copyText(active.content, active.id)"
-                                    title="Copy to clipboard"
+                                    @click="copyEpisode(ep)"
                                     class="flex items-center gap-1.5 text-xs font-semibold text-white px-3 h-8 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br transition-all duration-300 cursor-pointer"
                                 >
-                                    <Check v-if="copiedIdx === active.id" class="w-3.5 h-3.5" />
+                                    <Check v-if="copied === ep.id" class="w-3.5 h-3.5" />
                                     <Copy v-else class="w-3.5 h-3.5" />
-                                    {{ copiedIdx === active.id ? 'Copied!' : 'Copy' }}
+                                    {{ copied === ep.id ? 'Copied!' : 'Copy' }}
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Episode content -->
-                        <div class="flex-1 p-6">
-                            <div class="prose prose-sm max-w-none text-[#1A1A1A] leading-relaxed whitespace-pre-wrap font-[inherit]">
-                                {{ active.content }}
+                        <!-- Episode title + content -->
+                        <div class="px-6 py-5">
+                            <h2 class="text-xl font-black text-[#1A1A1A] mb-4">
+                                {{ ep.title }}
+                            </h2>
+                            <div class="text-[#333333] text-[15px] leading-[1.8] whitespace-pre-wrap">
+                                {{ ep.content }}
                             </div>
                         </div>
-
-                        <!-- Episode navigation footer -->
-                        <div class="flex items-center justify-between px-6 py-4 border-t border-[#DDDDDD]">
-                            <button
-                                type="button"
-                                :disabled="activeIdx === 0"
-                                @click="activeIdx--"
-                                class="flex items-center gap-1.5 text-sm font-semibold text-[#555555] disabled:opacity-30 hover:text-[#1A1A1A] transition-colors cursor-pointer disabled:cursor-default"
-                            >
-                                <ChevronLeft class="w-4 h-4" />
-                                Previous
-                            </button>
-                            <span class="text-xs text-[#AAAAAA]">
-                                {{ activeIdx + 1 }} / {{ episodes.length }}
-                            </span>
-                            <button
-                                type="button"
-                                :disabled="activeIdx === episodes.length - 1"
-                                @click="activeIdx++"
-                                class="flex items-center gap-1.5 text-sm font-semibold text-[#555555] disabled:opacity-30 hover:text-[#1A1A1A] transition-colors cursor-pointer disabled:cursor-default"
-                            >
-                                Next
-                                <ChevronRight class="w-4 h-4" />
-                            </button>
-                        </div>
-                    </div>
-
+                    </article>
                 </div>
-            </div>
 
+                <!-- Bottom CTA -->
+                <div class="mt-12 bg-white rounded-2xl border border-[#DDDDDD] p-8 text-center">
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-50 mb-4">
+                        <Sparkles class="w-6 h-6 text-[#F5A000]" />
+                    </div>
+                    <h3 class="text-xl font-black text-[#1A1A1A] mb-2">Ready to tell your next story?</h3>
+                    <p class="text-[#555555] mb-6 max-w-md mx-auto">
+                        Each story builds your brand's narrative. Start a new interview to explore a different angle of your business.
+                    </p>
+                    <Link :href="route('stories.create')">
+                        <Button
+                            class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
+                        >
+                            <Plus class="w-4 h-4" />
+                            Create Another Story
+                        </Button>
+                    </Link>
+                </div>
+
+            </div>
         </div>
 
-        <!-- Regenerate confirmation dialog -->
+        <!-- Regenerate dialog -->
         <Dialog v-model:open="regenOpen">
             <DialogContent class="max-w-md">
                 <DialogHeader>
                     <DialogTitle class="text-[#1A1A1A]">Regenerate episode?</DialogTitle>
                     <DialogDescription class="text-[#555555]">
-                        This will replace Episode {{ regenForm.episode_number }} with a new AI-generated version.
-                        This uses 1 refine credit and cannot be undone.
+                        Episode {{ regenTarget?.episode_number }} —
+                        "<span class="font-semibold text-[#1A1A1A]">{{ regenTarget?.title }}</span>"
+                        will be replaced with a new AI-generated version. This uses 1 refine credit.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">
@@ -212,7 +191,7 @@ const formatColor = {
                     >
                         <Loader2 v-if="regenForm.processing" class="w-4 h-4 animate-spin" />
                         <RefreshCcw v-else class="w-4 h-4" />
-                        {{ regenForm.processing ? 'Regenerating...' : 'Yes, Regenerate' }}
+                        {{ regenForm.processing ? 'Regenerating…' : 'Yes, Regenerate' }}
                     </Button>
                 </DialogFooter>
             </DialogContent>
