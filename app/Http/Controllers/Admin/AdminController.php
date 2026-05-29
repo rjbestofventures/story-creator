@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
+use App\Models\SiteSetting;
 use App\Models\User;
 use App\Models\UserSubscription;
 use Illuminate\Http\Request;
@@ -75,6 +76,27 @@ class AdminController extends Controller
     public function billingIndex(): Response
     {
         return Inertia::render('Admin/Billing');
+    }
+
+    public function settingsIndex(): Response
+    {
+        return Inertia::render('Admin/Settings', [
+            'landing_lock_enabled'  => (bool) SiteSetting::get('landing_lock_enabled', false),
+            'landing_lock_password' => SiteSetting::get('landing_lock_password', ''),
+        ]);
+    }
+
+    public function updateSettings(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'landing_lock_enabled'  => 'required|boolean',
+            'landing_lock_password' => 'nullable|string|max:100',
+        ]);
+
+        SiteSetting::set('landing_lock_enabled', $data['landing_lock_enabled'] ? '1' : '0');
+        SiteSetting::set('landing_lock_password', $data['landing_lock_password'] ?? '');
+
+        return back();
     }
 
     // -------------------------------------------------------------------------

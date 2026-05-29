@@ -1,13 +1,14 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, FileText } from '@lucide/vue';
+import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings } from '@lucide/vue';
 import { TooltipProvider } from '@/Components/ui/tooltip';
 
 const nav = [
     { label: 'Users & Plans',   name: 'admin.users.index',   icon: Users     },
     { label: 'Manage Plans',    name: 'admin.plans.index',   icon: Layers    },
     { label: 'All Stories',     name: 'admin.stories.index', icon: BookOpen  },
-    { label: 'Usage & Billing', name: 'admin.billing.index', icon: TrendingUp },
+    { label: 'Usage & Billing', name: 'admin.billing.index',  icon: TrendingUp },
+    { label: 'Settings',        name: 'admin.settings.index', icon: Settings   },
 ];
 </script>
 

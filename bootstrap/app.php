@@ -20,7 +20,8 @@ return Application::configure(basePath: dirname(__DIR__))
             'role'                 => \Spatie\Permission\Middleware\RoleMiddleware::class,
             'permission'           => \Spatie\Permission\Middleware\PermissionMiddleware::class,
             'role_or_permission'   => \Spatie\Permission\Middleware\RoleOrPermissionMiddleware::class,
-            'requires.subscription'=> \App\Http\Middleware\RequiresSubscription::class,
+            'requires.subscription' => \App\Http\Middleware\RequiresSubscription::class,
+            'landing.lock'          => \App\Http\Middleware\CheckLandingLock::class,
         ]);
 
         $middleware->validateCsrfTokens(except: ['stripe/webhook']);

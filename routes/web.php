@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\BillingController;
+use App\Http\Controllers\LandingLockController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StoryController;
 use Illuminate\Foundation\Application;
@@ -10,12 +11,15 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
+        'canLogin'       => Route::has('login'),
+        'canRegister'    => Route::has('register'),
         'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
+        'phpVersion'     => PHP_VERSION,
     ]);
-});
+})->middleware(\App\Http\Middleware\CheckLandingLock::class)->name('welcome');
+
+Route::get('/unlock',  [LandingLockController::class, 'show'])->name('landing.unlock');
+Route::post('/unlock', [LandingLockController::class, 'unlock'])->name('landing.unlock.submit');
 
 Route::get('/dashboard', function () {
     return to_route('stories.index');
@@ -56,7 +60,9 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/users', [AdminController::class, 'usersIndex'])->name('users.index');
     Route::get('/plans', [AdminController::class, 'plansIndex'])->name('plans.index');
     Route::get('/stories', [AdminController::class, 'storiesIndex'])->name('stories.index');
-    Route::get('/billing', [AdminController::class, 'billingIndex'])->name('billing.index');
+    Route::get('/billing',  [AdminController::class, 'billingIndex'])->name('billing.index');
+    Route::get('/settings', [AdminController::class, 'settingsIndex'])->name('settings.index');
+    Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
 
     // User actions
     Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
