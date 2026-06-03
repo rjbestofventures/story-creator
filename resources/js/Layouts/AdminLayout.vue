@@ -4,12 +4,14 @@ import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings }
 import { TooltipProvider } from '@/Components/ui/tooltip';
 
 const nav = [
-    { label: 'Users & Plans',   name: 'admin.users.index',   icon: Users     },
-    { label: 'Manage Plans',    name: 'admin.plans.index',   icon: Layers    },
-    { label: 'All Stories',     name: 'admin.stories.index', icon: BookOpen  },
-    { label: 'Usage & Billing', name: 'admin.billing.index',  icon: TrendingUp },
-    { label: 'Settings',        name: 'admin.settings.index', icon: Settings   },
+    { label: 'Users & Plans',   name: 'admin.users.index',   icon: Users,      match: 'admin.users.*'     },
+    { label: 'Manage Plans',    name: 'admin.plans.index',   icon: Layers,     match: 'admin.plans.*'     },
+    { label: 'All Stories',     name: 'admin.stories.index', icon: BookOpen,   match: 'admin.stories.*'   },
+    { label: 'Usage & Billing', name: 'admin.billing.index', icon: TrendingUp, match: 'admin.billing.*'   },
+    { label: 'Settings',        name: 'admin.settings.index', icon: Settings,  match: 'admin.settings.*'  },
 ];
+
+const isActive = (item) => route().current(item.match);
 </script>
 
 <template>
@@ -48,12 +50,12 @@ const nav = [
                     :key="item.name"
                     :href="route(item.name)"
                     class="shrink-0 flex items-center gap-2 px-4 py-3.5 text-sm font-semibold whitespace-nowrap relative transition-colors"
-                    :style="route().current(item.name) ? 'color: #1A1A1A;' : 'color: #555555;'"
+                    :style="isActive(item) ? 'color: #1A1A1A;' : 'color: #555555;'"
                 >
                     <component :is="item.icon" class="w-4 h-4" />
                     {{ item.label }}
                     <span
-                        v-if="route().current(item.name)"
+                        v-if="isActive(item)"
                         class="absolute bottom-0 left-0 right-0 h-0.5"
                         style="background: linear-gradient(to right, #FFC837, #F5A000);"
                     />

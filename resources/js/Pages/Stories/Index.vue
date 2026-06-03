@@ -9,7 +9,7 @@ import {
 } from '@/Components/ui/dialog';
 import {
     Sparkles, BookOpen, Plus, Trash2, Eye, ChevronRight,
-    Zap, RefreshCcw, TrendingUp, Calendar, FileText
+    Zap, RefreshCcw, TrendingUp, Calendar, FileText, MessageSquare, Clock
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -145,22 +145,42 @@ const confirmDelete = () => {
                         <div class="p-5 flex items-start gap-4">
 
                             <!-- Icon -->
-                            <div class="flex-shrink-0 w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center">
-                                <FileText class="w-5 h-5 text-[#F5A000]" />
+                            <div
+                                class="flex-shrink-0 w-11 h-11 rounded-xl flex items-center justify-center"
+                                :class="story.status === 'interviewing' ? 'bg-blue-50' : story.status === 'interview_complete' ? 'bg-purple-50' : 'bg-amber-50'"
+                            >
+                                <MessageSquare v-if="story.status === 'interviewing'" class="w-5 h-5 text-blue-500" />
+                                <Clock v-else-if="story.status === 'interview_complete'" class="w-5 h-5 text-purple-500" />
+                                <FileText v-else class="w-5 h-5 text-[#F5A000]" />
                             </div>
 
                             <!-- Content -->
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
-                                        <h3 class="font-bold text-[#1A1A1A] truncate">{{ story.title }}</h3>
+                                        <h3 class="font-bold text-[#1A1A1A] truncate">
+                                            {{ story.title || story.business_profile?.business_name || 'Untitled Story' }}
+                                        </h3>
                                         <p class="text-sm text-[#555555] mt-0.5">
                                             {{ story.business_profile?.business_name }}
                                         </p>
                                     </div>
                                     <div class="flex items-center gap-2 flex-shrink-0">
+                                        <!-- Status badge for in-progress -->
+                                        <span
+                                            v-if="story.status === 'interviewing'"
+                                            class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200"
+                                        >
+                                            In Interview
+                                        </span>
+                                        <span
+                                            v-else-if="story.status === 'interview_complete'"
+                                            class="text-xs font-semibold px-2 py-0.5 rounded-full bg-purple-50 text-purple-600 border border-purple-200"
+                                        >
+                                            Ready to Generate
+                                        </span>
                                         <Badge
-                                            v-if="story.episodes?.[0]?.format"
+                                            v-else-if="story.episodes?.[0]?.format"
                                             :class="formatColor[story.episodes[0].format]"
                                             class="text-xs font-semibold border"
                                         >
@@ -171,7 +191,7 @@ const confirmDelete = () => {
 
                                 <!-- Meta row -->
                                 <div class="flex items-center gap-4 mt-3">
-                                    <div class="flex items-center gap-1.5 text-xs text-[#555555]">
+                                    <div v-if="story.status === 'draft'" class="flex items-center gap-1.5 text-xs text-[#555555]">
                                         <BookOpen class="w-3.5 h-3.5" />
                                         {{ story.episodes_count }} {{ story.episodes_count === 1 ? 'episode' : 'episodes' }}
                                     </div>
@@ -192,7 +212,16 @@ const confirmDelete = () => {
                                 >
                                     <Trash2 class="w-4 h-4" />
                                 </button>
+                                <!-- Resume link for in-progress -->
                                 <Link
+                                    v-if="story.status === 'interviewing' || story.status === 'interview_complete'"
+                                    :href="route('stories.resume', story.id)"
+                                    class="flex items-center gap-1.5 text-xs font-semibold text-white px-3 h-8 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br transition-all duration-150 cursor-pointer"
+                                >
+                                    Resume
+                                </Link>
+                                <Link
+                                    v-else
                                     :href="route('stories.show', story.id)"
                                     class="flex items-center gap-1.5 text-xs font-semibold text-[#555555] hover:text-[#F5A000] px-3 h-8 rounded-lg hover:bg-amber-50 transition-all duration-150 cursor-pointer"
                                 >

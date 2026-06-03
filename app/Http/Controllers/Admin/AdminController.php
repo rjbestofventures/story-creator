@@ -78,15 +78,20 @@ class AdminController extends Controller
         return Inertia::render('Admin/Billing');
     }
 
-    public function settingsIndex(): Response
+    public function settingsIndex(): \Illuminate\Http\RedirectResponse
     {
-        return Inertia::render('Admin/Settings', [
+        return to_route('admin.settings.access');
+    }
+
+    public function accessSettingsIndex(): Response
+    {
+        return Inertia::render('Admin/Settings/Access', [
             'landing_lock_enabled'  => (bool) SiteSetting::get('landing_lock_enabled', false),
             'landing_lock_password' => SiteSetting::get('landing_lock_password', ''),
         ]);
     }
 
-    public function updateSettings(Request $request): \Illuminate\Http\RedirectResponse
+    public function updateAccessSettings(Request $request): \Illuminate\Http\RedirectResponse
     {
         $data = $request->validate([
             'landing_lock_enabled'  => 'required|boolean',
@@ -95,6 +100,79 @@ class AdminController extends Controller
 
         SiteSetting::set('landing_lock_enabled', $data['landing_lock_enabled'] ? '1' : '0');
         SiteSetting::set('landing_lock_password', $data['landing_lock_password'] ?? '');
+
+        return back();
+    }
+
+    public function aiSettingsIndex(): Response
+    {
+        return Inertia::render('Admin/Settings/AI', [
+            'anthropic_api_key' => SiteSetting::get('anthropic_api_key', ''),
+            'env_key_set'       => (bool) env('ANTHROPIC_API_KEY'),
+            'interview_model'   => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
+            'generation_model'  => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
+        ]);
+    }
+
+    public function updateAiSettings(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'anthropic_api_key' => 'nullable|string|max:255',
+            'interview_model'   => 'required|string|max:100',
+            'generation_model'  => 'required|string|max:100',
+        ]);
+
+        SiteSetting::set('anthropic_api_key', $data['anthropic_api_key'] ?? '');
+        SiteSetting::set('interview_model',   $data['interview_model']);
+        SiteSetting::set('generation_model',  $data['generation_model']);
+
+        return back();
+    }
+
+    public function fetchModels(): \Illuminate\Http\JsonResponse
+    {
+        try {
+            $client = new \Anthropic\Client(apiKey: config('anthropic.api_key'));
+            $page   = $client->models->list(limit: 100);
+
+            $models = collect($page->data)
+                ->map(fn ($m) => [
+                    'id'           => $m->id,
+                    'display_name' => $m->displayName,
+                    'max_tokens'   => $m->maxTokens,
+                ])
+                ->values()
+                ->toArray();
+
+            return response()->json(['models' => $models]);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage()], 422);
+        }
+    }
+
+    public function stripeSettingsIndex(): Response
+    {
+        return Inertia::render('Admin/Settings/Stripe', [
+            'stripe_key'            => SiteSetting::get('stripe_key', ''),
+            'stripe_secret'         => SiteSetting::get('stripe_secret', ''),
+            'stripe_webhook_secret' => SiteSetting::get('stripe_webhook_secret', ''),
+            'env_key_set'           => (bool) env('STRIPE_KEY'),
+            'env_secret_set'        => (bool) env('STRIPE_SECRET'),
+            'env_webhook_set'       => (bool) env('STRIPE_WEBHOOK_SECRET'),
+        ]);
+    }
+
+    public function updateStripeSettings(Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $data = $request->validate([
+            'stripe_key'            => 'nullable|string|max:255',
+            'stripe_secret'         => 'nullable|string|max:255',
+            'stripe_webhook_secret' => 'nullable|string|max:255',
+        ]);
+
+        foreach ($data as $key => $value) {
+            SiteSetting::set($key, $value ?? '');
+        }
 
         return back();
     }

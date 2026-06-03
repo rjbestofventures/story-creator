@@ -8,10 +8,16 @@ import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil } from 'lucide-vue-next';
 
-const props = defineProps({ profile: Object });
+const props = defineProps({
+    profile: Object,
+    story:   Object, // populated when resuming an in-progress interview
+});
 
 // ─── Phase: 0 = basics, 1 = AI chat, 2 = generate options ───────────────────
 const phase = ref(0);
+
+// ─── Story ID — set after init, used for progress saves + generation ─────────
+const storyId = ref(props.story?.id ?? null);
 
 // ─── Basics ──────────────────────────────────────────────────────────────────
 const basics = ref({
@@ -22,25 +28,33 @@ const basics = ref({
 const canStartInterview = computed(() => basics.value.business_name.trim().length > 0);
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
-// chatLog contains ONLY real API messages — never display-only content.
-// Anthropic requires: messages must start with role:'user' and alternate.
 const chatLog      = ref([]);
-const welcomeMsg   = ref('');    // shown in UI only, never sent to Claude
 const currentInput = ref('');
 const isLoading    = ref(false);
 const complete     = ref(false);
-const chatError    = ref('');    // shown in UI only — never sent to Claude
+const chatError    = ref('');
 const chatBottom   = ref(null);
 const inputRef     = ref(null);
+const answerCount  = ref(0); // actual text answers submitted (excludes button clicks)
+
+// Structured response from Claude — drives button vs input mode
+const currentTurn = ref({
+    message:     '',
+    question:    '',
+    button_text: '',
+    show_input:  false,
+    complete:    false,
+});
+
+// Only show real messages in the chat (filter synthetic button-click markers)
+const displayLog = computed(() =>
+    chatLog.value.filter(m => !(m.role === 'user' && m.content.startsWith('[')))
+);
 
 // ─── Generate options ─────────────────────────────────────────────────────────
 const episodeCount = ref(5);
 const format       = ref('social');
 const storeForm    = useForm({
-    business_name: '',
-    business_url:  '',
-    industry:      '',
-    messages:      [],
     episode_count: 5,
     format:        'social',
 });
@@ -50,12 +64,36 @@ const scrollDown = () => {
     nextTick(() => chatBottom.value?.scrollIntoView({ behavior: 'smooth' }));
 };
 
-const callInterview = async () => {
+// Determine the correct UI mode from the chatLog alone (used when restoring state).
+// Returns null if the last message is from the user (meaning we need to call the API).
+// Returns {show_input, button_text} otherwise.
+const detectCurrentMode = (messages) => {
+    const last = messages[messages.length - 1];
+    if (!last) return { show_input: false, button_text: 'Get started' };
+
+    // Last message is from user — Claude hasn't responded yet, needs an API call
+    if (last.role === 'user') return null;
+
+    // Last message is from assistant — look at what came before it
+    const prev = messages[messages.length - 2];
+
+    // If nothing came before, or the message before was a [marker] button click
+    // → assistant just asked a question → user needs to type their answer
+    if (!prev || (prev.role === 'user' && prev.content.startsWith('['))) {
+        return { show_input: true, button_text: '' };
+    }
+
+    // Previous was a real user answer → assistant just acknowledged → show Next button
+    const answers = messages.filter(m => m.role === 'user' && !m.content.startsWith('['));
+    return {
+        show_input:  false,
+        button_text: answers.length === 0 ? 'Get started' : 'Next question',
+    };
+};
+
+const callInterview = async (isAnswer = false) => {
     isLoading.value = true;
     try {
-        // Anthropic requires messages to start with role:'user' and alternate.
-        // chatLog may be empty (first call) or start with assistant (Claude's first question).
-        // In both cases, prepend a hidden bootstrap user message so the sequence is valid.
         let messages = chatLog.value;
         if (messages.length === 0 || messages[0].role === 'assistant') {
             messages = [{ role: 'user', content: 'Please begin the interview.' }, ...messages];
@@ -79,15 +117,28 @@ const callInterview = async () => {
 
         const data = await res.json();
         chatError.value = '';
-        if (data.message) {
-            chatLog.value.push({ role: 'assistant', content: data.message });
-            scrollDown();
+        currentTurn.value = data;
+
+        // Only count the answer if Claude accepted it as valid
+        if (isAnswer && data.valid) {
+            answerCount.value++;
+        }
+
+        // Store combined assistant content in chatLog for API history
+        const combined = [data.message, data.question].filter(Boolean).join('\n\n');
+        if (combined.trim()) {
+            chatLog.value.push({ role: 'assistant', content: combined });
         }
 
         if (data.complete) {
             complete.value = true;
-            setTimeout(() => { phase.value = 2; }, 1200);
+            await saveProgress('interview_complete');
+            setTimeout(() => { phase.value = 2; }, 2000);
+        } else {
+            await saveProgress();
         }
+
+        scrollDown();
     } catch (err) {
         chatError.value = 'Something went wrong. Please try again.';
     } finally {
@@ -96,18 +147,65 @@ const callInterview = async () => {
     }
 };
 
+// ─── Button click — user proceeds to next question ───────────────────────────
+const handleButtonClick = async () => {
+    const marker = answerCount.value === 0 ? '[Ready to begin]' : '[Ready for next question]';
+    chatLog.value.push({ role: 'user', content: marker });
+    await callInterview();
+};
+
+// ─── Save progress to DB ──────────────────────────────────────────────────────
+const saveProgress = async (status = null) => {
+    if (!storyId.value) return;
+    try {
+        await fetch(route('stories.progress', storyId.value), {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            body: JSON.stringify({ messages: chatLog.value, status }),
+        });
+    } catch { /* non-critical, ignore */ }
+};
+
 // ─── Start interview ──────────────────────────────────────────────────────────
 const startInterview = async () => {
     if (!canStartInterview.value) return;
+
+    // Create story + profile in DB before starting
+    try {
+        const res = await fetch(route('stories.init'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            body: JSON.stringify({
+                business_name: basics.value.business_name,
+                business_url:  basics.value.business_url,
+                industry:      basics.value.industry,
+            }),
+        });
+        const data = await res.json();
+        if (res.status === 409) {
+            // Already has an in-progress interview — redirect to it
+            window.location.href = route('stories.resume', data.story_id);
+            return;
+        }
+        storyId.value = data.story_id;
+    } catch {
+        chatError.value = 'Could not start the interview. Please try again.';
+        return;
+    }
+
     phase.value = 1;
     chatLog.value = [];
+    answerCount.value = 0;
     complete.value = false;
     chatError.value = '';
-
-    // Welcome shown in UI only — NOT in chatLog, so it never reaches the API
-    welcomeMsg.value = `Hi! I'm StoryBot. I'm going to ask you a few questions about ${basics.value.business_name} — just answer naturally, like you're telling a friend. Let's get started.`;
+    currentTurn.value = { message: '', question: '', button_text: '', show_input: false, complete: false };
     scrollDown();
-
     await callInterview();
 };
 
@@ -122,45 +220,63 @@ const saveSession = () => {
         complete:     complete.value,
         episodeCount: episodeCount.value,
         format:       format.value,
+        answerCount:  answerCount.value,
+        currentTurn:  currentTurn.value,
+        storyId:      storyId.value,
     }));
 };
 
 const clearSession = () => localStorage.removeItem(SESSION_KEY);
 
-// Auto-save on every relevant state change
-watch([phase, chatLog, basics, complete, episodeCount, format], saveSession, { deep: true });
+watch([phase, chatLog, basics, complete, episodeCount, format, answerCount, currentTurn], saveSession, { deep: true });
 
 // ─── Restore or auto-start on mount ──────────────────────────────────────────
 onMounted(async () => {
+    // Resuming from DB (Stories Index → Resume link)
+    if (props.story) {
+        storyId.value     = props.story.id;
+        chatLog.value     = props.story.messages ?? [];
+        complete.value    = props.story.status === 'interview_complete';
+        answerCount.value = chatLog.value.filter(m => m.role === 'user' && !m.content.startsWith('[')).length;
+        phase.value       = complete.value ? 2 : 1;
+        clearSession();
+
+        if (!complete.value) {
+            const mode = detectCurrentMode(chatLog.value);
+            if (mode === null) {
+                // Last message was from user — Claude hadn't replied yet, fetch next
+                await callInterview();
+            } else {
+                currentTurn.value = { message: '', question: '', complete: false, ...mode };
+            }
+        }
+
+        scrollDown();
+        return;
+    }
+
     const raw = localStorage.getItem(SESSION_KEY);
     if (raw) {
         try {
             const s = JSON.parse(raw);
-            basics.value  = s.basics   ?? basics.value;
-            complete.value = s.complete ?? false;
-            // Strip display-only messages that should never have been in chatLog:
-            // - The old hardcoded welcome ("Hi! I'm StoryBot...")
-            // - Old error messages
-            const STALE = ["Hi! I'm StoryBot", 'Sorry, something went wrong'];
-            chatLog.value = (s.chatLog ?? []).filter(
-                m => !STALE.some(prefix => m.content?.startsWith(prefix))
-            );
-            // Restore welcome display if we're back in the chat phase
-            if ((s.phase ?? 0) === 1 && s.basics?.business_name) {
-                welcomeMsg.value = `Hi! I'm StoryBot. I'm going to ask you a few questions about ${s.basics.business_name} — just answer naturally, like you're telling a friend. Let's get started.`;
-            }
-            episodeCount.value = s.episodeCount  ?? 5;
-            format.value       = s.format        ?? 'social';
-            phase.value        = s.phase         ?? 0;
+            basics.value       = s.basics      ?? basics.value;
+            complete.value     = s.complete    ?? false;
+            answerCount.value  = s.answerCount ?? 0;
+            currentTurn.value  = s.currentTurn ?? currentTurn.value;
+            chatLog.value      = s.chatLog     ?? [];
+            episodeCount.value = s.episodeCount ?? 5;
+            format.value       = s.format      ?? 'social';
+            phase.value        = s.phase       ?? 0;
+            storyId.value      = s.storyId     ?? null;
 
-            // If we were mid-interview and the last message was from the user
-            // (meaning Claude hadn't replied yet), re-fetch the next question
             if (phase.value === 1 && !complete.value) {
-                const last = chatLog.value[chatLog.value.length - 1];
-                if (last?.role === 'user') {
+                const mode = detectCurrentMode(chatLog.value);
+                if (mode === null) {
+                    // Last was user message — Claude hadn't replied yet
                     await callInterview();
                 } else {
-                    nextTick(() => inputRef.value?.focus());
+                    // Restore exact turn state that was saved
+                    currentTurn.value = s.currentTurn ?? { message: '', question: '', complete: false, ...mode };
                 }
             }
             scrollDown();
@@ -185,7 +301,7 @@ const submitAnswer = async () => {
     chatLog.value.push({ role: 'user', content: text });
     currentInput.value = '';
     scrollDown();
-    await callInterview();
+    await callInterview(true); // isAnswer=true so Claude's valid field controls the counter
 };
 
 const onKeydown = (e) => {
@@ -201,13 +317,9 @@ const generateError = ref('');
 const submit = () => {
     clearSession();
     generateError.value = '';
-    storeForm.business_name = basics.value.business_name;
-    storeForm.business_url  = basics.value.business_url;
-    storeForm.industry      = basics.value.industry;
-    storeForm.messages      = chatLog.value;
     storeForm.episode_count = episodeCount.value;
     storeForm.format        = format.value;
-    storeForm.post(route('stories.store'), {
+    storeForm.post(route('stories.generate', storyId.value), {
         onError: () => {
             generateError.value = 'Something went wrong generating your story. Please try again.';
         },
@@ -215,20 +327,17 @@ const submit = () => {
 };
 
 // ─── Back navigation ─────────────────────────────────────────────────────────
-// In chat/generate phase → back to basics form (keeps session so name is pre-filled)
-// In basics phase → back to stories list
 const goBack = () => {
     if (phase.value > 0) {
-        phase.value = 0;
+        phase.value = phase.value - 1;
     }
 };
 
 // ─── Progress ─────────────────────────────────────────────────────────────────
-const userMessageCount = computed(() => chatLog.value.filter(m => m.role === 'user').length);
 const progress = computed(() => {
     if (phase.value === 0) return 0;
     if (phase.value === 2) return 100;
-    return Math.min(Math.round((userMessageCount.value / 16) * 100), 95);
+    return Math.min(Math.round((answerCount.value / 15) * 100), 90);
 });
 
 const formats = [
@@ -271,7 +380,7 @@ const counts = [3, 5, 7, 10];
                             <span class="text-xs font-semibold text-[#555555]">
                                 <template v-if="phase === 0">Step 1 of 3 — Basics</template>
                                 <template v-else-if="phase === 1">
-                                    {{ complete ? 'Interview complete' : `Question ${userMessageCount + 1} of 16` }}
+                                    {{ complete ? 'Interview complete' : `${answerCount} of 15 answered` }}
                                 </template>
                                 <template v-else>Step 3 of 3 — Generate</template>
                             </span>
@@ -378,34 +487,21 @@ const counts = [3, 5, 7, 10];
                 v-else-if="phase === 1"
                 class="flex-1 min-h-0 overflow-hidden flex flex-col max-w-2xl mx-auto w-full px-4 py-4"
             >
-                <!-- Messages — flex-1 + min-h-0 allows it to shrink and scroll -->
+                <!-- Messages scroll area -->
                 <div class="flex-1 min-h-0 space-y-4 overflow-y-auto pb-4 pr-1">
 
-                    <!-- Welcome bubble — display only, never in chatLog or sent to Claude -->
-                    <div v-if="welcomeMsg" class="flex gap-3">
-                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center mt-0.5">
-                            <Sparkles class="w-3.5 h-3.5 text-white" />
-                        </div>
-                        <div class="max-w-[80%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed bg-white border border-[#DDDDDD] text-[#1A1A1A]">
-                            {{ welcomeMsg }}
-                        </div>
-                    </div>
-
                     <div
-                        v-for="(msg, i) in chatLog"
+                        v-for="(msg, i) in displayLog"
                         :key="i"
                         class="flex gap-3"
                         :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
                     >
-                        <!-- Bot avatar -->
                         <div
                             v-if="msg.role === 'assistant'"
                             class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center mt-0.5"
                         >
                             <Sparkles class="w-3.5 h-3.5 text-white" />
                         </div>
-
-                        <!-- Bubble -->
                         <div
                             class="max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
                             :class="msg.role === 'assistant'
@@ -431,7 +527,7 @@ const counts = [3, 5, 7, 10];
                     <div ref="chatBottom" />
                 </div>
 
-                <!-- Error banner — shown above input, never sent to Claude -->
+                <!-- Error banner -->
                 <div
                     v-if="chatError"
                     class="flex-shrink-0 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 mt-2"
@@ -440,36 +536,56 @@ const counts = [3, 5, 7, 10];
                     <button type="button" @click="chatError = ''" class="text-red-400 hover:text-red-600 cursor-pointer text-xs font-semibold">Dismiss</button>
                 </div>
 
-                <!-- Input — always pinned to the bottom -->
-                <div
-                    class="flex-shrink-0 bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end mt-2"
-                    :class="complete ? 'opacity-50 pointer-events-none' : ''"
-                >
-                    <Textarea
-                        ref="inputRef"
-                        v-model="currentInput"
-                        :disabled="isLoading || complete"
-                        placeholder="Type your answer… (Enter to send, Shift+Enter for new line)"
-                        rows="2"
-                        class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0"
-                        @keydown="onKeydown"
-                    />
-                    <button
-                        type="button"
-                        :disabled="!canSubmit"
-                        @click="submitAnswer"
-                        class="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center transition-all duration-200 cursor-pointer disabled:opacity-30"
-                        :class="canSubmit
-                            ? 'bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-white hover:shadow-md'
-                            : 'bg-gray-100 text-[#AAAAAA]'"
-                    >
-                        <Send class="w-4 h-4" />
-                    </button>
+                <!-- ─── Action area — always visible ──────────────────────────── -->
+                <div class="flex-shrink-0 mt-2">
+
+                    <!-- Interview complete: navigate to generate phase -->
+                    <div v-if="complete" class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex items-center justify-between gap-3">
+                        <p class="text-sm text-[#555555]">Interview complete. Ready to generate your story.</p>
+                        <button
+                            type="button"
+                            @click="phase = 2"
+                            class="flex-shrink-0 flex items-center gap-2 h-9 px-4 rounded-xl font-bold text-sm cursor-pointer transition-all duration-200"
+                            style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                        >
+                            Continue
+                            <ArrowRight class="w-3.5 h-3.5" />
+                        </button>
+                    </div>
+
+                    <!-- Normal interview input -->
+                    <div v-else class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end">
+                        <Textarea
+                            ref="inputRef"
+                            v-model="currentInput"
+                            :disabled="isLoading || !currentTurn.show_input"
+                            :placeholder="currentTurn.show_input ? 'Type your answer… (Enter to send, Shift+Enter for new line)' : ''"
+                            rows="2"
+                            class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0 transition-opacity duration-300"
+                            :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : ''"
+                            @keydown="onKeydown"
+                        />
+
+                        <!-- Morphing button: text label → send icon -->
+                        <button
+                            type="button"
+                            :disabled="isLoading || (currentTurn.show_input && !canSubmit)"
+                            @click="currentTurn.show_input ? submitAnswer() : handleButtonClick()"
+                            class="flex-shrink-0 flex items-center justify-center font-bold text-sm transition-all duration-300 cursor-pointer disabled:opacity-40"
+                            :class="currentTurn.show_input
+                                ? 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-white hover:shadow-md'
+                                : 'h-9 px-4 gap-2 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A]'"
+                        >
+                            <Send v-if="currentTurn.show_input" class="w-4 h-4" />
+                            <template v-else>
+                                <span>{{ currentTurn.button_text || '…' }}</span>
+                                <ArrowRight class="w-3.5 h-3.5" />
+                            </template>
+                        </button>
+                    </div>
+
                 </div>
 
-                <p class="flex-shrink-0 text-center text-xs text-[#AAAAAA] mt-2 pb-2">
-                    {{ userMessageCount }} / 16 questions answered · Press Enter to send
-                </p>
             </div>
 
             <!-- ─── PHASE 2: Generating (full-screen loader) ─────────────────── -->
@@ -511,7 +627,7 @@ const counts = [3, 5, 7, 10];
                         </div>
                         <h1 class="text-2xl font-black text-[#1A1A1A] mb-2">Interview complete!</h1>
                         <p class="text-[#555555]">
-                            {{ userMessageCount }} answers collected for
+                            {{ answerCount }} answers collected for
                             <strong>{{ basics.business_name }}</strong>.
                             Now choose your episode format.
                         </p>

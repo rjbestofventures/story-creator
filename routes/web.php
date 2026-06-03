@@ -40,9 +40,13 @@ Route::post('/stripe/webhook', [BillingController::class, 'webhook'])->name('str
 Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function () {
     Route::get('/stories',                          [StoryController::class, 'index'])->name('stories.index');
     Route::get('/stories/create',                   [StoryController::class, 'create'])->name('stories.create');
-    Route::post('/stories',                         [StoryController::class, 'store'])->name('stories.store');
+    Route::post('/stories/init',                    [StoryController::class, 'init'])->name('stories.init');
     Route::post('/stories/interview',               [StoryController::class, 'interview'])->name('stories.interview');
+    Route::post('/stories',                         [StoryController::class, 'store'])->name('stories.store');
     Route::get('/stories/{story}',                  [StoryController::class, 'show'])->name('stories.show');
+    Route::get('/stories/{story}/resume',           [StoryController::class, 'resume'])->name('stories.resume');
+    Route::patch('/stories/{story}/progress',       [StoryController::class, 'saveProgress'])->name('stories.progress');
+    Route::post('/stories/{story}/generate',        [StoryController::class, 'generate'])->name('stories.generate');
     Route::delete('/stories/{story}',               [StoryController::class, 'destroy'])->name('stories.destroy');
     Route::post('/stories/{story}/regenerate',      [StoryController::class, 'regenerateEpisode'])->name('stories.regenerate');
 });
@@ -61,8 +65,14 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/plans', [AdminController::class, 'plansIndex'])->name('plans.index');
     Route::get('/stories', [AdminController::class, 'storiesIndex'])->name('stories.index');
     Route::get('/billing',  [AdminController::class, 'billingIndex'])->name('billing.index');
-    Route::get('/settings', [AdminController::class, 'settingsIndex'])->name('settings.index');
-    Route::post('/settings', [AdminController::class, 'updateSettings'])->name('settings.update');
+    Route::get('/settings',            [AdminController::class, 'settingsIndex'])->name('settings.index');
+    Route::get('/settings/access',     [AdminController::class, 'accessSettingsIndex'])->name('settings.access');
+    Route::post('/settings/access',    [AdminController::class, 'updateAccessSettings'])->name('settings.access.update');
+    Route::get('/settings/ai',         [AdminController::class, 'aiSettingsIndex'])->name('settings.ai');
+    Route::post('/settings/ai',        [AdminController::class, 'updateAiSettings'])->name('settings.ai.update');
+    Route::get('/settings/ai/models',  [AdminController::class, 'fetchModels'])->name('settings.ai.models');
+    Route::get('/settings/stripe',     [AdminController::class, 'stripeSettingsIndex'])->name('settings.stripe');
+    Route::post('/settings/stripe',    [AdminController::class, 'updateStripeSettings'])->name('settings.stripe.update');
 
     // User actions
     Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
