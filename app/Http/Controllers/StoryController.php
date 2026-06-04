@@ -42,17 +42,8 @@ class StoryController extends Controller
 
     public function create(Request $request)
     {
-        $inProgress = $request->user()->stories()
-            ->whereIn('status', ['interviewing', 'interview_complete'])
-            ->latest()
-            ->first();
-
-        if ($inProgress) {
-            return to_route('stories.resume', $inProgress->id);
-        }
-
         return Inertia::render('Stories/Create', [
-            'profile' => $request->user()->businessProfile,
+            'profile' => null,
             'story'   => null,
         ]);
     }
@@ -88,18 +79,6 @@ class StoryController extends Controller
         ]);
 
         $user = $request->user();
-
-        $inProgress = $user->stories()
-            ->whereIn('status', ['interviewing', 'interview_complete'])
-            ->latest()
-            ->first();
-
-        if ($inProgress) {
-            return response()->json([
-                'error'    => 'You already have an interview in progress.',
-                'story_id' => $inProgress->id,
-            ], 409);
-        }
 
         $profile = BusinessProfile::updateOrCreate(
             ['user_id' => $user->id],

@@ -76,6 +76,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/plans', [AdminController::class, 'plansIndex'])->name('plans.index');
     Route::get('/stories', [AdminController::class, 'storiesIndex'])->name('stories.index');
     Route::get('/stories/{story}', [AdminController::class, 'storyShow'])->name('stories.show');
+    Route::get('/manual', fn () => Inertia::render('Admin/Manual'))->name('manual');
     Route::get('/billing',  [AdminController::class, 'billingIndex'])->name('billing.index');
     Route::get('/settings',            [AdminController::class, 'settingsIndex'])->name('settings.index');
     Route::get('/settings/access',     [AdminController::class, 'accessSettingsIndex'])->name('settings.access');
@@ -95,6 +96,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::patch('/users/{user}/subscription', [AdminController::class, 'updateSubscription'])->name('users.subscription');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/impersonate', [AdminController::class, 'impersonate'])->name('users.impersonate');
+    Route::get('/users/{user}/invoices', [AdminController::class, 'userInvoices'])->name('users.invoices');
 
     // Plan actions
     Route::post('/plans', [AdminController::class, 'storePlan'])->name('plans.store');

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, watch } from 'vue';
+import { ref, computed, nextTick, onMounted } from 'vue';
 import { useForm, Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
@@ -188,11 +188,6 @@ const startInterview = async () => {
             }),
         });
         const data = await res.json();
-        if (res.status === 409) {
-            // Already has an in-progress interview — redirect to it
-            window.location.href = route('stories.resume', data.story_id);
-            return;
-        }
         storyId.value = data.story_id;
     } catch {
         chatError.value = 'Could not start the interview. Please try again.';
@@ -209,42 +204,19 @@ const startInterview = async () => {
     await callInterview();
 };
 
-// ─── Session persistence ──────────────────────────────────────────────────────
-const SESSION_KEY = 'sc_interview_session';
-
-const saveSession = () => {
-    localStorage.setItem(SESSION_KEY, JSON.stringify({
-        phase:        phase.value,
-        basics:       basics.value,
-        chatLog:      chatLog.value,
-        complete:     complete.value,
-        episodeCount: episodeCount.value,
-        format:       format.value,
-        answerCount:  answerCount.value,
-        currentTurn:  currentTurn.value,
-        storyId:      storyId.value,
-    }));
-};
-
-const clearSession = () => localStorage.removeItem(SESSION_KEY);
-
-watch([phase, chatLog, basics, complete, episodeCount, format, answerCount, currentTurn], saveSession, { deep: true });
-
-// ─── Restore or auto-start on mount ──────────────────────────────────────────
+// ─── Restore on mount (DB only) ──────────────────────────────────────────────
 onMounted(async () => {
-    // Resuming from DB (Stories Index → Resume link)
+    localStorage.removeItem('sc_interview_session');
     if (props.story) {
         storyId.value     = props.story.id;
         chatLog.value     = props.story.messages ?? [];
         complete.value    = props.story.status === 'interview_complete';
         answerCount.value = chatLog.value.filter(m => m.role === 'user' && !m.content.startsWith('[')).length;
         phase.value       = complete.value ? 2 : 1;
-        clearSession();
 
         if (!complete.value) {
             const mode = detectCurrentMode(chatLog.value);
             if (mode === null) {
-                // Last message was from user — Claude hadn't replied yet, fetch next
                 await callInterview();
             } else {
                 currentTurn.value = { message: '', question: '', complete: false, ...mode };
@@ -252,43 +224,6 @@ onMounted(async () => {
         }
 
         scrollDown();
-        return;
-    }
-
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (raw) {
-        try {
-            const s = JSON.parse(raw);
-            basics.value       = s.basics      ?? basics.value;
-            complete.value     = s.complete    ?? false;
-            answerCount.value  = s.answerCount ?? 0;
-            currentTurn.value  = s.currentTurn ?? currentTurn.value;
-            chatLog.value      = s.chatLog     ?? [];
-            episodeCount.value = s.episodeCount ?? 5;
-            format.value       = s.format      ?? 'social';
-            phase.value        = s.phase       ?? 0;
-            storyId.value      = s.storyId     ?? null;
-
-            if (phase.value === 1 && !complete.value) {
-                const mode = detectCurrentMode(chatLog.value);
-                if (mode === null) {
-                    // Last was user message — Claude hadn't replied yet
-                    await callInterview();
-                } else {
-                    // Restore exact turn state that was saved
-                    currentTurn.value = s.currentTurn ?? { message: '', question: '', complete: false, ...mode };
-                }
-            }
-            scrollDown();
-            return;
-        } catch {
-            clearSession();
-        }
-    }
-
-    // No saved session — auto-start if profile already on file
-    if (props.profile?.business_name) {
-        startInterview();
     }
 });
 
@@ -315,7 +250,6 @@ const onKeydown = (e) => {
 const generateError = ref('');
 
 const submit = () => {
-    clearSession();
     generateError.value = '';
     storeForm.episode_count = episodeCount.value;
     storeForm.format        = format.value;

@@ -1,21 +1,23 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Head, router } from '@inertiajs/vue3';
-import { Search, X, ChevronLeft, BookOpen } from '@lucide/vue';
+import { Search, X, ChevronLeft, ChevronRight, BookOpen } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Input } from '@/Components/ui/input';
 
 const props = defineProps({
-    stories: Array,
+    stories: Object,
     filterUser: Object,
 });
 
 const search = ref('');
 
+const rows = computed(() => props.stories.data);
+
 const filtered = computed(() => {
     const q = search.value.toLowerCase().trim();
-    if (!q) return props.stories;
-    return props.stories.filter(s =>
+    if (!q) return rows.value;
+    return rows.value.filter(s =>
         String(s.id).includes(q) ||
         s.title?.toLowerCase().includes(q) ||
         s.user.name.toLowerCase().includes(q) ||
@@ -24,6 +26,8 @@ const filtered = computed(() => {
 });
 
 const clearFilter = () => router.get(route('admin.stories.index'));
+
+const goToPage = (url) => { if (url) router.get(url); };
 </script>
 
 <template>
@@ -88,7 +92,21 @@ const clearFilter = () => router.get(route('admin.stories.index'));
                         @click="router.get(route('admin.stories.show', story.id), filterUser ? { back: 'user' } : { back: 'all' })"
                     >
                         <td class="px-5 py-3.5">
-                            <span class="text-xs font-mono font-semibold text-muted-foreground">#{{ story.id }}</span>
+                            <div class="flex items-center gap-2">
+                                <span class="text-xs font-mono font-semibold text-muted-foreground">#{{ story.id }}</span>
+                                <span
+                                    v-if="story.status === 'interviewing' || story.status === 'interview_complete'"
+                                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600"
+                                >
+                                    In Progress
+                                </span>
+                                <span
+                                    v-else-if="story.status === 'generating'"
+                                    class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-purple-50 text-purple-600"
+                                >
+                                    Generating
+                                </span>
+                            </div>
                             <p class="font-semibold text-[#1A1A1A] text-xs mt-0.5 leading-tight max-w-[180px] truncate">{{ story.title || '—' }}</p>
                         </td>
                         <td class="px-5 py-3.5">
@@ -123,6 +141,32 @@ const clearFilter = () => router.get(route('admin.stories.index'));
             </table>
         </div>
 
-        <p class="text-xs text-muted-foreground mt-3">{{ filtered.length }} {{ filtered.length === 1 ? 'story' : 'stories' }}</p>
+        <!-- Footer: count + pagination -->
+        <div class="flex items-center justify-between mt-3">
+            <p class="text-xs text-muted-foreground">
+                {{ stories.total }} {{ stories.total === 1 ? 'story' : 'stories' }} total
+            </p>
+            <div v-if="stories.last_page > 1" class="flex items-center gap-1">
+                <button
+                    :disabled="!stories.prev_page_url"
+                    class="h-7 w-7 flex items-center justify-center rounded-lg border text-xs transition hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style="border-color: #DDDDDD;"
+                    @click="goToPage(stories.prev_page_url)"
+                >
+                    <ChevronLeft class="w-3.5 h-3.5" />
+                </button>
+                <span class="text-xs text-muted-foreground px-2">
+                    {{ stories.current_page }} / {{ stories.last_page }}
+                </span>
+                <button
+                    :disabled="!stories.next_page_url"
+                    class="h-7 w-7 flex items-center justify-center rounded-lg border text-xs transition hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+                    style="border-color: #DDDDDD;"
+                    @click="goToPage(stories.next_page_url)"
+                >
+                    <ChevronRight class="w-3.5 h-3.5" />
+                </button>
+            </div>
+        </div>
     </AdminLayout>
 </template>

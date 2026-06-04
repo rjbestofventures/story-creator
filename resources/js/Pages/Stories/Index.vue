@@ -203,7 +203,7 @@ const confirmDelete = () => {
                                             v-if="story.status === 'interviewing'"
                                             class="text-xs font-semibold px-2 py-0.5 rounded-full bg-blue-50 text-blue-600 border border-blue-200"
                                         >
-                                            In Interview
+                                            In Progress
                                         </span>
                                         <span
                                             v-else-if="story.status === 'interview_complete'"

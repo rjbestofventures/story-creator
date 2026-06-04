@@ -88,7 +88,7 @@ class AdminController extends Controller
             $filterUser = User::find($userId, ['id', 'name', 'email']);
         }
 
-        $stories = $query->get()->map(fn (Story $story) => [
+        $paginator = $query->paginate(25)->through(fn (Story $story) => [
             'id'             => $story->id,
             'title'          => $story->title,
             'status'         => $story->status,
@@ -103,7 +103,7 @@ class AdminController extends Controller
         ]);
 
         return Inertia::render('Admin/Stories', [
-            'stories'    => $stories,
+            'stories'    => $paginator,
             'filterUser' => $filterUser,
         ]);
     }
@@ -352,6 +352,27 @@ class AdminController extends Controller
         $user->delete();
 
         return back();
+    }
+
+    public function userInvoices(User $user)
+    {
+        if (! $user->stripe_id) {
+            return response()->json(['invoices' => [], 'has_stripe' => false]);
+        }
+
+        try {
+            $invoices = $user->invoices()->map(fn ($inv) => [
+                'id'     => $inv->id,
+                'number' => $inv->number ?? $inv->id,
+                'date'   => $inv->date()->format('M j, Y'),
+                'total'  => $inv->total(),
+                'status' => $inv->status,
+            ])->values();
+        } catch (\Exception) {
+            return response()->json(['invoices' => [], 'has_stripe' => true]);
+        }
+
+        return response()->json(['invoices' => $invoices, 'has_stripe' => true]);
     }
 
     public function impersonate(User $user)

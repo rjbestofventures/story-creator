@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings } from '@lucide/vue';
+import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings, FileText } from '@lucide/vue';
 import { TooltipProvider } from '@/Components/ui/tooltip';
 
 const nav = [
@@ -36,9 +36,9 @@ const isActive = (item) => route().current(item.match);
                         </h1>
                     </div>
                 </div>
-                <a href="#" class="hidden md:flex items-center gap-1.5 text-sm hover:opacity-70 transition" style="color: #555555;">
+                <Link :href="route('admin.manual')" class="hidden md:flex items-center gap-1.5 text-sm hover:opacity-70 transition" style="color: #555555;">
                     <FileText class="w-4 h-4" /> Admin Manual
-                </a>
+                </Link>
             </div>
         </div>
 
