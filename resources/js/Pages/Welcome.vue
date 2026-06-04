@@ -67,7 +67,7 @@ const plans = [
             <nav class="flex items-center gap-3">
                 <!-- Desktop only -->
                 <Link
-                    :href="route('login')"
+                    :href="route('register')"
                     class="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-sm transition hover:bg-gray-50"
                     style="border-color: #DDDDDD; color: #1A1A1A;"
                 >
@@ -142,7 +142,7 @@ const plans = [
                 </Link>
 
                 <Link
-                    :href="route('login')"
+                    :href="route('register')"
                     class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
                     style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
                 >
@@ -255,7 +255,7 @@ const plans = [
                         <Link :href="route('login')" class="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
                             Login <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </Link>
-                        <a href="#" class="text-xs underline" style="color: #888888;">Learn how to become a verified partner →</a>
+                        <Link :href="route('partner')" class="text-xs underline" style="color: #888888;">Learn how to become a verified partner →</Link>
                     </div>
                 </div>
 
@@ -346,9 +346,8 @@ const plans = [
         <footer class="bg-white px-6 md:px-10 py-5 flex flex-col md:flex-row items-center justify-between gap-3" style="border-top: 1px solid #DDDDDD;">
             <p class="text-xs" style="color: #555555;">© 2026 StoryCreator.Bot. All rights reserved.</p>
             <nav class="flex items-center gap-6">
-                <a href="#" class="text-xs transition hover:opacity-70" style="color: #555555;">Reviews</a>
-                <a href="#" class="text-xs transition hover:opacity-70" style="color: #555555;">Terms</a>
-                <a href="#" class="text-xs transition hover:opacity-70" style="color: #555555;">Privacy</a>
+<Link :href="route('terms')" class="text-xs transition hover:opacity-70" style="color: #555555;">Terms</Link>
+                <Link :href="route('privacy')" class="text-xs transition hover:opacity-70" style="color: #555555;">Privacy</Link>
             </nav>
         </footer>
 

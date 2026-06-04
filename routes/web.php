@@ -18,6 +18,16 @@ Route::get('/', function () {
     ]);
 })->middleware(\App\Http\Middleware\CheckLandingLock::class)->name('welcome');
 
+Route::get('/terms', fn () => Inertia::render('Terms'))->name('terms');
+Route::get('/privacy', fn () => Inertia::render('Privacy'))->name('privacy');
+
+Route::get('/verified-partner', function () {
+    return Inertia::render('VerifiedPartner', [
+        'canLogin'    => Route::has('login'),
+        'canRegister' => Route::has('register'),
+    ]);
+})->name('partner');
+
 Route::get('/unlock',  [LandingLockController::class, 'show'])->name('landing.unlock');
 Route::post('/unlock', [LandingLockController::class, 'unlock'])->name('landing.unlock.submit');
 
