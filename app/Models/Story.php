@@ -13,6 +13,7 @@ class Story extends Model
         'business_profile_id',
         'title',
         'status',
+        'refines_used',
     ];
 
     public function user(): BelongsTo

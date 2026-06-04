@@ -93,6 +93,7 @@ class AdminController extends Controller
             'title'          => $story->title,
             'status'         => $story->status,
             'episodes_count' => $story->episodes_count,
+            'refines_used'   => $story->refines_used,
             'created_at'     => $story->created_at->format('n/j/Y'),
             'user'           => [
                 'id'    => $story->user->id,
@@ -107,7 +108,7 @@ class AdminController extends Controller
         ]);
     }
 
-    public function storyShow(Story $story): Response
+    public function storyShow(Request $request, Story $story): Response
     {
         $story->load(['user', 'episodes']);
 
@@ -116,6 +117,7 @@ class AdminController extends Controller
                 'id'         => $story->id,
                 'title'      => $story->title,
                 'status'     => $story->status,
+                'back'       => $request->query('back', 'user'),
                 'created_at' => $story->created_at->format('n/j/Y'),
                 'user'       => [
                     'id'    => $story->user->id,

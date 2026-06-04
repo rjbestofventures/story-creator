@@ -38,10 +38,10 @@ const formatLabel = (format) => {
         <button
             class="flex items-center gap-1.5 text-xs mb-6 transition hover:opacity-70"
             style="color: #555555;"
-            @click="router.get(route('admin.stories.index', { user_id: story.user.id }))"
+            @click="router.get(story.back === 'all' ? route('admin.stories.index') : route('admin.stories.index', { user_id: story.user.id }))"
         >
             <ChevronLeft class="w-3.5 h-3.5" />
-            Back to {{ story.user.name }}'s stories
+            {{ story.back === 'all' ? 'Back to all stories' : `Back to ${story.user.name}'s stories` }}
         </button>
 
         <!-- Story header -->

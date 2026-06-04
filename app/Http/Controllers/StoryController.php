@@ -308,6 +308,8 @@ class StoryController extends Controller
                 ->update(['title' => $ep['title'], 'content' => $ep['content']]);
         }
 
+        $story->increment('refines_used');
+
         $sub = $request->user()->activeSubscription;
         if ($sub && $sub->refine_credits > 0) {
             $sub->decrement('refine_credits');
