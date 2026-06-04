@@ -139,7 +139,93 @@ class AdminController extends Controller
 
     public function billingIndex(): Response
     {
-        return Inertia::render('Admin/Billing');
+        $genPrice = [
+            'input'  => (float) SiteSetting::get('generation_price_input',  3.00),
+            'output' => (float) SiteSetting::get('generation_price_output', 15.00),
+        ];
+        $intPrice = [
+            'input'  => (float) SiteSetting::get('interview_price_input',  0.80),
+            'output' => (float) SiteSetting::get('interview_price_output', 4.00),
+        ];
+
+        $storyCost = function (Story $story) use ($genPrice, $intPrice) {
+            return (
+                ($story->tokens_input            * $genPrice['input']  +
+                 $story->tokens_output           * $genPrice['output'] +
+                 $story->tokens_interview_input  * $intPrice['input']  +
+                 $story->tokens_interview_output * $intPrice['output']) / 1_000_000
+            );
+        };
+
+        $stories = Story::with('user')
+            ->select(['id', 'user_id', 'generation_model', 'interview_model',
+                      'tokens_input', 'tokens_output',
+                      'tokens_interview_input', 'tokens_interview_output'])
+            ->get();
+
+        $totalCost         = 0;
+        $totalGenInput     = 0;
+        $totalGenOutput    = 0;
+        $totalIntInput     = 0;
+        $totalIntOutput    = 0;
+        $userBuckets       = [];
+
+        foreach ($stories as $story) {
+            $cost               = $storyCost($story);
+            $totalCost         += $cost;
+            $totalGenInput     += $story->tokens_input;
+            $totalGenOutput    += $story->tokens_output;
+            $totalIntInput     += $story->tokens_interview_input;
+            $totalIntOutput    += $story->tokens_interview_output;
+
+            $uid = $story->user_id;
+            if (! isset($userBuckets[$uid])) {
+                $userBuckets[$uid] = [
+                    'id'            => $uid,
+                    'name'          => $story->user->name,
+                    'email'         => $story->user->email,
+                    'stories_count' => 0,
+                    'cost'          => 0,
+                    'gen_input'     => 0,
+                    'gen_output'    => 0,
+                    'int_input'     => 0,
+                    'int_output'    => 0,
+                ];
+            }
+
+            $userBuckets[$uid]['stories_count']++;
+            $userBuckets[$uid]['cost']       += $cost;
+            $userBuckets[$uid]['gen_input']  += $story->tokens_input;
+            $userBuckets[$uid]['gen_output'] += $story->tokens_output;
+            $userBuckets[$uid]['int_input']  += $story->tokens_interview_input;
+            $userBuckets[$uid]['int_output'] += $story->tokens_interview_output;
+        }
+
+        $perUser = collect($userBuckets)
+            ->filter(fn ($u) => $u['stories_count'] > 0)
+            ->sortByDesc('cost')
+            ->map(fn ($u) => array_merge($u, ['cost' => round($u['cost'], 4)]))
+            ->values();
+
+        return Inertia::render('Admin/Billing', [
+            'totals'  => [
+                'gen_input'     => $totalGenInput,
+                'gen_output'    => $totalGenOutput,
+                'int_input'     => $totalIntInput,
+                'int_output'    => $totalIntOutput,
+                'total_stories' => $stories->count(),
+                'total_cost'    => round($totalCost, 4),
+            ],
+            'models' => [
+                'interview'        => SiteSetting::get('interview_model',  'claude-haiku-4-5-20251001'),
+                'generation'       => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
+                'int_price_input'  => $intPrice['input'],
+                'int_price_output' => $intPrice['output'],
+                'gen_price_input'  => $genPrice['input'],
+                'gen_price_output' => $genPrice['output'],
+            ],
+            'perUser' => $perUser,
+        ]);
     }
 
     public function settingsIndex(): \Illuminate\Http\RedirectResponse
@@ -171,24 +257,36 @@ class AdminController extends Controller
     public function aiSettingsIndex(): Response
     {
         return Inertia::render('Admin/Settings/AI', [
-            'anthropic_api_key' => SiteSetting::get('anthropic_api_key', ''),
-            'env_key_set'       => (bool) env('ANTHROPIC_API_KEY'),
-            'interview_model'   => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
-            'generation_model'  => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
+            'anthropic_api_key'           => SiteSetting::get('anthropic_api_key', ''),
+            'env_key_set'                 => (bool) env('ANTHROPIC_API_KEY'),
+            'interview_model'             => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
+            'generation_model'            => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
+            'interview_price_input'       => (float) SiteSetting::get('interview_price_input', 0.80),
+            'interview_price_output'      => (float) SiteSetting::get('interview_price_output', 4.00),
+            'generation_price_input'      => (float) SiteSetting::get('generation_price_input', 3.00),
+            'generation_price_output'     => (float) SiteSetting::get('generation_price_output', 15.00),
         ]);
     }
 
     public function updateAiSettings(Request $request): \Illuminate\Http\RedirectResponse
     {
         $data = $request->validate([
-            'anthropic_api_key' => 'nullable|string|max:255',
-            'interview_model'   => 'required|string|max:100',
-            'generation_model'  => 'required|string|max:100',
+            'anthropic_api_key'       => 'nullable|string|max:255',
+            'interview_model'         => 'required|string|max:100',
+            'generation_model'        => 'required|string|max:100',
+            'interview_price_input'   => 'required|numeric|min:0',
+            'interview_price_output'  => 'required|numeric|min:0',
+            'generation_price_input'  => 'required|numeric|min:0',
+            'generation_price_output' => 'required|numeric|min:0',
         ]);
 
-        SiteSetting::set('anthropic_api_key', $data['anthropic_api_key'] ?? '');
-        SiteSetting::set('interview_model',   $data['interview_model']);
-        SiteSetting::set('generation_model',  $data['generation_model']);
+        SiteSetting::set('anthropic_api_key',       $data['anthropic_api_key'] ?? '');
+        SiteSetting::set('interview_model',          $data['interview_model']);
+        SiteSetting::set('generation_model',         $data['generation_model']);
+        SiteSetting::set('interview_price_input',    $data['interview_price_input']);
+        SiteSetting::set('interview_price_output',   $data['interview_price_output']);
+        SiteSetting::set('generation_price_input',   $data['generation_price_input']);
+        SiteSetting::set('generation_price_output',  $data['generation_price_output']);
 
         return back();
     }

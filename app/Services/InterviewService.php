@@ -194,6 +194,9 @@ PROMPT;
             'output_tokens' => $response->usage->outputTokens,
         ]);
 
+        $result['_tokens_input']  = $response->usage->inputTokens;
+        $result['_tokens_output'] = $response->usage->outputTokens;
+
         return $result;
     }
 }

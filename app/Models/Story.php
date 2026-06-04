@@ -14,6 +14,12 @@ class Story extends Model
         'title',
         'status',
         'refines_used',
+        'tokens_input',
+        'tokens_output',
+        'tokens_interview_input',
+        'tokens_interview_output',
+        'interview_model',
+        'generation_model',
     ];
 
     public function user(): BelongsTo

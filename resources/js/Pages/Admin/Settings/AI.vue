@@ -5,16 +5,24 @@ import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import { Cpu, Eye, EyeOff, RefreshCcw, CircleCheck, CircleDot, Loader2, TriangleAlert } from '@lucide/vue';
 
 const props = defineProps({
-    anthropic_api_key: String,
-    env_key_set:       Boolean,
-    interview_model:   String,
-    generation_model:  String,
+    anthropic_api_key:       String,
+    env_key_set:             Boolean,
+    interview_model:         String,
+    generation_model:        String,
+    interview_price_input:   Number,
+    interview_price_output:  Number,
+    generation_price_input:  Number,
+    generation_price_output: Number,
 });
 
 const form = useForm({
-    anthropic_api_key: props.anthropic_api_key,
-    interview_model:   props.interview_model,
-    generation_model:  props.generation_model,
+    anthropic_api_key:       props.anthropic_api_key,
+    interview_model:         props.interview_model,
+    generation_model:        props.generation_model,
+    interview_price_input:   props.interview_price_input,
+    interview_price_output:  props.interview_price_output,
+    generation_price_input:  props.generation_price_input,
+    generation_price_output: props.generation_price_output,
 });
 
 const showKey    = ref(false);
@@ -189,6 +197,62 @@ const phases = [
                         <p v-if="form[phase.key] && !models.find(m => m.id === form[phase.key])" class="mt-2 text-xs" style="color:#AAAAAA;">
                             Currently saved: <code class="font-mono">{{ form[phase.key] }}</code> (not in fetched list)
                         </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Pricing card ─────────────────────────────────────────── -->
+            <div class="bg-white rounded-2xl p-6" style="border:1px solid #DDDDDD;">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
+                        <Cpu class="w-4 h-4" style="color:#F5A000;" />
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black" style="color:#1A1A1A;">Model Pricing</h2>
+                        <p class="text-xs mt-0.5" style="color:#555555;">Set the price per 1M tokens for each phase. Used to estimate API costs in Usage & Billing.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-5">
+                    <div v-for="phase in [
+                        { label: 'Interview Phase', inputKey: 'interview_price_input', outputKey: 'interview_price_output' },
+                        { label: 'Story Generation', inputKey: 'generation_price_input', outputKey: 'generation_price_output' },
+                    ]" :key="phase.label">
+                        <p class="text-sm font-bold mb-3" style="color:#1A1A1A;">{{ phase.label }}</p>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-semibold" style="color:#555555;">Input price (per 1M tokens)</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold" style="color:#AAAAAA;">$</span>
+                                    <input
+                                        v-model="form[phase.inputKey]"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        class="w-full pl-7 pr-3 py-2.5 rounded-lg text-sm outline-none transition-all"
+                                        style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
+                                        @focus="e => (e.target.style.borderColor='#F5A000', e.target.style.boxShadow='0 0 0 3px rgba(245,160,0,0.15)')"
+                                        @blur="e => (e.target.style.borderColor='#DDDDDD', e.target.style.boxShadow='none')"
+                                    />
+                                </div>
+                            </div>
+                            <div class="space-y-1.5">
+                                <label class="text-xs font-semibold" style="color:#555555;">Output price (per 1M tokens)</label>
+                                <div class="relative">
+                                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-semibold" style="color:#AAAAAA;">$</span>
+                                    <input
+                                        v-model="form[phase.outputKey]"
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        class="w-full pl-7 pr-3 py-2.5 rounded-lg text-sm outline-none transition-all"
+                                        style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
+                                        @focus="e => (e.target.style.borderColor='#F5A000', e.target.style.boxShadow='0 0 0 3px rgba(245,160,0,0.15)')"
+                                        @blur="e => (e.target.style.borderColor='#DDDDDD', e.target.style.boxShadow='none')"
+                                    />
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

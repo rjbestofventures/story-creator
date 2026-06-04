@@ -183,7 +183,11 @@ PROMPT;
                     'story_title'   => $block->input['story_title'] ?? null,
                 ]);
 
-                return (array) $block->input;
+                $result = (array) $block->input;
+                $result['_tokens_input']  = $response->usage->inputTokens;
+                $result['_tokens_output'] = $response->usage->outputTokens;
+
+                return $result;
             }
         }
 

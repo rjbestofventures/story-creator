@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessProfile;
+use App\Models\SiteSetting;
 use App\Models\Story;
 use App\Services\InterviewService;
 use App\Services\StoryGeneratorService;
@@ -144,7 +145,13 @@ class StoryController extends Controller
         $generator = new StoryGeneratorService();
         $generated = $generator->generate($profile, $count, $format);
 
-        $story->update(['title' => $generated['story_title'], 'status' => 'draft']);
+        $story->update([
+            'title'            => $generated['story_title'],
+            'status'           => 'draft',
+            'generation_model' => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
+            'tokens_input'     => $story->tokens_input  + ($generated['_tokens_input']  ?? 0),
+            'tokens_output'    => $story->tokens_output + ($generated['_tokens_output'] ?? 0),
+        ]);
 
         foreach ($generated['episodes'] as $ep) {
             $story->episodes()->create([
@@ -179,6 +186,8 @@ class StoryController extends Controller
             'industry'          => 'nullable|string|max:80',
         ]);
 
+        $storyId = $request->input('story_id');
+
         $result = (new InterviewService())->getNextMessage(
             $data['messages'],
             [
@@ -187,6 +196,18 @@ class StoryController extends Controller
                 'industry'      => $data['industry'] ?? '',
             ]
         );
+
+        if ($storyId) {
+            Story::where('id', $storyId)
+                ->where('user_id', $request->user()->id)
+                ->update([
+                    'interview_model'         => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
+                    'tokens_interview_input'  => \DB::raw('tokens_interview_input  + ' . ($result['_tokens_input']  ?? 0)),
+                    'tokens_interview_output' => \DB::raw('tokens_interview_output + ' . ($result['_tokens_output'] ?? 0)),
+                ]);
+        }
+
+        unset($result['_tokens_input'], $result['_tokens_output']);
 
         return response()->json($result);
     }

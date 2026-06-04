@@ -110,6 +110,7 @@ const callInterview = async (isAnswer = false) => {
                 business_name: basics.value.business_name,
                 business_url:  basics.value.business_url,
                 industry:      basics.value.industry,
+                story_id:      storyId.value,
             }),
         });
 
