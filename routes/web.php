@@ -62,6 +62,7 @@ Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function
 });
 
 Route::middleware('auth')->group(function () {
+    Route::post('/impersonate/stop', [AdminController::class, 'stopImpersonating'])->name('impersonate.stop');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
@@ -93,6 +94,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/users/{user}/plan', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
     Route::patch('/users/{user}/subscription', [AdminController::class, 'updateSubscription'])->name('users.subscription');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
+    Route::post('/users/{user}/impersonate', [AdminController::class, 'impersonate'])->name('users.impersonate');
 
     // Plan actions
     Route::post('/plans', [AdminController::class, 'storePlan'])->name('plans.store');

@@ -1,11 +1,12 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown } from 'lucide-vue-next';
+import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck } from 'lucide-vue-next';
 
 const page  = usePage();
 const user  = computed(() => page.props.auth.user);
 const isAdmin = computed(() => page.props.auth.user?.roles?.includes('admin') ?? false);
+const impersonating = computed(() => page.props.impersonating ?? null);
 
 const menuOpen = ref(false);
 </script>
@@ -106,6 +107,28 @@ const menuOpen = ref(false);
 
         <!-- Click-away overlay -->
         <div v-if="menuOpen" @click="menuOpen = false" class="fixed inset-0 z-30" />
+
+        <!-- Impersonation banner -->
+        <div
+            v-if="impersonating"
+            class="sticky top-14 z-30 flex items-center justify-between gap-3 px-4 md:px-8 py-2.5"
+            style="background: linear-gradient(to right, #FFC837, #F5A000);"
+        >
+            <div class="flex items-center gap-2 text-sm font-semibold text-[#1A1A1A]">
+                <UserCheck class="w-4 h-4 shrink-0" />
+                Viewing as <span class="font-black">{{ user?.name }}</span>
+                <span class="font-normal opacity-70">— logged in as {{ impersonating.admin_name }}</span>
+            </div>
+            <Link
+                :href="route('impersonate.stop')"
+                method="post"
+                as="button"
+                class="text-xs font-bold px-3 py-1.5 rounded-lg transition hover:opacity-80 cursor-pointer shrink-0"
+                style="background: rgba(0,0,0,0.15); color: #1A1A1A;"
+            >
+                Stop Impersonating
+            </Link>
+        </div>
 
         <!-- Page content -->
         <main>

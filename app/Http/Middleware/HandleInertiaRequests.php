@@ -29,6 +29,8 @@ class HandleInertiaRequests extends Middleware
      */
     public function share(Request $request): array
     {
+        $adminId = session('impersonating_admin_id');
+
         return [
             ...parent::share($request),
             'auth' => [
@@ -37,6 +39,10 @@ class HandleInertiaRequests extends Middleware
                     ['roles' => $request->user()->getRoleNames()->toArray()]
                 ) : null,
             ],
+            'impersonating' => $adminId ? [
+                'admin_id'   => $adminId,
+                'admin_name' => \App\Models\User::find($adminId)?->name,
+            ] : null,
         ];
     }
 }

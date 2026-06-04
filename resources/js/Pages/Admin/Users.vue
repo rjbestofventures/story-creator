@@ -4,7 +4,7 @@ import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import {
     Users, BookOpen, Activity, TrendingUp,
     Search, UserPlus, CircleUser, KeyRound, Trash2, Mail,
-    ChevronDown, BookMarked, Coins, Layers, Check, Shield,
+    ChevronDown, BookMarked, Coins, Layers, Check, Shield, LogIn,
 } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Button } from '@/Components/ui/button';
@@ -199,6 +199,10 @@ const submitPassword = () => {
         onSuccess: () => { passwordModalOpen.value = false; },
     });
 };
+
+const impersonate = (userId) => {
+    router.post(route('admin.users.impersonate', userId), {}, { replace: true });
+};
 </script>
 
 <template>
@@ -350,6 +354,20 @@ const submitPassword = () => {
                             </TooltipTrigger>
                             <TooltipContent>Delete user</TooltipContent>
                         </Tooltip>
+
+                        <template v-if="user.id !== $page.props.auth.user.id">
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <button
+                                        class="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-[#F5A000] hover:bg-amber-50 transition-colors cursor-pointer"
+                                        @click.stop="impersonate(user.id)"
+                                    >
+                                        <LogIn class="w-4 h-4" />
+                                    </button>
+                                </TooltipTrigger>
+                                <TooltipContent>Log in as this user</TooltipContent>
+                            </Tooltip>
+                        </template>
 
                         <div class="w-px h-5 bg-[#EBEBEB] mx-1" />
 

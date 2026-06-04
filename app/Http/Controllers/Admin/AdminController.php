@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\UserSubscription;
 use App\Notifications\AccountCreatedNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
@@ -349,6 +350,28 @@ class AdminController extends Controller
         $user->delete();
 
         return back();
+    }
+
+    public function impersonate(User $user)
+    {
+        abort_if($user->id === Auth::user()->id, 403, 'Cannot impersonate yourself.');
+        abort_if(session()->has('impersonating_admin_id'), 403, 'Already impersonating a user.');
+
+        session(['impersonating_admin_id' => auth()->id()]);
+        auth()->login($user);
+
+        return redirect()->route('stories.index');
+    }
+
+    public function stopImpersonating()
+    {
+        $adminId = session('impersonating_admin_id');
+        abort_unless($adminId, 403);
+
+        session()->forget('impersonating_admin_id');
+        auth()->loginUsingId($adminId);
+
+        return redirect()->route('admin.users.index');
     }
 
     // -------------------------------------------------------------------------
