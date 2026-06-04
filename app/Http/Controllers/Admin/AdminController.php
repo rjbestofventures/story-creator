@@ -7,8 +7,10 @@ use App\Models\Plan;
 use App\Models\SiteSetting;
 use App\Models\User;
 use App\Models\UserSubscription;
+use App\Notifications\AccountCreatedNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -186,18 +188,20 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8|confirmed',
             'tier' => 'required|in:admin,user',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
-            'password' => Hash::make($validated['password']),
+            'password' => Hash::make(Str::random(32)),
             'email_verified_at' => now(),
         ]);
 
         $user->assignRole($validated['tier']);
+
+        $token = Password::createToken($user);
+        $user->notify(new AccountCreatedNotification($token));
 
         return back();
     }

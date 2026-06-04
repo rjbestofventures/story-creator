@@ -160,7 +160,7 @@ const userModalUser     = ref(null);
 const passwordModalOpen = ref(false);
 const passwordModalUser = ref(null);
 
-const userForm     = useForm({ name: '', email: '', password: '', password_confirmation: '', tier: 'user' });
+const userForm     = useForm({ name: '', email: '', tier: 'user' });
 const passwordForm = useForm({ password: '', password_confirmation: '' });
 
 const openCreate = () => {
@@ -595,17 +595,7 @@ const submitPassword = () => {
                         <p v-if="userForm.errors.tier" class="text-xs text-destructive">{{ userForm.errors.tier }}</p>
                     </div>
 
-                    <template v-if="userModalMode === 'create'">
-                        <div class="space-y-1.5">
-                            <Label for="user-password">Password</Label>
-                            <Input id="user-password" v-model="userForm.password" type="password" placeholder="Min. 8 characters" />
-                            <p v-if="userForm.errors.password" class="text-xs text-destructive">{{ userForm.errors.password }}</p>
-                        </div>
-                        <div class="space-y-1.5">
-                            <Label for="user-confirm">Confirm Password</Label>
-                            <Input id="user-confirm" v-model="userForm.password_confirmation" type="password" placeholder="Repeat password" />
-                        </div>
-                    </template>
+                    <p v-if="userModalMode === 'create'" class="text-xs" style="color: #888888;">A password reset link will be emailed to the user automatically.</p>
                 </div>
 
                 <DialogFooter>
