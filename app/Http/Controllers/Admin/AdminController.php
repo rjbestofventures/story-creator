@@ -28,6 +28,7 @@ class AdminController extends Controller
             ->get(['id', 'slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly', 'trial_months', 'is_active']);
 
         $users = User::with(['roles', 'activeSubscription.plan'])
+            ->withCount('stories')
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (User $user) => [
@@ -49,6 +50,7 @@ class AdminController extends Controller
                     'stories_per_month' => $user->activeSubscription->plan->stories_per_month,
                     'refine_monthly' => $user->activeSubscription->plan->refine_monthly,
                 ] : null,
+                'stories_total' => $user->stories_count,
                 'created_at' => $user->created_at->format('n/j/Y'),
             ]);
 

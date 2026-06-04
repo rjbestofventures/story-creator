@@ -464,9 +464,9 @@ const submitPassword = () => {
                         <div class="border-t border-[#EBEBEB] px-5 py-4 space-y-3">
                             <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Usage This Period</p>
 
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                                 <!-- Stories progress -->
-                                <div class="col-span-1 md:col-span-1 bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB]">
+                                <div class="col-span-1 bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB]">
                                     <div class="flex items-center justify-between mb-2">
                                         <div class="flex items-center gap-1.5">
                                             <BookMarked class="w-3.5 h-3.5 text-muted-foreground" />
@@ -513,6 +513,18 @@ const submitPassword = () => {
                                         <p class="text-xs text-[#555555] font-semibold">Episodes / Story</p>
                                         <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.subscription.effective_episode_limit }}</p>
                                         <p class="text-[10px] text-muted-foreground">max per story</p>
+                                    </div>
+                                </div>
+
+                                <!-- Total stories generated -->
+                                <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3">
+                                    <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                                        <BookOpen class="w-4 h-4 text-emerald-500" />
+                                    </div>
+                                    <div>
+                                        <p class="text-xs text-[#555555] font-semibold">Stories Made</p>
+                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.stories_total }}</p>
+                                        <p class="text-[10px] text-muted-foreground">all time</p>
                                     </div>
                                 </div>
                             </div>

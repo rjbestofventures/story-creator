@@ -193,7 +193,7 @@ class BillingController extends Controller
 
         $sub->update([
             'story_credits'          => $sub->plan->stories_per_month,
-            'refine_credits'         => $sub->plan->refine_monthly,
+            'refine_credits'         => $sub->refine_credits + $sub->plan->refine_monthly,
             'billing_period_ends_at' => Carbon::createFromTimestamp($invoice->period_end),
             'status'                 => 'active',
         ]);
