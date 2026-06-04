@@ -141,10 +141,16 @@ PROMPT;
             $transcript .= "[{$label}]: {$msg['content']}\n\n";
         }
 
+        $extra = '';
+        if (!empty($profile->biography))       $extra .= "\nOwner biography: {$profile->biography}";
+        if (!empty($profile->linkedin_url))    $extra .= "\nLinkedIn: {$profile->linkedin_url}";
+        if (!empty($profile->social_url))      $extra .= "\nSocial: {$profile->social_url}";
+        if (!empty($profile->website_content)) $extra .= "\n\nWebsite content (scraped):\n{$profile->website_content}";
+
         $userPrompt = <<<PROMPT
 Business Name: {$profile->business_name}
 Website: {$profile->business_url}
-Industry: {$profile->industry}
+Industry: {$profile->industry}{$extra}
 
 INTERVIEW TRANSCRIPT:
 {$transcript}

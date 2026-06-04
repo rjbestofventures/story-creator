@@ -24,6 +24,9 @@ const basics = ref({
     business_name: props.profile?.business_name ?? '',
     business_url:  props.profile?.business_url  ?? '',
     industry:      props.profile?.industry       ?? '',
+    biography:     props.profile?.biography      ?? '',
+    linkedin_url:  props.profile?.linkedin_url   ?? '',
+    social_url:    props.profile?.social_url     ?? '',
 });
 const canStartInterview = computed(() => basics.value.business_name.trim().length > 0);
 
@@ -186,6 +189,9 @@ const startInterview = async () => {
                 business_name: basics.value.business_name,
                 business_url:  basics.value.business_url,
                 industry:      basics.value.industry,
+                biography:     basics.value.biography,
+                linkedin_url:  basics.value.linkedin_url,
+                social_url:    basics.value.social_url,
             }),
         });
         const data = await res.json();
@@ -386,7 +392,6 @@ const counts = [3, 5, 7, 10];
                                     id="business_url"
                                     v-model="basics.business_url"
                                     placeholder="https://..."
-                                    type="url"
                                     class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                 />
                             </div>
@@ -398,10 +403,51 @@ const counts = [3, 5, 7, 10];
                                 <Input
                                     id="industry"
                                     v-model="basics.industry"
-                                    placeholder="e.g. Consulting"
+                                    placeholder="e.g. Landscaping"
                                     class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                 />
                             </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-4">
+                            <div class="space-y-2">
+                                <Label for="linkedin_url" class="text-[#1A1A1A] font-semibold">
+                                    LinkedIn
+                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                                </Label>
+                                <Input
+                                    id="linkedin_url"
+                                    v-model="basics.linkedin_url"
+                                    placeholder="linkedin.com/in/..."
+                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                />
+                            </div>
+                            <div class="space-y-2">
+                                <Label for="social_url" class="text-[#1A1A1A] font-semibold">
+                                    Facebook / Instagram
+                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                                </Label>
+                                <Input
+                                    id="social_url"
+                                    v-model="basics.social_url"
+                                    placeholder="instagram.com/..."
+                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                />
+                            </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label for="biography" class="text-[#1A1A1A] font-semibold">
+                                About You / Biography
+                                <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                            </Label>
+                            <Textarea
+                                id="biography"
+                                v-model="basics.biography"
+                                placeholder="Tell us about yourself — your background, what drives you, your journey into this business..."
+                                rows="3"
+                                class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
+                            />
                         </div>
 
                         <Button

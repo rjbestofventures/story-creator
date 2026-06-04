@@ -58,7 +58,9 @@ Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function
     Route::patch('/stories/{story}/progress',       [StoryController::class, 'saveProgress'])->name('stories.progress');
     Route::post('/stories/{story}/generate',        [StoryController::class, 'generate'])->name('stories.generate');
     Route::delete('/stories/{story}',               [StoryController::class, 'destroy'])->name('stories.destroy');
-    Route::post('/stories/{story}/regenerate',      [StoryController::class, 'regenerateEpisode'])->name('stories.regenerate');
+    Route::post('/stories/{story}/regenerate',                          [StoryController::class, 'regenerateEpisode'])->name('stories.regenerate');
+    Route::get('/stories/{story}/episodes/{episode}/versions',          [StoryController::class, 'episodeVersions'])->name('stories.episode.versions');
+    Route::post('/stories/{story}/episodes/{episode}/versions/{version}/restore', [StoryController::class, 'restoreVersion'])->name('stories.episode.restore');
 });
 
 Route::middleware('auth')->group(function () {

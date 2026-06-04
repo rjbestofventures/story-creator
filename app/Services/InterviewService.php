@@ -154,11 +154,13 @@ PROMPT;
     public function getNextMessage(array $messages, array $profile): array
     {
         $context = "Business name: {$profile['business_name']}";
-        if (!empty($profile['industry'])) {
-            $context .= " | Industry: {$profile['industry']}";
-        }
-        if (!empty($profile['business_url'])) {
-            $context .= " | Website: {$profile['business_url']}";
+        if (!empty($profile['industry']))      $context .= " | Industry: {$profile['industry']}";
+        if (!empty($profile['business_url']))  $context .= " | Website: {$profile['business_url']}";
+        if (!empty($profile['linkedin_url']))  $context .= " | LinkedIn: {$profile['linkedin_url']}";
+        if (!empty($profile['social_url']))    $context .= " | Social: {$profile['social_url']}";
+        if (!empty($profile['biography']))     $context .= "\n\nOwner bio: {$profile['biography']}";
+        if (!empty($profile['website_content'])) {
+            $context .= "\n\nWebsite content (scraped):\n{$profile['website_content']}";
         }
 
         $model = SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001');

@@ -3,8 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Models\BusinessProfile;
+use App\Models\Episode;
+use App\Models\EpisodeVersion;
 use App\Models\SiteSetting;
 use App\Models\Story;
+use Illuminate\Support\Facades\Http;
 use App\Services\InterviewService;
 use App\Services\StoryGeneratorService;
 use Illuminate\Http\Request;
@@ -77,19 +80,42 @@ class StoryController extends Controller
             'business_name' => 'required|string|max:120',
             'business_url'  => 'nullable|string|max:255',
             'industry'      => 'nullable|string|max:80',
+            'biography'     => 'nullable|string|max:1000',
+            'linkedin_url'  => 'nullable|string|max:255',
+            'social_url'    => 'nullable|string|max:255',
         ]);
 
         $user = $request->user();
 
-        $profile = BusinessProfile::updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'business_name' => $data['business_name'],
-                'business_url'  => $data['business_url'] ?? null,
-                'industry'      => $data['industry'] ?? null,
-                'answers'       => [],
-            ]
-        );
+        $websiteContent = null;
+        if (!empty($data['business_url'])) {
+            try {
+                $url = $data['business_url'];
+                if (!str_starts_with($url, 'http')) {
+                    $url = 'https://' . $url;
+                }
+                $response = Http::timeout(6)->get($url);
+                if ($response->successful()) {
+                    $text = strip_tags($response->body());
+                    $text = preg_replace('/\s+/', ' ', $text);
+                    $websiteContent = trim(substr($text, 0, 3000));
+                }
+            } catch (\Throwable) {
+                // non-critical — continue without website content
+            }
+        }
+
+        $profile = BusinessProfile::create([
+            'user_id'         => $user->id,
+            'business_name'   => $data['business_name'],
+            'business_url'    => $data['business_url'] ?? null,
+            'industry'        => $data['industry'] ?? null,
+            'biography'       => $data['biography'] ?? null,
+            'linkedin_url'    => $data['linkedin_url'] ?? null,
+            'social_url'      => $data['social_url'] ?? null,
+            'website_content' => $websiteContent,
+            'answers'         => [],
+        ]);
 
         $story = Story::create([
             'user_id'             => $user->id,
@@ -188,12 +214,24 @@ class StoryController extends Controller
 
         $storyId = $request->input('story_id');
 
+        $profile = $storyId
+            ? Story::with('businessProfile')
+                ->where('id', $storyId)
+                ->where('user_id', $request->user()->id)
+                ->first()
+                ?->businessProfile
+            : null;
+
         $result = (new InterviewService())->getNextMessage(
             $data['messages'],
             [
-                'business_name' => $data['business_name'],
-                'business_url'  => $data['business_url'] ?? '',
-                'industry'      => $data['industry'] ?? '',
+                'business_name'   => $data['business_name'],
+                'business_url'    => $data['business_url'] ?? '',
+                'industry'        => $data['industry'] ?? '',
+                'biography'       => $profile?->biography ?? '',
+                'linkedin_url'    => $profile?->linkedin_url ?? '',
+                'social_url'      => $profile?->social_url ?? '',
+                'website_content' => $profile?->website_content ?? '',
             ]
         );
 
@@ -264,10 +302,22 @@ class StoryController extends Controller
     {
         abort_unless($story->user_id === $request->user()->id, 403);
 
-        $story->load(['episodes', 'businessProfile']);
+        $story->load(['episodes.versions', 'businessProfile']);
 
         return Inertia::render('Stories/Show', [
-            'story' => $story,
+            'story' => [
+                'id'               => $story->id,
+                'title'            => $story->title,
+                'business_profile' => $story->businessProfile,
+                'episodes'         => $story->episodes->map(fn ($ep) => [
+                    'id'             => $ep->id,
+                    'episode_number' => $ep->episode_number,
+                    'title'          => $ep->title,
+                    'content'        => $ep->content,
+                    'format'         => $ep->format,
+                    'versions_count' => $ep->versions->count(),
+                ]),
+            ],
         ]);
     }
 
@@ -296,25 +346,89 @@ class StoryController extends Controller
             'episode_number' => 'required|integer',
         ]);
 
+        $episode = $story->episodes()->where('episode_number', $data['episode_number'])->firstOrFail();
+
+        // Save current content as a version before overwriting
+        $nextVersion = $episode->versions()->max('version') ?? 0;
+        EpisodeVersion::create([
+            'episode_id' => $episode->id,
+            'version'    => $nextVersion + 1,
+            'title'      => $episode->title,
+            'content'    => $episode->content,
+        ]);
+
         $profile   = $story->businessProfile;
-        $format    = $story->episodes->first()?->format ?? 'social';
+        $format    = $episode->format ?? 'social';
         $generator = new StoryGeneratorService();
         $generated = $generator->generate($profile, 1, $format);
 
         $ep = $generated['episodes'][0] ?? null;
         if ($ep) {
-            $story->episodes()
-                ->where('episode_number', $data['episode_number'])
-                ->update(['title' => $ep['title'], 'content' => $ep['content']]);
+            $episode->update(['title' => $ep['title'], 'content' => $ep['content']]);
         }
 
         $story->increment('refines_used');
+        $story->increment('tokens_input',  $generated['_tokens_input']  ?? 0);
+        $story->increment('tokens_output', $generated['_tokens_output'] ?? 0);
 
         $sub = $request->user()->activeSubscription;
         if ($sub && $sub->refine_credits > 0) {
             $sub->decrement('refine_credits');
         }
 
-        return back();
+        return response()->json([
+            'episode' => [
+                'id'             => $episode->id,
+                'episode_number' => $episode->episode_number,
+                'title'          => $episode->title,
+                'content'        => $episode->content,
+                'format'         => $episode->format,
+            ],
+        ]);
+    }
+
+    public function episodeVersions(Request $request, Story $story, Episode $episode)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_unless($episode->story_id === $story->id, 404);
+
+        $versions = $episode->versions()->get()->map(fn ($v) => [
+            'id'         => $v->id,
+            'version'    => $v->version,
+            'title'      => $v->title,
+            'preview'    => mb_substr(strip_tags($v->content), 0, 120) . '…',
+            'content'    => $v->content,
+            'created_at' => $v->created_at->format('M j, g:i A'),
+        ]);
+
+        return response()->json(['versions' => $versions]);
+    }
+
+    public function restoreVersion(Request $request, Story $story, Episode $episode, EpisodeVersion $version)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_unless($episode->story_id === $story->id, 404);
+        abort_unless($version->episode_id === $episode->id, 404);
+
+        // Save current as a version before restoring
+        $nextVersion = $episode->versions()->max('version') ?? 0;
+        EpisodeVersion::create([
+            'episode_id' => $episode->id,
+            'version'    => $nextVersion + 1,
+            'title'      => $episode->title,
+            'content'    => $episode->content,
+        ]);
+
+        $episode->update(['title' => $version->title, 'content' => $version->content]);
+
+        return response()->json([
+            'episode' => [
+                'id'             => $episode->id,
+                'episode_number' => $episode->episode_number,
+                'title'          => $episode->title,
+                'content'        => $episode->content,
+                'format'         => $episode->format,
+            ],
+        ]);
     }
 }

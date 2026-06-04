@@ -13,6 +13,10 @@ class BusinessProfile extends Model
         'business_name',
         'business_url',
         'industry',
+        'biography',
+        'linkedin_url',
+        'social_url',
+        'website_content',
         'answers',
     ];
 
