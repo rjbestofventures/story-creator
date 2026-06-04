@@ -74,6 +74,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::get('/users', [AdminController::class, 'usersIndex'])->name('users.index');
     Route::get('/plans', [AdminController::class, 'plansIndex'])->name('plans.index');
     Route::get('/stories', [AdminController::class, 'storiesIndex'])->name('stories.index');
+    Route::get('/stories/{story}', [AdminController::class, 'storyShow'])->name('stories.show');
     Route::get('/billing',  [AdminController::class, 'billingIndex'])->name('billing.index');
     Route::get('/settings',            [AdminController::class, 'settingsIndex'])->name('settings.index');
     Route::get('/settings/access',     [AdminController::class, 'accessSettingsIndex'])->name('settings.access');

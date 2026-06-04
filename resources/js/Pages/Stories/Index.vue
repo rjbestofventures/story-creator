@@ -8,6 +8,9 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/Components/ui/dialog';
 import {
+    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/Components/ui/tooltip';
+import {
     Sparkles, BookOpen, Plus, Trash2, Eye, ChevronRight,
     Zap, RefreshCcw, TrendingUp, Calendar, FileText, MessageSquare, Clock
 } from 'lucide-vue-next';
@@ -23,6 +26,13 @@ const props = defineProps({
 const storyCredits  = computed(() => props.subscription?.story_credits  ?? 0);
 const refineCredits = computed(() => props.subscription?.refine_credits ?? 0);
 const planLabel     = computed(() => props.plan?.label ?? 'Free');
+const canCreateStory = computed(() => storyCredits.value > 0);
+
+const renewalDate = computed(() => {
+    const d = props.subscription?.billing_period_ends_at;
+    if (!d) return null;
+    return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+});
 
 // Format labels
 const formatLabel = {
@@ -72,14 +82,36 @@ const confirmDelete = () => {
                         </div>
                     </div>
 
-                    <Link :href="route('stories.create')">
-                        <Button
-                            class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer"
-                        >
-                            <Plus class="w-4 h-4" />
-                            New Story
-                        </Button>
-                    </Link>
+                    <TooltipProvider>
+                        <Tooltip :delay-duration="100">
+                            <TooltipTrigger as-child>
+                                <span>
+                                    <Link v-if="canCreateStory" :href="route('stories.create')">
+                                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                                            <Plus class="w-4 h-4" />
+                                            New Story
+                                        </Button>
+                                    </Link>
+                                    <Button
+                                        v-else
+                                        disabled
+                                        class="flex items-center gap-2 font-bold h-10 px-5 rounded-xl opacity-50 cursor-not-allowed"
+                                        style="background: #DDDDDD; color: #888888;"
+                                    >
+                                        <Plus class="w-4 h-4" />
+                                        New Story
+                                    </Button>
+                                </span>
+                            </TooltipTrigger>
+                            <TooltipContent v-if="!canCreateStory" side="bottom" class="max-w-xs text-center p-3">
+                                <p class="font-semibold text-xs mb-1">No story credits left</p>
+                                <p class="text-xs text-muted-foreground leading-relaxed">
+                                    <template v-if="renewalDate">Your credits refresh on {{ renewalDate }}.</template>
+                                    <template v-else>Credits refresh at the start of your next billing period.</template>
+                                </p>
+                            </TooltipContent>
+                        </Tooltip>
+                    </TooltipProvider>
                 </div>
             </div>
 
@@ -242,7 +274,8 @@ const confirmDelete = () => {
                     <div>
                         <p class="text-sm font-semibold text-[#1A1A1A]">You're out of story credits</p>
                         <p class="text-sm text-[#555555] mt-0.5">
-                            Upgrade your plan to generate more stories.
+                            <template v-if="renewalDate">Credits refresh on {{ renewalDate }}.</template>
+                            <template v-else>Credits refresh at the start of your next billing period.</template>
                         </p>
                     </div>
                 </div>

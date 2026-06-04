@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\SiteSetting;
+use App\Models\Story;
 use App\Models\User;
 use App\Models\UserSubscription;
 use App\Notifications\AccountCreatedNotification;
@@ -72,9 +73,65 @@ class AdminController extends Controller
         return Inertia::render('Admin/Plans', ['plans' => $plans]);
     }
 
-    public function storiesIndex(): Response
+    public function storiesIndex(Request $request): Response
     {
-        return Inertia::render('Admin/Stories');
+        $query = Story::with(['user', 'episodes'])
+            ->withCount('episodes')
+            ->latest();
+
+        $userId = $request->integer('user_id');
+        $filterUser = null;
+
+        if ($userId) {
+            $query->where('user_id', $userId);
+            $filterUser = User::find($userId, ['id', 'name', 'email']);
+        }
+
+        $stories = $query->get()->map(fn (Story $story) => [
+            'id'             => $story->id,
+            'title'          => $story->title,
+            'status'         => $story->status,
+            'episodes_count' => $story->episodes_count,
+            'created_at'     => $story->created_at->format('n/j/Y'),
+            'user'           => [
+                'id'    => $story->user->id,
+                'name'  => $story->user->name,
+                'email' => $story->user->email,
+            ],
+        ]);
+
+        return Inertia::render('Admin/Stories', [
+            'stories'    => $stories,
+            'filterUser' => $filterUser,
+        ]);
+    }
+
+    public function storyShow(Story $story): Response
+    {
+        $story->load(['user', 'episodes']);
+
+        return Inertia::render('Admin/StoryShow', [
+            'story' => [
+                'id'         => $story->id,
+                'title'      => $story->title,
+                'status'     => $story->status,
+                'created_at' => $story->created_at->format('n/j/Y'),
+                'user'       => [
+                    'id'    => $story->user->id,
+                    'name'  => $story->user->name,
+                    'email' => $story->user->email,
+                ],
+                'episodes'   => $story->episodes->map(fn ($ep) => [
+                    'id'             => $ep->id,
+                    'episode_number' => $ep->episode_number,
+                    'title'          => $ep->title,
+                    'content'        => $ep->content,
+                    'format'         => $ep->format,
+                    'status'         => $ep->status,
+                    'created_at'     => $ep->created_at->format('n/j/Y'),
+                ]),
+            ],
+        ]);
     }
 
     public function billingIndex(): Response

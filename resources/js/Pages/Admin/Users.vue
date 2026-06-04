@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import {
     Users, BookOpen, Activity, TrendingUp,
     Search, UserPlus, CircleUser, KeyRound, Trash2, Mail,
@@ -517,7 +517,10 @@ const submitPassword = () => {
                                 </div>
 
                                 <!-- Total stories generated -->
-                                <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3">
+                                <Link
+                                    :href="route('admin.stories.index', { user_id: user.id })"
+                                    class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3 transition hover:ring-[#F5A000] hover:bg-[#FFFBF0]"
+                                >
                                     <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
                                         <BookOpen class="w-4 h-4 text-emerald-500" />
                                     </div>
@@ -526,7 +529,7 @@ const submitPassword = () => {
                                         <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.stories_total }}</p>
                                         <p class="text-[10px] text-muted-foreground">all time</p>
                                     </div>
-                                </div>
+                                </Link>
                             </div>
 
                             <p v-if="user.subscription.expires_at" class="text-xs text-muted-foreground">
