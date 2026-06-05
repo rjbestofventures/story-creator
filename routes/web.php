@@ -1,22 +1,27 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Models\Plan;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\LandingLockController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StoryController;
 use App\Http\Middleware\CheckLandingLock;
-use Illuminate\Foundation\Application;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
+    $plans = Plan::where('is_active', true)
+        ->where('slug', '!=', 'partner')
+        ->where('price_monthly', '>', 0)
+        ->orderBy('price_monthly')
+        ->get(['slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly']);
+
     return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
+        'canLogin'    => Route::has('login'),
         'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
+        'plans'       => $plans,
     ]);
 })->middleware(CheckLandingLock::class)->name('welcome');
 

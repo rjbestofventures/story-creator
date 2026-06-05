@@ -105,7 +105,7 @@ const isProcessing = (plan) => plan.price_monthly === 0
 
         <!-- Plan cards -->
         <div class="flex-1 px-4 pb-16">
-            <div class="max-w-5xl mx-auto grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+            <div class="max-w-5xl mx-auto grid grid-cols-1 gap-5" :class="plans.length <= 3 ? 'sm:grid-cols-2 lg:grid-cols-3' : 'sm:grid-cols-2 lg:grid-cols-4'">
                 <div
                     v-for="plan in plans"
                     :key="plan.id"

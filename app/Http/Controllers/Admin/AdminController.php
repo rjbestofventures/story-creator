@@ -551,6 +551,10 @@ class AdminController extends Controller
             return back()->withErrors(['plan' => "Cannot delete \"{$plan->label}\" — it has {$active} active subscriber(s)."]);
         }
 
+        if ($plan->subscriptions()->exists()) {
+            return back()->withErrors(['plan' => "Cannot delete \"{$plan->label}\" — it has historical subscriptions. Deactivate it instead."]);
+        }
+
         $plan->delete();
 
         return to_route('admin.plans.index');

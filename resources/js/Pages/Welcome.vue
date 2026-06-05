@@ -1,11 +1,12 @@
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, CircleHelp, ChevronDown } from '@lucide/vue';
 
-defineProps({
+const props = defineProps({
     canLogin: Boolean,
     canRegister: Boolean,
+    plans: Array,
 });
 
 const yearly = ref(false);
@@ -21,35 +22,22 @@ const faqs = [
     { q: 'Can I cancel anytime?', a: 'Yes, you can cancel your subscription at any time. You keep access until the end of your billing period.' },
 ];
 
-const plans = [
-    {
-        name: 'Basic',
-        monthly: 10,
-        yearly: 8,
-        episodes: 12,
-        stories: 2,
-        features: ['12 episodes per story', '12 revision credits', '2 stories per month', 'Credits accumulate', 'Basic support'],
-        popular: false,
-    },
-    {
-        name: 'Premium',
-        monthly: 15,
-        yearly: 12,
-        episodes: 18,
-        stories: 2,
-        features: ['18 episodes per story', '24 revision credits', '2 stories per month', 'Credits accumulate', 'Priority support'],
-        popular: true,
-    },
-    {
-        name: 'Professional',
-        monthly: 25,
-        yearly: 20,
-        episodes: 24,
-        stories: 2,
-        features: ['24 episodes per story', '48 revision credits', '2 stories per month', 'Credits accumulate', 'Priority support', 'Dedicated account manager'],
-        popular: false,
-    },
+const popularSlug = computed(() => {
+    if (!props.plans?.length) return null;
+    const sorted = [...props.plans].sort((a, b) => a.price_monthly - b.price_monthly);
+    return sorted[Math.floor(sorted.length / 2)]?.slug ?? null;
+});
+
+const planFeatures = (plan) => [
+    `${plan.episode_limit} episodes per story`,
+    `${plan.refine_monthly} revision credits`,
+    `${plan.stories_per_month} stories per month`,
+    'Credits accumulate',
+    plan.slug === 'basic' ? 'Basic support' : 'Priority support',
+    ...(plan.slug === 'professional' ? ['Dedicated account manager'] : []),
 ];
+
+const yearlyMonthly = (plan) => Math.round(plan.price_yearly / 12);
 </script>
 
 <template>
@@ -265,27 +253,27 @@ const plans = [
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div
                         v-for="plan in plans"
-                        :key="plan.name"
+                        :key="plan.slug"
                         class="relative rounded-2xl bg-white p-6 flex flex-col"
-                        :style="plan.popular ? 'border: 2px solid #F5A000;' : 'border: 1px solid #DDDDDD;'"
+                        :style="plan.slug === popularSlug ? 'border: 2px solid #F5A000;' : 'border: 1px solid #DDDDDD;'"
                     >
                         <!-- Most Popular badge -->
-                        <div v-if="plan.popular" class="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                        <div v-if="plan.slug === popularSlug" class="absolute -top-3.5 left-1/2 -translate-x-1/2">
                             <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Most Popular</span>
                         </div>
 
-                        <h3 class="text-base font-bold mb-3" style="color: #1A1A1A;">{{ plan.name }}</h3>
+                        <h3 class="text-base font-bold mb-3" style="color: #1A1A1A;">{{ plan.label }}</h3>
 
                         <div class="flex items-baseline gap-1 mb-1">
-                            <span class="text-4xl font-black" style="color: #1A1A1A;">${{ yearly ? plan.yearly : plan.monthly }}</span>
+                            <span class="text-4xl font-black" style="color: #1A1A1A;">${{ yearly ? yearlyMonthly(plan) : plan.price_monthly }}</span>
                             <span class="text-sm" style="color: #555555;">/month</span>
                         </div>
-                        <p class="text-xs mb-5" style="color: #555555;">{{ plan.episodes }} episodes · {{ plan.stories }} stories/mo</p>
+                        <p class="text-xs mb-5" style="color: #555555;">{{ plan.episode_limit }} episodes · {{ plan.stories_per_month }} stories/mo</p>
 
                         <Link
                             :href="route('register')"
                             class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:opacity-90"
-                            :style="plan.popular
+                            :style="plan.slug === popularSlug
                                 ? 'background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;'
                                 : 'background: #FFFFFF; color: #1A1A1A; border: 1px solid #DDDDDD;'"
                         >
@@ -293,8 +281,8 @@ const plans = [
                         </Link>
 
                         <ul class="flex flex-col gap-2.5">
-                            <li v-for="f in plan.features" :key="f" class="flex items-center gap-2 text-sm" style="color: #555555;">
-                                <Check class="w-4 h-4 shrink-0" :style="plan.popular ? 'color: #F5A000;' : 'color: #555555;'" :stroke-width="2.5" />
+                            <li v-for="f in planFeatures(plan)" :key="f" class="flex items-center gap-2 text-sm" style="color: #555555;">
+                                <Check class="w-4 h-4 shrink-0" :style="plan.slug === popularSlug ? 'color: #F5A000;' : 'color: #555555;'" :stroke-width="2.5" />
                                 {{ f }}
                             </li>
                         </ul>
