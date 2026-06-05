@@ -498,7 +498,6 @@ const restoreRevision = async (ep) => {
                                         :key="opt.key"
                                         type="button"
                                         :disabled="toningEpId === ep.id"
-                                        @mousedown.prevent
                                         @click="applyTone(ep, opt.key)"
                                         class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
                                         :class="toningEpId === ep.id && toningId === opt.key
