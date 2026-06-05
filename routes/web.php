@@ -33,6 +33,10 @@ Route::get('/verified-partner', function () {
 Route::get('/unlock', [LandingLockController::class, 'show'])->name('landing.unlock');
 Route::post('/unlock', [LandingLockController::class, 'unlock'])->name('landing.unlock.submit');
 
+Route::get('/email/verified-success', function () {
+    return Inertia::render('Auth/EmailVerified');
+})->middleware('auth')->name('verification.success');
+
 Route::get('/demo', function (Request $request) {
     if (! $request->user()) {
         return redirect()->route('register');
