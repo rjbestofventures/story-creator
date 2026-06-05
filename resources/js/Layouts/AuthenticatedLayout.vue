@@ -20,7 +20,7 @@ const menuOpen = ref(false);
                 <div class="flex items-center justify-between h-14">
 
                     <!-- Logo -->
-                    <Link :href="route('stories.index')" class="flex items-center gap-2 cursor-pointer">
+                    <Link :href="route('welcome')" class="flex items-center gap-2 cursor-pointer">
                         <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center">
                             <Sparkles class="w-4 h-4 text-white" />
                         </div>
