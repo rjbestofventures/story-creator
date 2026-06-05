@@ -132,10 +132,10 @@ const modelLabel = (id) => {
                             <span class="text-xs font-semibold text-[#1A1A1A]">{{ user.stories_count }}</span>
                         </td>
                         <td class="px-5 py-3.5 hidden md:table-cell">
-                            <span class="text-xs text-[#555555]">{{ fmt(user.tokens_interview_input + user.tokens_interview_output) }}</span>
+                            <span class="text-xs text-[#555555]">{{ fmt(user.int_input + user.int_output) }}</span>
                         </td>
                         <td class="px-5 py-3.5 hidden md:table-cell">
-                            <span class="text-xs text-[#555555]">{{ fmt(user.tokens_gen_input + user.tokens_gen_output) }}</span>
+                            <span class="text-xs text-[#555555]">{{ fmt(user.gen_input + user.gen_output) }}</span>
                         </td>
                         <td class="px-5 py-3.5">
                             <span class="text-xs font-bold text-[#1A1A1A]">${{ user.cost }}</span>

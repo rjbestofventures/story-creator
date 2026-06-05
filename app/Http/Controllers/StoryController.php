@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Jobs\GenerateStory;
 use App\Models\BusinessProfile;
 use App\Models\Episode;
 use App\Models\EpisodeVersion;
@@ -167,42 +168,17 @@ class StoryController extends Controller
     {
         abort_unless($story->user_id === $request->user()->id, 403);
 
-        $data = $request->validate([
-            'format' => 'in:social,blog,linkedin',
-        ]);
-
-        $user    = $request->user();
-        $profile = $story->businessProfile;
-        $count   = $story->is_demo ? 3 : ($user->activeSubscription?->effectiveEpisodeLimit() ?? 5);
-        $format  = $data['format'] ?? 'social';
+        $data   = $request->validate(['format' => 'in:social,blog,linkedin']);
+        $format = $data['format'] ?? 'social';
 
         $story->update(['status' => 'generating']);
-
-        $generator = new StoryGeneratorService;
-        $generated = $generator->generate($profile, $count, $format);
-
-        $story->update([
-            'title' => $generated['story_title'],
-            'status' => 'draft',
-            'generation_model' => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
-            'tokens_input' => $story->tokens_input + ($generated['_tokens_input'] ?? 0),
-            'tokens_output' => $story->tokens_output + ($generated['_tokens_output'] ?? 0),
-        ]);
-
-        foreach ($generated['episodes'] as $ep) {
-            $story->episodes()->create([
-                'episode_number' => $ep['episode_number'],
-                'title' => $ep['title'],
-                'content' => $ep['content'],
-                'format' => $format,
-                'status' => 'draft',
-            ]);
-        }
 
         $sub = $request->user()->activeSubscription;
         if ($sub && $sub->story_credits > 0) {
             $sub->decrement('story_credits');
         }
+
+        GenerateStory::dispatch($story, $format);
 
         return to_route('stories.show', $story->id);
     }
@@ -288,17 +264,21 @@ class StoryController extends Controller
             ]
         );
 
-        $count  = $user->activeSubscription?->effectiveEpisodeLimit() ?? 5;
         $format = $data['format'] ?? 'social';
 
-        $generator = new StoryGeneratorService;
-        $generated = $generator->generate($profile, $count, $format);
-        $story = $generator->saveToStory($profile, $generated, $format);
+        $story = Story::create([
+            'user_id'             => $user->id,
+            'business_profile_id' => $profile->id,
+            'title'               => 'Generating…',
+            'status'              => 'generating',
+        ]);
 
         $sub = $user->activeSubscription;
         if ($sub && $sub->story_credits > 0) {
             $sub->decrement('story_credits');
         }
+
+        GenerateStory::dispatch($story, $format);
 
         return to_route('stories.show', $story->id);
     }
@@ -315,20 +295,32 @@ class StoryController extends Controller
 
         return Inertia::render('Stories/Show', [
             'story' => [
-                'id' => $story->id,
-                'title' => $story->title,
-                'is_demo' => $story->is_demo,
+                'id'               => $story->id,
+                'title'            => $story->title,
+                'status'           => $story->status,
+                'is_demo'          => $story->is_demo,
                 'business_profile' => $story->businessProfile,
-                'episodes' => $story->episodes->map(fn ($ep) => [
-                    'id' => $ep->id,
+                'episodes'         => $story->episodes->map(fn ($ep) => [
+                    'id'             => $ep->id,
                     'episode_number' => $ep->episode_number,
-                    'title' => $ep->title,
-                    'content' => $ep->content,
-                    'format' => $ep->format,
+                    'title'          => $ep->title,
+                    'content'        => $ep->content,
+                    'format'         => $ep->format,
                     'versions_count' => $ep->versions->count(),
                 ]),
             ],
         ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Lightweight status poll
+    // -------------------------------------------------------------------------
+
+    public function status(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+
+        return response()->json(['status' => $story->status]);
     }
 
     // -------------------------------------------------------------------------

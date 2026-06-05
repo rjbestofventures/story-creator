@@ -1,6 +1,6 @@
 <script setup>
-import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -19,6 +19,30 @@ const props = defineProps({
 const isDemo       = props.story.is_demo ?? false;
 const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
+
+// ─── Generating state + polling ───────────────────────────────────────────────
+const isGenerating = computed(() => props.story.status === 'generating');
+let pollTimer = null;
+
+const startPolling = () => {
+    pollTimer = setInterval(async () => {
+        try {
+            const res  = await fetch(route('stories.status', props.story.id), {
+                headers: { Accept: 'application/json' },
+            });
+            const data = await res.json();
+            if (data.status !== 'generating') {
+                clearInterval(pollTimer);
+                router.reload({ only: ['story'] });
+            }
+        } catch {
+            // network blip — keep polling
+        }
+    }, 3000);
+};
+
+onMounted(() => { if (props.story.status === 'generating') startPolling(); });
+onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
 const formatLabel = { social: 'Social Post', linkedin: 'LinkedIn', blog: 'Blog' };
 const formatColor = {
@@ -160,6 +184,20 @@ const restoreRevision = async (ep) => {
 <template>
     <Head :title="`The Story of ${businessName}`" />
     <AuthenticatedLayout>
+        <!-- Generating overlay -->
+        <div v-if="isGenerating" class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6" style="background: rgba(250,250,248,0.97);">
+            <div class="flex flex-col items-center gap-4 text-center px-6">
+                <Loader2 class="w-12 h-12 animate-spin" style="color: #F5A000;" />
+                <div>
+                    <p class="text-xl font-black mb-1" style="color: #1A1A1A;">Generating your story…</p>
+                    <p class="text-sm" style="color: #555555;">This takes 15–30 seconds. You can wait here or come back later.</p>
+                </div>
+                <Link :href="route('stories.index')" class="text-sm underline mt-2" style="color: #555555;">
+                    Go to My Stories
+                </Link>
+            </div>
+        </div>
+
         <div class="min-h-screen bg-[#FAFAF8]">
 
             <!-- Top bar -->

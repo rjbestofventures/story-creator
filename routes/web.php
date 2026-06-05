@@ -98,6 +98,7 @@ Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function
 Route::middleware(['auth'])->group(function () {
     Route::get('/stories/{story}', [StoryController::class, 'show'])->name('stories.show');
     Route::get('/stories/{story}/resume', [StoryController::class, 'resume'])->name('stories.resume');
+    Route::get('/stories/{story}/status', [StoryController::class, 'status'])->name('stories.status');
 });
 
 Route::middleware('auth')->group(function () {
