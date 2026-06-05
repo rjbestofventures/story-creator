@@ -1,12 +1,12 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import {
     ArrowLeft, Copy, Check, Sparkles, Loader2, Plus,
-    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight,
+    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight, Pencil,
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -127,9 +127,10 @@ const nextRevision = (ep) => {
 };
 
 // ─── Inline editing ───────────────────────────────────────────────────────────
-const focusedId = ref(null);
-const savingId  = ref(null);
-const editState = ref({});
+const focusedId    = ref(null);
+const savingId     = ref(null);
+const editState    = ref({});
+const contentRefs  = ref({});
 
 const syncEditState = (epId) => {
     const ep = episodes.value.find(e => e.id === epId);
@@ -141,6 +142,12 @@ const initAllEditState = () => {
 };
 
 onMounted(initAllEditState);
+
+const editEpisode = async (ep) => {
+    focusedId.value = ep.id;
+    await nextTick();
+    contentRefs.value[ep.id]?.focus();
+};
 
 const handleCardFocusIn = (epId) => {
     focusedId.value = epId;
@@ -360,20 +367,31 @@ const restoreRevision = async (ep) => {
                         <!-- ── Card header ─────────────────────────────────── -->
                         <div class="px-4 sm:px-6 pt-5 pb-4 border-b border-[#F5F5F5] space-y-3">
 
-                            <!-- Copy button — absolute top-right (non-demo only) -->
-                            <button
-                                v-if="!isDemo"
-                                type="button"
-                                aria-label="Copy episode"
-                                @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
-                                class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
-                                :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
-                                    ? 'text-emerald-600 bg-emerald-50'
-                                    : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
-                            >
-                                <Check v-if="copied === (editState[ep.id]?.content ?? displayed(ep).content)" class="w-4 h-4" />
-                                <Copy v-else class="w-4 h-4" />
-                            </button>
+                            <!-- Edit + Copy buttons — absolute top-right (non-demo only) -->
+                            <div v-if="!isDemo" class="absolute top-3 right-3 flex items-center gap-1">
+                                <button
+                                    v-if="isAtCurrent(ep) && focusedId !== ep.id"
+                                    type="button"
+                                    aria-label="Edit episode"
+                                    @click.stop="editEpisode(ep)"
+                                    class="flex items-center gap-1.5 text-xs font-semibold px-2.5 h-8 rounded-lg border border-[#DDDDDD] text-[#555555] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
+                                >
+                                    <Pencil class="w-3.5 h-3.5" />
+                                    Edit
+                                </button>
+                                <button
+                                    type="button"
+                                    aria-label="Copy episode"
+                                    @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
+                                    :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
+                                        ? 'text-emerald-600 bg-emerald-50'
+                                        : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                                >
+                                    <Check v-if="copied === (editState[ep.id]?.content ?? displayed(ep).content)" class="w-4 h-4" />
+                                    <Copy v-else class="w-4 h-4" />
+                                </button>
+                            </div>
 
                             <!-- Row 1: badges (leave room on right for copy button) -->
                             <div class="flex items-center gap-2 pr-10">
@@ -444,22 +462,23 @@ const restoreRevision = async (ep) => {
                                 </button>
                             </div>
 
-                            <!-- Title — editable input at current revision, plain h2 for history -->
+                            <!-- Title — editable input in edit mode, plain h2 otherwise -->
                             <input
-                                v-if="!isDemo && isAtCurrent(ep) && editState[ep.id]"
+                                v-if="!isDemo && isAtCurrent(ep) && focusedId === ep.id && editState[ep.id]"
                                 :value="editState[ep.id].title"
                                 @input="editState[ep.id].title = $event.target.value"
-                                class="w-full text-xl font-black text-[#1A1A1A] mb-3 bg-transparent border-0 outline-none rounded-lg px-2 -mx-2 transition-colors duration-150 hover:bg-[#FAFAF8] focus:bg-[#FAFAF8]"
+                                class="w-full text-xl font-black text-[#1A1A1A] mb-3 bg-[#FAFAF8] border-0 outline-none rounded-lg px-2 -mx-2"
                                 placeholder="Episode title"
                             />
                             <h2 v-else class="text-xl font-black text-[#1A1A1A] mb-3">{{ displayed(ep).title }}</h2>
 
-                            <!-- Content — editable textarea at current revision, plain div for history -->
+                            <!-- Content — editable textarea in edit mode, plain div otherwise -->
                             <textarea
-                                v-if="!isDemo && isAtCurrent(ep) && editState[ep.id]"
+                                v-if="!isDemo && isAtCurrent(ep) && focusedId === ep.id && editState[ep.id]"
+                                :ref="el => contentRefs[ep.id] = el"
                                 :value="editState[ep.id].content"
                                 @input="editState[ep.id].content = $event.target.value"
-                                class="w-full text-[#333333] text-[15px] leading-[1.8] bg-transparent border-0 outline-none resize-none rounded-lg px-2 -mx-2 transition-colors duration-150 hover:bg-[#FAFAF8] focus:bg-[#FAFAF8] [field-sizing:content]"
+                                class="w-full text-[#333333] text-[15px] leading-[1.8] bg-[#FAFAF8] border-0 outline-none resize-none rounded-lg px-2 -mx-2 [field-sizing:content]"
                                 style="min-height: 120px;"
                             />
                             <div v-else class="text-[#333333] text-[15px] leading-[1.8] whitespace-pre-wrap">{{ displayed(ep).content }}</div>
