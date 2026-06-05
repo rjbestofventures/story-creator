@@ -69,7 +69,7 @@ class AdminController extends Controller
     public function plansIndex(): Response
     {
         $plans = Plan::orderBy('price_monthly')
-            ->get(['id', 'slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly', 'trial_months', 'is_active']);
+            ->get(['id', 'slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly', 'trial_months', 'is_active', 'stripe_price_monthly', 'stripe_price_yearly']);
 
         return Inertia::render('Admin/Plans', ['plans' => $plans]);
     }
