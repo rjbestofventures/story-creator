@@ -9,8 +9,9 @@ import { Textarea } from '@/Components/ui/textarea';
 import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil } from 'lucide-vue-next';
 
 const props = defineProps({
-    profile: Object,
-    story:   Object, // populated when resuming an in-progress interview
+    profile:       Object,
+    story:         Object,
+    episode_limit: Number,
 });
 
 // ─── Phase: 0 = basics, 1 = AI chat, 2 = generate options ───────────────────
@@ -140,11 +141,10 @@ const displayLog = computed(() =>
 );
 
 // ─── Generate options ─────────────────────────────────────────────────────────
-const episodeCount = ref(5);
+const episodeCount = computed(() => isDemoMode.value ? 3 : (props.episode_limit ?? 5));
 const format       = ref('social');
 const storeForm    = useForm({
-    episode_count: 5,
-    format:        'social',
+    format: 'social',
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -383,8 +383,7 @@ const submit = () => {
         return;
     }
     generateError.value = '';
-    storeForm.episode_count = episodeCount.value;
-    storeForm.format        = format.value;
+    storeForm.format = format.value;
     storeForm.post(route('stories.generate', storyId.value), {
         onError: () => {
             generateError.value = 'Something went wrong generating your story. Please try again.';
@@ -411,7 +410,6 @@ const formats = [
     { value: 'linkedin', label: 'LinkedIn',      desc: '200–300 words · Professional tone' },
     { value: 'blog',     label: 'Blog Article',  desc: '300–400 words · Long-form narrative' },
 ];
-const counts = [3, 5, 7, 10];
 </script>
 
 <template>
@@ -780,22 +778,6 @@ const counts = [3, 5, 7, 10];
                     </div>
 
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-8">
-
-                        <!-- Episode count -->
-                        <div class="space-y-3">
-                            <Label class="text-[#1A1A1A] font-bold text-base block">How many episodes?</Label>
-                            <div class="flex gap-3">
-                                <button
-                                    v-for="c in counts" :key="c"
-                                    type="button"
-                                    @click="episodeCount = c"
-                                    class="flex-1 py-3 rounded-xl border-2 text-sm font-bold transition-all duration-200 cursor-pointer"
-                                    :class="episodeCount === c
-                                        ? 'border-[#F5A000] bg-amber-50 text-[#F5A000]'
-                                        : 'border-[#DDDDDD] text-[#555555] hover:border-[#F5A000]/50'"
-                                >{{ c }}</button>
-                            </div>
-                        </div>
 
                         <!-- Format -->
                         <div class="space-y-3">

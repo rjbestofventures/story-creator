@@ -184,7 +184,7 @@ const restoreRevision = async (ep) => {
                 <div class="max-w-3xl mx-auto flex items-center justify-between gap-4">
                     <p class="text-sm text-[#555555]">
                         <span class="font-semibold text-[#1A1A1A]">This is a demo story.</span>
-                        It shows you exactly what StoryCreator.Bot generates from a real interview.
+                        It shows you exactly what StoryCreator.Bot generates with a Paid Subscription Story Generation.
                     </p>
                     <Link :href="route('billing.plans')" class="flex-shrink-0">
                         <Button class="flex items-center gap-1.5 text-xs font-bold h-8 px-3 rounded-lg bg-[#F5A000] hover:bg-[#e09600] text-white cursor-pointer transition-colors">

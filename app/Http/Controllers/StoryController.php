@@ -47,9 +47,12 @@ class StoryController extends Controller
 
     public function create(Request $request)
     {
+        $episodeLimit = $request->user()->activeSubscription?->effectiveEpisodeLimit() ?? 5;
+
         return Inertia::render('Stories/Create', [
-            'profile' => null,
-            'story' => null,
+            'profile'       => null,
+            'story'         => null,
+            'episode_limit' => $episodeLimit,
         ]);
     }
 
@@ -61,12 +64,17 @@ class StoryController extends Controller
 
         $story->load('businessProfile');
 
+        $episodeLimit = $story->is_demo
+            ? 3
+            : ($request->user()->activeSubscription?->effectiveEpisodeLimit() ?? 5);
+
         return Inertia::render('Stories/Create', [
-            'profile' => $story->businessProfile,
+            'profile'       => $story->businessProfile,
+            'episode_limit' => $episodeLimit,
             'story' => [
-                'id' => $story->id,
-                'status' => $story->status,
-                'is_demo' => $story->is_demo,
+                'id'       => $story->id,
+                'status'   => $story->status,
+                'is_demo'  => $story->is_demo,
                 'messages' => $story->businessProfile->answers ?? [],
             ],
         ]);
@@ -160,13 +168,13 @@ class StoryController extends Controller
         abort_unless($story->user_id === $request->user()->id, 403);
 
         $data = $request->validate([
-            'episode_count' => 'integer|min:1|max:10',
             'format' => 'in:social,blog,linkedin',
         ]);
 
+        $user    = $request->user();
         $profile = $story->businessProfile;
-        $count = $data['episode_count'] ?? 5;
-        $format = $data['format'] ?? 'social';
+        $count   = $story->is_demo ? 3 : ($user->activeSubscription?->effectiveEpisodeLimit() ?? 5);
+        $format  = $data['format'] ?? 'social';
 
         $story->update(['status' => 'generating']);
 
@@ -265,7 +273,6 @@ class StoryController extends Controller
             'messages' => 'required|array|min:2',
             'messages.*.role' => 'required|in:user,assistant',
             'messages.*.content' => 'required|string',
-            'episode_count' => 'integer|min:1|max:10',
             'format' => 'in:social,blog,linkedin',
         ]);
 
@@ -277,11 +284,11 @@ class StoryController extends Controller
                 'business_name' => $data['business_name'],
                 'business_url' => $data['business_url'] ?? null,
                 'industry' => $data['industry'] ?? null,
-                'answers' => $data['messages'], // store full conversation
+                'answers' => $data['messages'],
             ]
         );
 
-        $count = $data['episode_count'] ?? 5;
+        $count  = $user->activeSubscription?->effectiveEpisodeLimit() ?? 5;
         $format = $data['format'] ?? 'social';
 
         $generator = new StoryGeneratorService;
