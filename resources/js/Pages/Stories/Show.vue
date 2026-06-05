@@ -128,6 +128,7 @@ const nextRevision = (ep) => {
 
 // ─── Inline editing ───────────────────────────────────────────────────────────
 const focusedId    = ref(null);
+const editingId    = ref(null);
 const savingId     = ref(null);
 const editState    = ref({});
 const contentRefs  = ref({});
@@ -143,7 +144,10 @@ const initAllEditState = () => {
 
 onMounted(initAllEditState);
 
+const isEditing = (ep) => editingId.value === ep.id;
+
 const editEpisode = async (ep) => {
+    editingId.value = ep.id;
     focusedId.value = ep.id;
     await nextTick();
     contentRefs.value[ep.id]?.focus();
@@ -156,6 +160,7 @@ const handleCardFocusIn = (epId) => {
 const handleCardFocusOut = async (ep, event) => {
     if (event.currentTarget.contains(event.relatedTarget)) return;
     focusedId.value = null;
+    if (editingId.value === ep.id) editingId.value = null;
     if (!isDemo && isAtCurrent(ep)) await saveEdit(ep);
 };
 
@@ -370,9 +375,10 @@ const restoreRevision = async (ep) => {
                             <!-- Edit + Copy buttons — absolute top-right (non-demo only) -->
                             <div v-if="!isDemo" class="absolute top-3 right-3 flex items-center gap-1">
                                 <button
-                                    v-if="isAtCurrent(ep) && focusedId !== ep.id"
+                                    v-if="isAtCurrent(ep) && !isEditing(ep)"
                                     type="button"
                                     aria-label="Edit episode"
+                                    @mousedown.prevent
                                     @click.stop="editEpisode(ep)"
                                     class="flex items-center gap-1.5 text-xs font-semibold px-2.5 h-8 rounded-lg border border-[#DDDDDD] text-[#555555] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
                                 >
@@ -464,7 +470,7 @@ const restoreRevision = async (ep) => {
 
                             <!-- Title — editable input in edit mode, plain h2 otherwise -->
                             <input
-                                v-if="!isDemo && isAtCurrent(ep) && focusedId === ep.id && editState[ep.id]"
+                                v-if="!isDemo && isAtCurrent(ep) && isEditing(ep) && editState[ep.id]"
                                 :value="editState[ep.id].title"
                                 @input="editState[ep.id].title = $event.target.value"
                                 class="w-full text-xl font-black text-[#1A1A1A] mb-3 bg-[#FAFAF8] border-0 outline-none rounded-lg px-2 -mx-2"
@@ -474,7 +480,7 @@ const restoreRevision = async (ep) => {
 
                             <!-- Content — editable textarea in edit mode, plain div otherwise -->
                             <textarea
-                                v-if="!isDemo && isAtCurrent(ep) && focusedId === ep.id && editState[ep.id]"
+                                v-if="!isDemo && isAtCurrent(ep) && isEditing(ep) && editState[ep.id]"
                                 :ref="el => contentRefs[ep.id] = el"
                                 :value="editState[ep.id].content"
                                 @input="editState[ep.id].content = $event.target.value"
@@ -485,7 +491,7 @@ const restoreRevision = async (ep) => {
 
                             <!-- AI Refine toolbar — appears when card is focused, at current revision -->
                             <div
-                                v-if="focusedId === ep.id && !isDemo && isAtCurrent(ep)"
+                                v-if="!isDemo && isAtCurrent(ep) && isEditing(ep)"
                                 class="mt-5 pt-4 border-t border-[#F0F0F0]"
                             >
                                 <div class="flex items-center gap-2 flex-wrap">
