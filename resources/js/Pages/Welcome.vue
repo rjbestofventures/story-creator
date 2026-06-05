@@ -67,6 +67,7 @@ const plans = [
             <nav class="flex items-center gap-3">
                 <!-- Desktop only -->
                 <Link
+                    v-if="!$page.props.auth.user"
                     :href="route('demo')"
                     class="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-sm transition hover:bg-gray-50"
                     style="border-color: #DDDDDD; color: #1A1A1A;"
@@ -142,6 +143,7 @@ const plans = [
                 </Link>
 
                 <Link
+                    v-if="!$page.props.auth.user"
                     :href="route('demo')"
                     class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
                     style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"

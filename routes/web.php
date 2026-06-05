@@ -39,6 +39,7 @@ Route::get('/email/verified-success', function () {
 
 Route::get('/demo', function (Request $request) {
     if (! $request->user()) {
+        session()->put('post_register_intent', 'demo');
         return redirect()->route('register');
     }
 
