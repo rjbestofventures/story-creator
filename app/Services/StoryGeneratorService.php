@@ -173,7 +173,13 @@ PROMPT;
             maxTokens:   8192,
             messages:    [['role' => 'user', 'content' => $userPrompt]],
             model:       $model,
-            system:      $this->systemPrompt,
+            system:      [
+                [
+                    'type'          => 'text',
+                    'text'          => $this->systemPrompt,
+                    'cache_control' => ['type' => 'ephemeral'],
+                ],
+            ],
             temperature: 0.8,
             tools:      [$this->outputTool],
             toolChoice: ['type' => 'tool', 'name' => 'save_story'],
@@ -181,16 +187,21 @@ PROMPT;
 
         foreach ($response->content as $block) {
             if ($block->type === 'tool_use' && $block->name === 'save_story') {
+                $cacheCreate = $response->usage->cacheCreationInputTokens ?? 0;
+                $cacheRead   = $response->usage->cacheReadInputTokens   ?? 0;
+
                 Log::channel('anthropic')->debug('Generation ← response', [
-                    'stop_reason'   => $response->stopReason,
-                    'input_tokens'  => $response->usage->inputTokens,
-                    'output_tokens' => $response->usage->outputTokens,
-                    'episodes'      => count($block->input['episodes'] ?? []),
-                    'story_title'   => $block->input['story_title'] ?? null,
+                    'stop_reason'           => $response->stopReason,
+                    'input_tokens'          => $response->usage->inputTokens,
+                    'cache_creation_tokens' => $cacheCreate,
+                    'cache_read_tokens'     => $cacheRead,
+                    'output_tokens'         => $response->usage->outputTokens,
+                    'episodes'              => count($block->input['episodes'] ?? []),
+                    'story_title'           => $block->input['story_title'] ?? null,
                 ]);
 
                 $result = (array) $block->input;
-                $result['_tokens_input']  = $response->usage->inputTokens;
+                $result['_tokens_input']  = $response->usage->inputTokens + $cacheCreate + $cacheRead;
                 $result['_tokens_output'] = $response->usage->outputTokens;
 
                 return $result;
@@ -203,6 +214,66 @@ PROMPT;
         ]);
 
         return [];
+    }
+
+    public function refineTone(string $content, string $tone): array
+    {
+        $instruction = match ($tone) {
+            'friendlier'   => 'Rewrite this episode with a warmer, more approachable tone. Keep all the facts and story beats. Make the voice feel more personal and inviting.',
+            'shorter'      => 'Condense this episode to roughly half its current length. Keep the core story and the closing line\'s feeling. Cut padding, not substance.',
+            'humor'        => 'Weave light, natural wit into this episode. Keep the story structure intact. The humor should feel organic — a subtle turn of phrase or a self-aware aside, not jokes.',
+            'professional' => 'Polish this episode to a more composed, business-appropriate tone. Keep the story authentic but make the language more precise and measured.',
+        };
+
+        $userPrompt = <<<PROMPT
+Original episode:
+
+{$content}
+
+Task: {$instruction}
+
+Return only the rewritten episode text. Preserve the first-person present tense voice throughout. No labels, no commentary, no title — just the episode body.
+PROMPT;
+
+        $model = SiteSetting::get('generation_model', 'claude-sonnet-4-6');
+
+        Log::channel('anthropic')->debug('RefineTone → request', [
+            'model' => $model,
+            'tone'  => $tone,
+        ]);
+
+        $response = $this->client()->messages->create(
+            maxTokens:   2048,
+            messages:    [['role' => 'user', 'content' => $userPrompt]],
+            model:       $model,
+            system:      [
+                [
+                    'type'          => 'text',
+                    'text'          => $this->systemPrompt,
+                    'cache_control' => ['type' => 'ephemeral'],
+                ],
+            ],
+            temperature: 0.7,
+        );
+
+        $cacheCreate = $response->usage->cacheCreationInputTokens ?? 0;
+        $cacheRead   = $response->usage->cacheReadInputTokens   ?? 0;
+
+        $refined = collect($response->content)
+            ->firstWhere('type', 'text')?->text ?? $content;
+
+        Log::channel('anthropic')->debug('RefineTone ← response', [
+            'input_tokens'          => $response->usage->inputTokens,
+            'cache_creation_tokens' => $cacheCreate,
+            'cache_read_tokens'     => $cacheRead,
+            'output_tokens'         => $response->usage->outputTokens,
+        ]);
+
+        return [
+            'content'        => trim($refined),
+            '_tokens_input'  => $response->usage->inputTokens + $cacheCreate + $cacheRead,
+            '_tokens_output' => $response->usage->outputTokens,
+        ];
     }
 
     public function saveToStory(BusinessProfile $profile, array $generated, string $format = 'social'): Story

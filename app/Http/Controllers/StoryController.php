@@ -446,4 +446,75 @@ class StoryController extends Controller
             ],
         ]);
     }
+
+    // -------------------------------------------------------------------------
+    // Inline edit — save title / content edits made directly in the card
+    // -------------------------------------------------------------------------
+
+    public function updateEpisode(Request $request, Story $story, Episode $episode)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_unless($episode->story_id === $story->id, 404);
+
+        $data = $request->validate([
+            'title'   => 'sometimes|string|max:255',
+            'content' => 'sometimes|string|max:50000',
+        ]);
+
+        $episode->update($data);
+
+        return response()->json([
+            'episode' => [
+                'id'      => $episode->id,
+                'title'   => $episode->title,
+                'content' => $episode->content,
+            ],
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // AI Refine Tone — apply a tonal transformation to a single episode
+    // -------------------------------------------------------------------------
+
+    public function refineEpisodeTone(Request $request, Story $story, Episode $episode)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_unless($episode->story_id === $story->id, 404);
+
+        $data = $request->validate([
+            'tone' => 'required|in:friendlier,shorter,humor,professional',
+        ]);
+
+        // Snapshot current content before overwriting
+        $nextVersion = $episode->versions()->max('version') ?? 0;
+        EpisodeVersion::create([
+            'episode_id' => $episode->id,
+            'version'    => $nextVersion + 1,
+            'title'      => $episode->title,
+            'content'    => $episode->content,
+        ]);
+
+        $generator = new StoryGeneratorService;
+        $refined   = $generator->refineTone($episode->content, $data['tone']);
+
+        $episode->update(['content' => $refined['content']]);
+
+        $story->increment('tokens_input',  $refined['_tokens_input']  ?? 0);
+        $story->increment('tokens_output', $refined['_tokens_output'] ?? 0);
+
+        $sub = $request->user()->activeSubscription;
+        if ($sub && $sub->refine_credits > 0) {
+            $sub->decrement('refine_credits');
+        }
+
+        return response()->json([
+            'episode' => [
+                'id'             => $episode->id,
+                'episode_number' => $episode->episode_number,
+                'title'          => $episode->title,
+                'content'        => $episode->content,
+                'format'         => $episode->format,
+            ],
+        ]);
+    }
 }

@@ -1,15 +1,12 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
-} from '@/Components/ui/dialog';
-import {
     ArrowLeft, Copy, Check, Sparkles, Loader2, Plus,
-    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight
+    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight,
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -21,13 +18,13 @@ const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
 
 // ─── Generating / failed state + polling ─────────────────────────────────────
-const isGenerating = computed(() => props.story.status === 'generating');
-const isFailed     = computed(() => props.story.status === 'failed');
+const isGenerating = ref(props.story.status === 'generating');
+const isFailed     = ref(props.story.status === 'failed');
 const pollTimedOut = ref(false);
 const retrying     = ref(false);
 let pollTimer      = null;
 let pollCount      = 0;
-const POLL_MAX     = 60; // 3 minutes at 3s intervals
+const POLL_MAX     = 60;
 
 const startPolling = () => {
     pollCount = 0;
@@ -70,10 +67,6 @@ const retryGeneration = async () => {
     }
 };
 
-watch(() => props.story.status, (status) => {
-    if (status === 'generating') startPolling();
-});
-
 onMounted(() => { if (props.story.status === 'generating') startPolling(); });
 onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
@@ -93,8 +86,6 @@ const copyEpisode = async (content) => {
 };
 
 // ─── Revision state per episode ───────────────────────────────────────────────
-// { [episodeId]: { position, versions, loading } }
-// position counts from 1. total = versions_count + 1 (current is always last).
 const revState = ref({});
 
 const total    = (ep) => (ep.versions_count ?? 0) + 1;
@@ -106,7 +97,6 @@ const displayed = (ep) => {
     if (pos === total(ep) || !state?.versions) {
         return { title: ep.title, content: ep.content };
     }
-    // history is newest-first from API, so index = (versions.length - pos)
     const v = state.versions[state.versions.length - pos];
     return v ? { title: v.title, content: v.content } : { title: ep.title, content: ep.content };
 };
@@ -136,45 +126,98 @@ const nextRevision = (ep) => {
     revState.value[ep.id] = { ...revState.value[ep.id], position: pos + 1 };
 };
 
-// ─── Refine ───────────────────────────────────────────────────────────────────
-const refineOpen   = ref(false);
-const refineTarget = ref(null);
-const refining     = ref(null); // stores episode ID being refined
+// ─── Inline editing ───────────────────────────────────────────────────────────
+const focusedId = ref(null);
+const savingId  = ref(null);
+const editState = ref({});
 
-const openRefine = (ep) => {
-    refineTarget.value = ep;
-    refineOpen.value   = true;
+const syncEditState = (epId) => {
+    const ep = episodes.value.find(e => e.id === epId);
+    if (ep) editState.value[epId] = { title: ep.title, content: ep.content };
 };
 
-const confirmRefine = async () => {
-    if (!refineTarget.value) return;
-    refining.value = refineTarget.value.id;
+const initAllEditState = () => {
+    for (const ep of episodes.value) syncEditState(ep.id);
+};
+
+onMounted(initAllEditState);
+
+const handleCardFocusIn = (epId) => {
+    focusedId.value = epId;
+};
+
+const handleCardFocusOut = async (ep, event) => {
+    if (event.currentTarget.contains(event.relatedTarget)) return;
+    focusedId.value = null;
+    if (!isDemo && isAtCurrent(ep)) await saveEdit(ep);
+};
+
+const saveEdit = async (ep) => {
+    const state = editState.value[ep.id];
+    if (!state) return;
+    const idx = episodes.value.findIndex(e => e.id === ep.id);
+    if (idx === -1) return;
+    const cur = episodes.value[idx];
+    if (state.title === cur.title && state.content === cur.content) return;
+
+    savingId.value = ep.id;
     try {
-        const res  = await fetch(route('stories.regenerate', props.story.id), {
+        await fetch(route('stories.episode.update', { story: props.story.id, episode: ep.id }), {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ title: state.title, content: state.content }),
+        });
+        episodes.value[idx] = { ...episodes.value[idx], title: state.title, content: state.content };
+    } finally {
+        savingId.value = null;
+    }
+};
+
+// ─── AI Refine Tone ───────────────────────────────────────────────────────────
+const toningEpId = ref(null);
+const toningId   = ref(null);
+
+const toneOptions = [
+    { key: 'friendlier',   label: 'Make it Friendlier' },
+    { key: 'shorter',      label: 'Make it Shorter' },
+    { key: 'humor',        label: 'Add Humor' },
+    { key: 'professional', label: 'More Professional' },
+];
+
+const applyTone = async (ep, toneKey) => {
+    // Flush any unsaved local edits first so the AI sees the latest content
+    await saveEdit(ep);
+
+    toningEpId.value = ep.id;
+    toningId.value   = toneKey;
+    try {
+        const res  = await fetch(route('stories.episode.refine', { story: props.story.id, episode: ep.id }), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
                 Accept: 'application/json',
             },
-            body: JSON.stringify({ episode_number: refineTarget.value.episode_number }),
+            body: JSON.stringify({ tone: toneKey }),
         });
         const data = await res.json();
         const idx  = episodes.value.findIndex(e => e.id === data.episode.id);
         if (idx !== -1) {
             episodes.value[idx] = {
                 ...episodes.value[idx],
-                title:          data.episode.title,
                 content:        data.episode.content,
                 versions_count: (episodes.value[idx].versions_count ?? 0) + 1,
             };
+            syncEditState(ep.id);
         }
-        // Reset to current revision and clear version cache
-        revState.value[refineTarget.value.id] = { position: total(episodes.value[idx]), versions: null };
+        revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
     } finally {
-        refining.value     = null;
-        refineOpen.value   = false;
-        refineTarget.value = null;
+        toningEpId.value = null;
+        toningId.value   = null;
     }
 };
 
@@ -205,8 +248,8 @@ const restoreRevision = async (ep) => {
                 content:        data.episode.content,
                 versions_count: (episodes.value[idx].versions_count ?? 0) + 1,
             };
+            syncEditState(ep.id);
         }
-        // Go to current (latest)
         revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
     } finally {
         restoring.value = null;
@@ -307,13 +350,33 @@ const restoreRevision = async (ep) => {
                     <article
                         v-for="ep in episodes"
                         :key="ep.id"
-                        class="bg-white rounded-2xl border border-[#DDDDDD] hover:border-[#F5A000]/30 hover:shadow-sm transition-all duration-200 overflow-hidden"
+                        class="bg-white rounded-2xl border transition-all duration-200 overflow-hidden relative"
+                        :class="focusedId === ep.id
+                            ? 'border-[#F5A000]/40 shadow-md'
+                            : 'border-[#DDDDDD] hover:border-[#F5A000]/20 hover:shadow-sm'"
+                        @focusin="handleCardFocusIn(ep.id)"
+                        @focusout="handleCardFocusOut(ep, $event)"
                     >
-                        <!-- Header — two rows on mobile, one row on sm+ -->
+                        <!-- ── Card header ─────────────────────────────────── -->
                         <div class="px-4 sm:px-6 pt-5 pb-4 border-b border-[#F5F5F5] space-y-3">
 
-                            <!-- Row 1: badges -->
-                            <div class="flex items-center gap-2">
+                            <!-- Copy button — absolute top-right (non-demo only) -->
+                            <button
+                                v-if="!isDemo"
+                                type="button"
+                                aria-label="Copy episode"
+                                @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
+                                class="absolute top-4 right-4 w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
+                                :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
+                                    ? 'text-emerald-600 bg-emerald-50'
+                                    : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                            >
+                                <Check v-if="copied === (editState[ep.id]?.content ?? displayed(ep).content)" class="w-4 h-4" />
+                                <Copy v-else class="w-4 h-4" />
+                            </button>
+
+                            <!-- Row 1: badges (leave room on right for copy button) -->
+                            <div class="flex items-center gap-2 pr-10">
                                 <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
                                     Episode {{ ep.episode_number }}
                                 </span>
@@ -322,77 +385,43 @@ const restoreRevision = async (ep) => {
                                 </Badge>
                             </div>
 
-                            <!-- Row 2: actions (hidden for demo stories) -->
-                            <div v-if="!isDemo" class="flex items-center gap-2">
-
-                                <!-- Revision navigator — only when history exists -->
-                                <div v-if="ep.versions_count > 0" class="flex items-center gap-1 mr-1">
-                                    <button
-                                        type="button"
-                                        :disabled="position(ep) <= 1 || revState[ep.id]?.loading"
-                                        aria-label="Previous revision"
-                                        class="w-11 h-11 flex items-center justify-center rounded-xl border transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#F5A000]/40 hover:bg-amber-50 hover:text-[#F5A000]"
-                                        style="border-color: #DDDDDD; color: #555555;"
-                                        @click="prevRevision(ep)"
-                                    >
-                                        <Loader2 v-if="revState[ep.id]?.loading" class="w-4 h-4 animate-spin" />
-                                        <ChevronLeft v-else class="w-4 h-4" />
-                                    </button>
-
-                                    <span
-                                        class="text-xs font-bold tabular-nums px-2.5 py-1 rounded-lg select-none min-w-[44px] text-center"
-                                        :class="isAtCurrent(ep) ? 'text-[#F5A000] bg-amber-50' : 'text-[#555555] bg-[#F5F5F5]'"
-                                    >
-                                        {{ position(ep) }}/{{ total(ep) }}
-                                    </span>
-
-                                    <button
-                                        type="button"
-                                        :disabled="isAtCurrent(ep)"
-                                        aria-label="Next revision"
-                                        class="w-11 h-11 flex items-center justify-center rounded-xl border transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#F5A000]/40 hover:bg-amber-50 hover:text-[#F5A000]"
-                                        style="border-color: #DDDDDD; color: #555555;"
-                                        @click="nextRevision(ep)"
-                                    >
-                                        <ChevronRight class="w-4 h-4" />
-                                    </button>
-                                </div>
-
-                                <!-- Spacer pushes Refine + Copy to the right -->
-                                <div class="flex-1" />
-
-                                <!-- Refine — disabled while in progress -->
+                            <!-- Row 2: revision navigator (non-demo, has history) -->
+                            <div v-if="!isDemo && ep.versions_count > 0" class="flex items-center gap-1">
                                 <button
                                     type="button"
-                                    aria-label="Refine episode"
-                                    :disabled="refining === ep.id"
-                                    @click="openRefine(ep)"
-                                    class="flex items-center justify-center gap-1.5 text-xs font-semibold w-11 h-11 sm:w-auto sm:px-3 rounded-xl border transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                                    :class="refining === ep.id
-                                        ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50'
-                                        : 'text-[#555555] border-[#DDDDDD] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50'"
+                                    :disabled="position(ep) <= 1 || revState[ep.id]?.loading"
+                                    aria-label="Previous revision"
+                                    class="w-9 h-9 flex items-center justify-center rounded-xl border transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#F5A000]/40 hover:bg-amber-50 hover:text-[#F5A000]"
+                                    style="border-color: #DDDDDD; color: #555555;"
+                                    @click="prevRevision(ep)"
                                 >
-                                    <Loader2 v-if="refining === ep.id" class="w-4 h-4 shrink-0 animate-spin" />
-                                    <Wand2 v-else class="w-4 h-4 shrink-0" />
-                                    <span class="hidden sm:inline">{{ refining === ep.id ? 'Refining…' : 'Refine' }}</span>
+                                    <Loader2 v-if="revState[ep.id]?.loading" class="w-3.5 h-3.5 animate-spin" />
+                                    <ChevronLeft v-else class="w-3.5 h-3.5" />
                                 </button>
 
-                                <!-- Copy — icon only on mobile, label on sm+ -->
+                                <span
+                                    class="text-xs font-bold tabular-nums px-2 py-1 rounded-lg select-none min-w-[40px] text-center"
+                                    :class="isAtCurrent(ep) ? 'text-[#F5A000] bg-amber-50' : 'text-[#555555] bg-[#F5F5F5]'"
+                                >
+                                    {{ position(ep) }}/{{ total(ep) }}
+                                </span>
+
                                 <button
                                     type="button"
-                                    aria-label="Copy episode"
-                                    @click="copyEpisode(displayed(ep).content)"
-                                    class="flex items-center justify-center gap-1.5 text-xs font-semibold text-white w-11 h-11 sm:w-auto sm:px-3 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br transition-all duration-300 cursor-pointer"
+                                    :disabled="isAtCurrent(ep)"
+                                    aria-label="Next revision"
+                                    class="w-9 h-9 flex items-center justify-center rounded-xl border transition-all duration-150 cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed hover:border-[#F5A000]/40 hover:bg-amber-50 hover:text-[#F5A000]"
+                                    style="border-color: #DDDDDD; color: #555555;"
+                                    @click="nextRevision(ep)"
                                 >
-                                    <Check v-if="copied === displayed(ep).content" class="w-4 h-4 shrink-0" />
-                                    <Copy v-else class="w-4 h-4 shrink-0" />
-                                    <span class="hidden sm:inline">{{ copied === displayed(ep).content ? 'Copied!' : 'Copy' }}</span>
+                                    <ChevronRight class="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Content -->
+                        <!-- ── Card body ───────────────────────────────────── -->
                         <div class="px-4 sm:px-6 py-5">
+
                             <!-- Past revision banner -->
                             <div
                                 v-if="!isAtCurrent(ep)"
@@ -415,8 +444,59 @@ const restoreRevision = async (ep) => {
                                 </button>
                             </div>
 
-                            <h2 class="text-xl font-black text-[#1A1A1A] mb-4">{{ displayed(ep).title }}</h2>
-                            <div class="text-[#333333] text-[15px] leading-[1.8] whitespace-pre-wrap">{{ displayed(ep).content }}</div>
+                            <!-- Title — editable input at current revision, plain h2 for history -->
+                            <input
+                                v-if="!isDemo && isAtCurrent(ep) && editState[ep.id]"
+                                :value="editState[ep.id].title"
+                                @input="editState[ep.id].title = $event.target.value"
+                                class="w-full text-xl font-black text-[#1A1A1A] mb-3 bg-transparent border-0 outline-none rounded-lg px-2 -mx-2 transition-colors duration-150 hover:bg-[#FAFAF8] focus:bg-[#FAFAF8]"
+                                placeholder="Episode title"
+                            />
+                            <h2 v-else class="text-xl font-black text-[#1A1A1A] mb-3">{{ displayed(ep).title }}</h2>
+
+                            <!-- Content — editable textarea at current revision, plain div for history -->
+                            <textarea
+                                v-if="!isDemo && isAtCurrent(ep) && editState[ep.id]"
+                                :value="editState[ep.id].content"
+                                @input="editState[ep.id].content = $event.target.value"
+                                class="w-full text-[#333333] text-[15px] leading-[1.8] bg-transparent border-0 outline-none resize-none rounded-lg px-2 -mx-2 transition-colors duration-150 hover:bg-[#FAFAF8] focus:bg-[#FAFAF8] [field-sizing:content]"
+                                style="min-height: 120px;"
+                            />
+                            <div v-else class="text-[#333333] text-[15px] leading-[1.8] whitespace-pre-wrap">{{ displayed(ep).content }}</div>
+
+                            <!-- AI Refine toolbar — appears when card is focused, at current revision -->
+                            <div
+                                v-if="focusedId === ep.id && !isDemo && isAtCurrent(ep)"
+                                class="mt-5 pt-4 border-t border-[#F0F0F0]"
+                            >
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="flex items-center gap-1 text-xs font-semibold text-[#888888] shrink-0">
+                                        <Wand2 class="w-3.5 h-3.5 text-[#F5A000]" />
+                                        AI Refine:
+                                    </span>
+                                    <button
+                                        v-for="opt in toneOptions"
+                                        :key="opt.key"
+                                        type="button"
+                                        :disabled="toningEpId === ep.id"
+                                        @mousedown.prevent
+                                        @click="applyTone(ep, opt.key)"
+                                        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
+                                        :class="toningEpId === ep.id && toningId === opt.key
+                                            ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50 opacity-100'
+                                            : toningEpId === ep.id
+                                                ? 'text-[#AAAAAA] border-[#EEEEEE] opacity-50'
+                                                : 'text-[#555555] border-[#DDDDDD] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        <Loader2 v-if="toningEpId === ep.id && toningId === opt.key" class="w-3 h-3 animate-spin" />
+                                        {{ opt.label }}
+                                    </button>
+                                    <span v-if="savingId === ep.id" class="flex items-center gap-1 text-xs text-[#AAAAAA] ml-1">
+                                        <Loader2 class="w-3 h-3 animate-spin" />
+                                        Saving…
+                                    </span>
+                                </div>
+                            </div>
                         </div>
                     </article>
                 </div>
@@ -454,32 +534,6 @@ const restoreRevision = async (ep) => {
 
             </div>
         </div>
-
-        <!-- Refine dialog -->
-        <Dialog v-model:open="refineOpen">
-            <DialogContent class="max-w-md">
-                <DialogHeader>
-                    <DialogTitle class="text-[#1A1A1A]">Refine this episode?</DialogTitle>
-                    <DialogDescription class="text-[#555555]">
-                        Episode {{ refineTarget?.episode_number }} —
-                        "<span class="font-semibold text-[#1A1A1A]">{{ refineTarget?.title }}</span>"
-                        will be rewritten by AI. The current version is saved to history so you can restore it anytime. This uses 1 refine credit.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogFooter class="gap-2">
-                    <Button variant="outline" :disabled="refining !== null" @click="refineOpen = false" class="cursor-pointer">Cancel</Button>
-                    <Button
-                        :disabled="refining !== null"
-                        @click="confirmRefine"
-                        class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold cursor-pointer transition-all duration-300"
-                    >
-                        <Loader2 v-if="refining !== null" class="w-4 h-4 animate-spin" />
-                        <Wand2 v-else class="w-4 h-4" />
-                        {{ refining !== null ? 'Refining…' : 'Yes, Refine' }}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
 
     </AuthenticatedLayout>
 </template>
