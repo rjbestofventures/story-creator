@@ -1,15 +1,15 @@
 <script setup>
 import { computed } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Mail } from '@lucide/vue';
+import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
+import { Mail, Send } from '@lucide/vue';
 
 const props = defineProps({ status: String });
 
 const form = useForm({});
-
 const submit = () => form.post(route('verification.send'));
 
 const sent = computed(() => props.status === 'verification-link-sent');
+const email = usePage().props.auth.user?.email;
 </script>
 
 <template>
@@ -28,35 +28,54 @@ const sent = computed(() => props.status === 'verification-link-sent');
 
                 <!-- Icon -->
                 <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-5" style="background:#FEF9EC;">
-                    <Mail class="w-7 h-7" style="color:#F5A000;" />
+                    <component :is="sent ? Mail : Send" class="w-7 h-7" style="color:#F5A000;" />
                 </div>
 
-                <h1 class="text-xl font-black mb-2" style="color: #1A1A1A;">Check your inbox</h1>
-                <p class="text-sm leading-relaxed mb-6" style="color: #555555;">
-                    We sent a verification link to your email address. Click the link to activate your account and choose your plan.
-                </p>
+                <!-- Before sending -->
+                <template v-if="!sent">
+                    <h1 class="text-xl font-black mb-2" style="color: #1A1A1A;">Verify your email</h1>
+                    <p class="text-sm leading-relaxed mb-6" style="color: #555555;">
+                        To continue, we need to verify
+                        <span class="font-semibold" style="color: #1A1A1A;">{{ email }}</span>.
+                        Click the button below and we'll send you a verification link.
+                    </p>
 
-                <!-- Success message -->
-                <div
-                    v-if="sent"
-                    class="mb-5 rounded-lg px-4 py-3 text-sm font-medium"
-                    style="background:#F0FDF4; color:#16A34A; border:1px solid #BBF7D0;"
-                >
-                    A new verification link has been sent.
-                </div>
+                    <form @submit.prevent="submit">
+                        <button
+                            type="submit"
+                            :disabled="form.processing"
+                            class="w-full py-2.5 rounded-lg font-bold text-sm transition cursor-pointer disabled:opacity-60"
+                            style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                        >
+                            {{ form.processing ? 'Sending…' : 'Send verification email' }}
+                        </button>
+                    </form>
+                </template>
 
-                <!-- Resend button -->
-                <form @submit.prevent="submit">
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        class="w-full py-2.5 rounded-lg font-bold text-sm transition-opacity duration-200 cursor-pointer"
-                        :class="{ 'opacity-60 cursor-not-allowed': form.processing }"
-                        style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                    >
-                        {{ form.processing ? 'Sending…' : 'Resend verification email' }}
-                    </button>
-                </form>
+                <!-- After sending -->
+                <template v-else>
+                    <h1 class="text-xl font-black mb-2" style="color: #1A1A1A;">Check your inbox</h1>
+                    <p class="text-sm leading-relaxed mb-5" style="color: #555555;">
+                        We sent a verification link to
+                        <span class="font-semibold" style="color: #1A1A1A;">{{ email }}</span>.
+                        Click the link in the email to activate your account.
+                    </p>
+
+                    <div class="mb-5 rounded-lg px-4 py-3 text-sm font-medium" style="background:#F0FDF4; color:#16A34A; border:1px solid #BBF7D0;">
+                        Verification email sent — check your spam folder if you don't see it.
+                    </div>
+
+                    <form @submit.prevent="submit">
+                        <button
+                            type="submit"
+                            :disabled="form.processing"
+                            class="w-full py-2.5 rounded-lg font-semibold text-sm border transition cursor-pointer disabled:opacity-60 hover:bg-gray-50"
+                            style="background:#FFFFFF; color:#555555; border-color:#DDDDDD;"
+                        >
+                            {{ form.processing ? 'Sending…' : 'Resend verification email' }}
+                        </button>
+                    </form>
+                </template>
 
                 <!-- Logout -->
                 <Link
@@ -68,6 +87,7 @@ const sent = computed(() => props.status === 'verification-link-sent');
                 >
                     Log out
                 </Link>
+
             </div>
         </div>
     </div>

@@ -9,13 +9,14 @@ import {
 } from '@/Components/ui/dialog';
 import {
     ArrowLeft, Copy, Check, Sparkles, Loader2, Plus,
-    Wand2, ChevronLeft, ChevronRight, RotateCcw
+    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight
 } from 'lucide-vue-next';
 
 const props = defineProps({
     story: Object,
 });
 
+const isDemo       = props.story.is_demo ?? false;
 const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
 
@@ -168,10 +169,27 @@ const restoreRevision = async (ep) => {
                         <ArrowLeft class="w-4 h-4" />
                         My Stories
                     </Link>
-                    <Link :href="route('stories.create')">
+                    <Link :href="isDemo ? route('billing.plans') : route('stories.create')">
                         <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-9 px-4 rounded-xl text-sm transition-all duration-300 cursor-pointer">
-                            <Plus class="w-3.5 h-3.5" />
-                            New Story
+                            <Sparkles v-if="isDemo" class="w-3.5 h-3.5" />
+                            <Plus v-else class="w-3.5 h-3.5" />
+                            {{ isDemo ? 'Create My Own Story' : 'New Story' }}
+                        </Button>
+                    </Link>
+                </div>
+            </div>
+
+            <!-- Demo banner -->
+            <div v-if="isDemo" class="bg-amber-50 border-b border-amber-200 px-4 md:px-8 py-3">
+                <div class="max-w-3xl mx-auto flex items-center justify-between gap-4">
+                    <p class="text-sm text-[#555555]">
+                        <span class="font-semibold text-[#1A1A1A]">This is a demo story.</span>
+                        It shows you exactly what StoryCreator.Bot generates from a real interview.
+                    </p>
+                    <Link :href="route('billing.plans')" class="flex-shrink-0">
+                        <Button class="flex items-center gap-1.5 text-xs font-bold h-8 px-3 rounded-lg bg-[#F5A000] hover:bg-[#e09600] text-white cursor-pointer transition-colors">
+                            Create yours
+                            <ArrowRight class="w-3 h-3" />
                         </Button>
                     </Link>
                 </div>
@@ -212,8 +230,8 @@ const restoreRevision = async (ep) => {
                                 </Badge>
                             </div>
 
-                            <!-- Row 2: actions -->
-                            <div class="flex items-center gap-2">
+                            <!-- Row 2: actions (hidden for demo stories) -->
+                            <div v-if="!isDemo" class="flex items-center gap-2">
 
                                 <!-- Revision navigator — only when history exists -->
                                 <div v-if="ep.versions_count > 0" class="flex items-center gap-1 mr-1">
@@ -316,16 +334,30 @@ const restoreRevision = async (ep) => {
                     <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-50 mb-4">
                         <Sparkles class="w-6 h-6 text-[#F5A000]" />
                     </div>
-                    <h3 class="text-xl font-black text-[#1A1A1A] mb-2">Ready to tell your next story?</h3>
-                    <p class="text-[#555555] mb-6 max-w-md mx-auto">
-                        Each story builds your brand's narrative. Start a new interview to explore a different angle of your business.
-                    </p>
-                    <Link :href="route('stories.create')">
-                        <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
-                            <Plus class="w-4 h-4" />
-                            Create Another Story
-                        </Button>
-                    </Link>
+                    <template v-if="isDemo">
+                        <h3 class="text-xl font-black text-[#1A1A1A] mb-2">Ready to tell your own story?</h3>
+                        <p class="text-[#555555] mb-6 max-w-md mx-auto">
+                            Pick a plan and StoryCreator.Bot will interview you, then generate a story library just like this — but yours.
+                        </p>
+                        <Link :href="route('billing.plans')">
+                            <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
+                                <Sparkles class="w-4 h-4" />
+                                Choose a Plan
+                            </Button>
+                        </Link>
+                    </template>
+                    <template v-else>
+                        <h3 class="text-xl font-black text-[#1A1A1A] mb-2">Ready to tell your next story?</h3>
+                        <p class="text-[#555555] mb-6 max-w-md mx-auto">
+                            Each story builds your brand's narrative. Start a new interview to explore a different angle of your business.
+                        </p>
+                        <Link :href="route('stories.create')">
+                            <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
+                                <Plus class="w-4 h-4" />
+                                Create Another Story
+                            </Button>
+                        </Link>
+                    </template>
                 </div>
 
             </div>

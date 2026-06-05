@@ -22,11 +22,14 @@ const props = defineProps({
     plan:         Object,
 });
 
+// Subscription state
+const hasSubscription = computed(() => !!props.subscription);
+
 // Credits
 const storyCredits  = computed(() => props.subscription?.story_credits  ?? 0);
 const refineCredits = computed(() => props.subscription?.refine_credits ?? 0);
 const planLabel     = computed(() => props.plan?.label ?? 'Free');
-const canCreateStory = computed(() => storyCredits.value > 0);
+const canCreateStory = computed(() => hasSubscription.value && storyCredits.value > 0);
 
 const renewalDate = computed(() => {
     const d = props.subscription?.billing_period_ends_at;
@@ -82,7 +85,16 @@ const confirmDelete = () => {
                         </div>
                     </div>
 
-                    <TooltipProvider>
+                    <!-- Unsubscribed: link to plans -->
+                    <Link v-if="!hasSubscription" :href="route('billing.plans')">
+                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                            <Sparkles class="w-4 h-4" />
+                            Create My Own Story
+                        </Button>
+                    </Link>
+
+                    <!-- Subscribed: normal create flow with credit check -->
+                    <TooltipProvider v-else>
                         <Tooltip :delay-duration="100">
                             <TooltipTrigger as-child>
                                 <span>
@@ -117,8 +129,8 @@ const confirmDelete = () => {
 
             <div class="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
-                <!-- Stats row -->
-                <div class="grid grid-cols-3 gap-4">
+                <!-- Stats row (subscribed users only) -->
+                <div v-if="hasSubscription" class="grid grid-cols-3 gap-4">
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
                         <div class="flex items-center gap-2 mb-1">
                             <Zap class="w-4 h-4 text-[#F5A000]" />
@@ -190,9 +202,15 @@ const confirmDelete = () => {
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-start justify-between gap-3">
                                     <div class="min-w-0">
-                                        <h3 class="font-bold text-[#1A1A1A] truncate">
-                                            {{ story.title || story.business_profile?.business_name || 'Untitled Story' }}
-                                        </h3>
+                                        <div class="flex items-center gap-2">
+                                            <h3 class="font-bold text-[#1A1A1A] truncate">
+                                                {{ story.title || story.business_profile?.business_name || 'Untitled Story' }}
+                                            </h3>
+                                            <span
+                                                v-if="story.is_demo"
+                                                class="flex-shrink-0 text-xs font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-[#F5A000] border border-amber-200"
+                                            >Demo</span>
+                                        </div>
                                         <p class="text-sm text-[#555555] mt-0.5">
                                             {{ story.business_profile?.business_name }}
                                         </p>
@@ -265,9 +283,9 @@ const confirmDelete = () => {
                     </div>
                 </div>
 
-                <!-- No credits notice -->
+                <!-- No credits notice (subscribed users only) -->
                 <div
-                    v-if="storyCredits === 0 && stories.length > 0"
+                    v-if="hasSubscription && storyCredits === 0 && stories.length > 0"
                     class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3"
                 >
                     <Zap class="w-5 h-5 text-[#F5A000] flex-shrink-0 mt-0.5" />

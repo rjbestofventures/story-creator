@@ -13,6 +13,7 @@ class Story extends Model
         'business_profile_id',
         'title',
         'status',
+        'is_demo',
         'refines_used',
         'tokens_input',
         'tokens_output',

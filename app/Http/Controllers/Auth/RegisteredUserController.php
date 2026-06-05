@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Actions\SeedDemoStoriesForUser;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -47,6 +48,8 @@ class RegisteredUserController extends Controller
 
         Auth::login($user);
 
-        return redirect(route('verification.notice', absolute: false));
+        $torresStory = (new SeedDemoStoriesForUser)->handle($user);
+
+        return redirect(route('stories.resume', ['story' => $torresStory->id], absolute: false));
     }
 }

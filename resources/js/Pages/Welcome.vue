@@ -67,7 +67,7 @@ const plans = [
             <nav class="flex items-center gap-3">
                 <!-- Desktop only -->
                 <Link
-                    :href="route('register')"
+                    :href="route('demo')"
                     class="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-sm transition hover:bg-gray-50"
                     style="border-color: #DDDDDD; color: #1A1A1A;"
                 >
@@ -142,12 +142,12 @@ const plans = [
                 </Link>
 
                 <Link
-                    :href="route('register')"
+                    :href="route('demo')"
                     class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
                     style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
                 >
                     <Play class="w-4 h-4" fill="currentColor" :stroke-width="0" />
-                    Test Drive the Bot
+                    Try a Live Demo
                 </Link>
             </div>
         </main>

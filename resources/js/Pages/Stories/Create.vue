@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, nextTick, onMounted } from 'vue';
-import { useForm, Head, Link } from '@inertiajs/vue3';
+import { useForm, router, Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -18,6 +18,91 @@ const phase = ref(0);
 
 // ─── Story ID — set after init, used for progress saves + generation ─────────
 const storyId = ref(props.story?.id ?? null);
+
+// ─── Demo mode — replay pre-scripted conversation client-side ─────────────────
+// Used when story.is_demo is true; avoids all backend calls during interview.
+const isDemoMode    = computed(() => !!props.story?.is_demo);
+const demoMessages  = ref([]);
+const demoPosition  = ref(0);
+const isTyping      = ref(false);
+const typingText    = ref('');
+const typingSkip    = ref(false);
+
+const typeOut = (text) => new Promise(resolve => {
+    typingText.value  = '';
+    isTyping.value    = true;
+    typingSkip.value  = false;
+    let i = 0;
+    let lastTime = null;
+    const CHARS_PER_SEC = 100;
+
+    const tick = (ts) => {
+        if (typingSkip.value) {
+            typingText.value = text;
+            isTyping.value   = false;
+            typingSkip.value = false;
+            scrollDown();
+            resolve();
+            return;
+        }
+        if (lastTime !== null) {
+            const add = Math.max(1, Math.floor(((ts - lastTime) / 1000) * CHARS_PER_SEC));
+            i = Math.min(i + add, text.length);
+            typingText.value = text.slice(0, i);
+            scrollDown();
+        }
+        lastTime = ts;
+        if (i < text.length) requestAnimationFrame(tick);
+        else { isTyping.value = false; resolve(); }
+    };
+    requestAnimationFrame(tick);
+});
+
+const demoBuildTurn = () => {
+    const next = demoMessages.value[demoPosition.value];
+    if (!next) return { show_input: false, button_text: '', complete: true };
+    if (next.content.startsWith('[')) {
+        return { show_input: false, button_text: answerCount.value === 0 ? 'Get started' : 'Next question', complete: false };
+    }
+    return { show_input: true, button_text: '', complete: false };
+};
+
+const advanceDemoReplay = async () => {
+    const userMsg      = demoMessages.value[demoPosition.value];
+    const assistantMsg = demoMessages.value[demoPosition.value + 1];
+    if (!userMsg) return;
+
+    chatLog.value.push(userMsg);
+
+    if (!assistantMsg) {
+        complete.value = true;
+        setTimeout(() => { phase.value = 2; }, 1800);
+        scrollDown();
+        return;
+    }
+
+    scrollDown();
+    await typeOut(assistantMsg.content);
+    chatLog.value.push(assistantMsg);
+
+    if (!userMsg.content.startsWith('[')) answerCount.value++;
+
+    demoPosition.value += 2;
+
+    if (demoPosition.value >= demoMessages.value.length) {
+        complete.value = true;
+        currentTurn.value = { message: assistantMsg.content, question: '', button_text: '', show_input: false, complete: true };
+        setTimeout(() => { phase.value = 2; }, 1800);
+    } else {
+        const mode = demoBuildTurn();
+        currentTurn.value = { message: assistantMsg.content, question: '', ...mode };
+        if (mode.show_input) {
+            currentInput.value = demoMessages.value[demoPosition.value]?.content ?? '';
+        }
+    }
+
+    scrollDown();
+};
 
 // ─── Basics ──────────────────────────────────────────────────────────────────
 const basics = ref({
@@ -153,6 +238,8 @@ const callInterview = async (isAnswer = false) => {
 
 // ─── Button click — user proceeds to next question ───────────────────────────
 const handleButtonClick = async () => {
+    if (isTyping.value) { typingSkip.value = true; return; }
+    if (isDemoMode.value) { await advanceDemoReplay(); return; }
     const marker = answerCount.value === 0 ? '[Ready to begin]' : '[Ready for next question]';
     chatLog.value.push({ role: 'user', content: marker });
     await callInterview();
@@ -160,7 +247,7 @@ const handleButtonClick = async () => {
 
 // ─── Save progress to DB ──────────────────────────────────────────────────────
 const saveProgress = async (status = null) => {
-    if (!storyId.value) return;
+    if (!storyId.value || isDemoMode.value) return; // demo: no backend calls
     try {
         await fetch(route('stories.progress', storyId.value), {
             method: 'PATCH',
@@ -176,6 +263,25 @@ const saveProgress = async (status = null) => {
 // ─── Start interview ──────────────────────────────────────────────────────────
 const startInterview = async () => {
     if (!canStartInterview.value) return;
+
+    if (isDemoMode.value) {
+        phase.value = 1;
+        chatLog.value = [];
+        answerCount.value = 0;
+        complete.value = false;
+        chatError.value = '';
+        const firstAssistant = demoMessages.value[1];
+        if (firstAssistant) {
+            demoPosition.value = 2;
+            scrollDown();
+            await typeOut(firstAssistant.content);
+            chatLog.value.push(firstAssistant);
+            const mode = demoBuildTurn();
+            currentTurn.value = { message: firstAssistant.content, question: '', ...mode };
+        }
+        scrollDown();
+        return;
+    }
 
     // Create story + profile in DB before starting
     try {
@@ -215,7 +321,16 @@ const startInterview = async () => {
 onMounted(async () => {
     localStorage.removeItem('sc_interview_session');
     if (props.story) {
-        storyId.value     = props.story.id;
+        storyId.value = props.story.id;
+
+        if (isDemoMode.value) {
+            // Demo: load pre-scripted messages but start at Phase 0 (basics pre-filled).
+            // Interview runs client-side from Phase 1 onwards; no backend calls.
+            demoMessages.value = props.story.messages ?? [];
+            phase.value = 0;
+            return;
+        }
+
         chatLog.value     = props.story.messages ?? [];
         complete.value    = props.story.status === 'interview_complete';
         answerCount.value = chatLog.value.filter(m => m.role === 'user' && !m.content.startsWith('[')).length;
@@ -238,7 +353,9 @@ onMounted(async () => {
 const canSubmit = computed(() => currentInput.value.trim().length >= 3 && !isLoading.value && !complete.value);
 
 const submitAnswer = async () => {
+    if (isTyping.value) { typingSkip.value = true; return; }
     if (!canSubmit.value) return;
+    if (isDemoMode.value) { currentInput.value = ''; await advanceDemoReplay(); return; }
     const text = currentInput.value.trim();
     chatLog.value.push({ role: 'user', content: text });
     currentInput.value = '';
@@ -254,9 +371,17 @@ const onKeydown = (e) => {
 };
 
 // ─── Final generate ───────────────────────────────────────────────────────────
-const generateError = ref('');
+const generateError   = ref('');
+const demoGenerating  = ref(false);
 
 const submit = () => {
+    if (isDemoMode.value) {
+        demoGenerating.value = true;
+        setTimeout(() => {
+            router.visit(route('stories.show', storyId.value));
+        }, 3200);
+        return;
+    }
     generateError.value = '';
     storeForm.episode_count = episodeCount.value;
     storeForm.format        = format.value;
@@ -361,6 +486,12 @@ const counts = [3, 5, 7, 10];
             <!-- ─── PHASE 0: Basics ──────────────────────────────────────────── -->
             <div v-if="phase === 0" class="flex-1 flex items-start justify-center px-4 py-10">
                 <div class="w-full max-w-lg">
+                    <!-- Demo notice -->
+                    <div v-if="isDemoMode" class="mb-6 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-[#555555]">
+                        <span class="font-bold text-[#1A1A1A]">Demo mode.</span>
+                        This is a pre-filled example. Click through to experience the full interview flow.
+                    </div>
+
                     <div class="mb-8 text-center">
                         <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-50 mb-4">
                             <Sparkles class="w-7 h-7 text-[#F5A000]" />
@@ -493,7 +624,17 @@ const counts = [3, 5, 7, 10];
                         </div>
                     </div>
 
-                    <!-- Typing indicator -->
+                    <!-- Demo typing bubble -->
+                    <div v-if="isTyping" class="flex gap-3">
+                        <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center mt-0.5">
+                            <Sparkles class="w-3.5 h-3.5 text-white" />
+                        </div>
+                        <div class="max-w-[80%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed whitespace-pre-wrap bg-white border border-[#DDDDDD] text-[#1A1A1A]">
+                            {{ typingText }}<span class="inline-block w-0.5 h-[1em] bg-[#F5A000] align-middle animate-pulse ml-0.5" />
+                        </div>
+                    </div>
+
+                    <!-- Typing indicator (real API loading) -->
                     <div v-if="isLoading" class="flex gap-3">
                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center">
                             <Sparkles class="w-3.5 h-3.5 text-white" />
@@ -534,8 +675,27 @@ const counts = [3, 5, 7, 10];
                         </button>
                     </div>
 
+                    <!-- Typing: skip strip -->
+                    <div
+                        v-else-if="isTyping"
+                        class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex items-center justify-between gap-3 cursor-pointer select-none hover:bg-gray-50 transition"
+                        @click="typingSkip = true"
+                    >
+                        <div class="flex items-center gap-2">
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:0ms" />
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:150ms" />
+                            <span class="w-1.5 h-1.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
+                            <span class="text-sm text-[#AAAAAA]">StoryBot is typing…</span>
+                        </div>
+                        <span class="flex items-center gap-1 text-xs font-semibold text-[#555555]">
+                            Skip <ArrowRight class="w-3 h-3" />
+                        </span>
+                    </div>
+
                     <!-- Normal interview input -->
-                    <div v-else class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end">
+                    <div v-else class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end"
+                         :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : ''"
+                    >
                         <Textarea
                             ref="inputRef"
                             v-model="currentInput"
@@ -570,7 +730,7 @@ const counts = [3, 5, 7, 10];
             </div>
 
             <!-- ─── PHASE 2: Generating (full-screen loader) ─────────────────── -->
-            <div v-else-if="storeForm.processing" class="flex-1 flex items-center justify-center px-4 py-10">
+            <div v-else-if="storeForm.processing || demoGenerating" class="flex-1 flex items-center justify-center px-4 py-10">
                 <div class="text-center max-w-sm">
                     <!-- Pulsing logo -->
                     <div class="relative inline-flex items-center justify-center mb-8">
