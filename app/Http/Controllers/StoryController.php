@@ -164,6 +164,19 @@ class StoryController extends Controller
     // Generate episodes for an existing story record
     // -------------------------------------------------------------------------
 
+    public function retry(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_unless(in_array($story->status, ['failed', 'generating']), 422);
+
+        $format = $story->episodes()->value('format') ?? 'social';
+
+        $story->update(['status' => 'generating']);
+        GenerateStory::dispatch($story, $format);
+
+        return response()->json(['ok' => true]);
+    }
+
     public function generate(Request $request, Story $story)
     {
         abort_unless($story->user_id === $request->user()->id, 403);

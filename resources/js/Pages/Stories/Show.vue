@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
@@ -20,12 +20,24 @@ const isDemo       = props.story.is_demo ?? false;
 const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
 
-// ─── Generating state + polling ───────────────────────────────────────────────
+// ─── Generating / failed state + polling ─────────────────────────────────────
 const isGenerating = computed(() => props.story.status === 'generating');
-let pollTimer = null;
+const isFailed     = computed(() => props.story.status === 'failed');
+const pollTimedOut = ref(false);
+const retrying     = ref(false);
+let pollTimer      = null;
+let pollCount      = 0;
+const POLL_MAX     = 60; // 3 minutes at 3s intervals
 
 const startPolling = () => {
+    pollCount = 0;
     pollTimer = setInterval(async () => {
+        pollCount++;
+        if (pollCount >= POLL_MAX) {
+            clearInterval(pollTimer);
+            pollTimedOut.value = true;
+            return;
+        }
         try {
             const res  = await fetch(route('stories.status', props.story.id), {
                 headers: { Accept: 'application/json' },
@@ -40,6 +52,27 @@ const startPolling = () => {
         }
     }, 3000);
 };
+
+const retryGeneration = async () => {
+    retrying.value = true;
+    try {
+        await fetch(route('stories.retry', props.story.id), {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                Accept: 'application/json',
+            },
+        });
+        pollTimedOut.value = false;
+        router.reload({ only: ['story'] });
+    } finally {
+        retrying.value = false;
+    }
+};
+
+watch(() => props.story.status, (status) => {
+    if (status === 'generating') startPolling();
+});
 
 onMounted(() => { if (props.story.status === 'generating') startPolling(); });
 onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
@@ -185,16 +218,37 @@ const restoreRevision = async (ep) => {
     <Head :title="`The Story of ${businessName}`" />
     <AuthenticatedLayout>
         <!-- Generating overlay -->
-        <div v-if="isGenerating" class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-6" style="background: rgba(250,250,248,0.97);">
+        <div v-if="isGenerating && !pollTimedOut" class="fixed inset-0 z-50 flex flex-col items-center justify-center" style="background: rgba(250,250,248,0.97);">
             <div class="flex flex-col items-center gap-4 text-center px-6">
                 <Loader2 class="w-12 h-12 animate-spin" style="color: #F5A000;" />
                 <div>
                     <p class="text-xl font-black mb-1" style="color: #1A1A1A;">Generating your story…</p>
                     <p class="text-sm" style="color: #555555;">This takes 15–30 seconds. You can wait here or come back later.</p>
                 </div>
-                <Link :href="route('stories.index')" class="text-sm underline mt-2" style="color: #555555;">
-                    Go to My Stories
-                </Link>
+                <Link :href="route('stories.index')" class="text-sm underline mt-2" style="color: #555555;">Go to My Stories</Link>
+            </div>
+        </div>
+
+        <!-- Failed / timed-out overlay -->
+        <div v-if="isFailed || pollTimedOut" class="fixed inset-0 z-50 flex flex-col items-center justify-center" style="background: rgba(250,250,248,0.97);">
+            <div class="flex flex-col items-center gap-4 text-center px-6 max-w-sm">
+                <div class="w-14 h-14 rounded-2xl flex items-center justify-center" style="background:#FEF2F2;">
+                    <span class="text-2xl">⚠️</span>
+                </div>
+                <div>
+                    <p class="text-xl font-black mb-1" style="color: #1A1A1A;">Generation failed</p>
+                    <p class="text-sm" style="color: #555555;">Something went wrong while creating your story. You can try again — it won't use an extra credit.</p>
+                </div>
+                <button
+                    @click="retryGeneration"
+                    :disabled="retrying"
+                    class="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition disabled:opacity-60 cursor-pointer"
+                    style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                >
+                    <Loader2 v-if="retrying" class="w-4 h-4 animate-spin" />
+                    {{ retrying ? 'Retrying…' : 'Try Again' }}
+                </button>
+                <Link :href="route('stories.index')" class="text-sm underline" style="color: #555555;">Go to My Stories</Link>
             </div>
         </div>
 
