@@ -448,7 +448,17 @@ const restoreRevision = async (ep) => {
                         </div>
 
                         <!-- ── Card body ───────────────────────────────────── -->
-                        <div class="px-4 sm:px-6 py-5">
+                        <div class="px-4 sm:px-6 py-5 relative">
+                            <!-- Refine loading overlay -->
+                            <div
+                                v-if="toningEpId === ep.id"
+                                class="absolute inset-0 z-10 flex items-center justify-center rounded-b-2xl bg-white/80"
+                            >
+                                <div class="flex items-center gap-2 text-sm font-semibold text-[#555555]">
+                                    <Loader2 class="w-4 h-4 animate-spin text-[#F5A000]" />
+                                    Refining…
+                                </div>
+                            </div>
 
                             <!-- Past revision banner -->
                             <div

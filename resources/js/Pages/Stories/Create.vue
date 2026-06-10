@@ -114,7 +114,22 @@ const basics = ref({
     linkedin_url:  props.profile?.linkedin_url   ?? '',
     social_url:    props.profile?.social_url     ?? '',
 });
-const canStartInterview = computed(() => basics.value.business_name.trim().length > 0);
+const hasOneUrl = computed(() =>
+    basics.value.business_url.trim().length > 0 ||
+    basics.value.linkedin_url.trim().length > 0 ||
+    basics.value.social_url.trim().length > 0
+);
+const canStartInterview = computed(() =>
+    basics.value.business_name.trim().length > 0 &&
+    basics.value.industry.trim().length > 0 &&
+    hasOneUrl.value
+);
+const formErrors = computed(() => {
+    const e = [];
+    if (!basics.value.industry.trim()) e.push('Industry is required.');
+    if (!hasOneUrl.value) e.push('Please add at least one of: Website, LinkedIn, or Facebook/Instagram.');
+    return e;
+});
 
 // ─── Chat ─────────────────────────────────────────────────────────────────────
 const chatLog      = ref([]);
@@ -538,6 +553,7 @@ const formats = [
                                 @keyup.enter="startInterview"
                             />
                         </div>
+                        <p class="text-xs text-[#555555]">Add at least one link so StoryBot can learn more about your business. <span class="text-red-500">*</span></p>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label for="business_url" class="text-[#1A1A1A] font-semibold">
@@ -554,7 +570,7 @@ const formats = [
                             <div class="space-y-2">
                                 <Label for="industry" class="text-[#1A1A1A] font-semibold">
                                     Industry
-                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                                    <span class="text-red-500 ml-0.5">*</span>
                                 </Label>
                                 <Input
                                     id="industry"
@@ -604,6 +620,10 @@ const formats = [
                                 rows="3"
                                 class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
                             />
+                        </div>
+
+                        <div v-if="formErrors.length > 0 && basics.business_name.trim()" class="space-y-1">
+                            <p v-for="err in formErrors" :key="err" class="text-xs text-red-500">{{ err }}</p>
                         </div>
 
                         <Button
@@ -733,10 +753,11 @@ const formats = [
                             ref="inputRef"
                             v-model="currentInput"
                             :disabled="isLoading || !currentTurn.show_input"
-                            :placeholder="currentTurn.show_input ? 'Type your answer… (Enter to send, Shift+Enter for new line)' : ''"
+                            :readonly="isDemoMode && currentTurn.show_input"
+                            :placeholder="currentTurn.show_input ? (isDemoMode ? '' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
                             rows="2"
                             class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0 transition-opacity duration-300"
-                            :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : ''"
+                            :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : (isDemoMode ? 'cursor-default select-none' : '')"
                             @keydown="onKeydown"
                         />
 

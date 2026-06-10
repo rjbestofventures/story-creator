@@ -41,6 +41,7 @@ class AdminController extends Controller
                 'name' => $user->name,
                 'email' => $user->email,
                 'tier' => $user->roles->first()?->name ?? 'user',
+                'is_active' => $user->is_active,
                 'subscription' => $user->activeSubscription ? [
                     'id' => $user->activeSubscription->id,
                     'plan_id' => $user->activeSubscription->plan_id,
@@ -48,6 +49,7 @@ class AdminController extends Controller
                     'plan_label' => $user->activeSubscription->plan->label,
                     'status' => $user->activeSubscription->status,
                     'billing_interval' => $user->activeSubscription->billing_interval,
+                    'starts_at' => $user->activeSubscription->starts_at?->toDateString(),
                     'expires_at' => $user->activeSubscription->expires_at?->toDateString(),
                     'story_credits' => $user->activeSubscription->story_credits,
                     'refine_credits' => $user->activeSubscription->refine_credits,
@@ -350,7 +352,7 @@ class AdminController extends Controller
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'tier' => 'required|in:admin,user',
+            'tier' => 'required|in:super_admin,admin,user',
         ]);
 
         $user = User::create([
@@ -376,6 +378,13 @@ class AdminController extends Controller
         ]);
 
         $user->update($validated);
+
+        return back();
+    }
+
+    public function toggleStatus(User $user): RedirectResponse
+    {
+        $user->update(['is_active' => ! $user->is_active]);
 
         return back();
     }
@@ -435,7 +444,7 @@ class AdminController extends Controller
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([
-            'tier' => 'required|in:admin,user',
+            'tier' => 'required|in:super_admin,admin,user',
         ]);
 
         $user->syncRoles([$validated['tier']]);

@@ -49,8 +49,10 @@ class RegisteredUserController extends Controller
 
         if ($intent === 'demo') {
             $torresStory = (new SeedDemoStoriesForUser)->handle($user);
-            return redirect(route('stories.resume', ['story' => $torresStory->id], absolute: false));
+            session(['post_verify_redirect' => route('stories.resume', ['story' => $torresStory->id], absolute: false)]);
         }
+
+        $user->sendEmailVerificationNotification();
 
         return redirect()->route('verification.notice');
     }

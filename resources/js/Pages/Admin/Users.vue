@@ -85,10 +85,10 @@ const filtered = computed(() =>
 );
 
 const kpis = computed(() => [
-    { label: 'Total Users', value: props.stats.users,                                                     icon: Users,      color: '#F5A000', bg: 'bg-amber-50',   text: 'text-amber-600'  },
-    { label: 'Active',      value: props.users.filter(u => u.subscription?.status === 'active').length,   icon: Activity,   color: '#22C55E', bg: 'bg-green-50',   text: 'text-green-600'  },
-    { label: 'Trialing',    value: props.users.filter(u => u.subscription?.status === 'trialing').length, icon: TrendingUp, color: '#F59E0B', bg: 'bg-yellow-50',  text: 'text-yellow-600' },
-    { label: 'Stories',     value: props.stats.stories,                                                   icon: BookOpen,   color: '#6366F1', bg: 'bg-indigo-50',  text: 'text-indigo-600' },
+    { label: 'Total Users', value: props.stats.users,                                                     icon: Users,      color: '#F5A000', bg: 'bg-amber-50',   text: 'text-amber-600',  tooltip: 'Total registered accounts'                          },
+    { label: 'Active',      value: props.users.filter(u => u.subscription?.status === 'active').length,   icon: Activity,   color: '#22C55E', bg: 'bg-green-50',   text: 'text-green-600',  tooltip: 'Users with an active paid subscription'              },
+    { label: 'Trialing',    value: props.users.filter(u => u.subscription?.status === 'trialing').length, icon: TrendingUp, color: '#F59E0B', bg: 'bg-yellow-50',  text: 'text-yellow-600', tooltip: 'Users currently in a free trial'                     },
+    { label: 'Stories',     value: props.stats.stories,                                                   icon: BookOpen,   color: '#6366F1', bg: 'bg-indigo-50',  text: 'text-indigo-600', tooltip: 'Total stories generated across all users'            },
 ]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -101,9 +101,14 @@ const statusMeta = (status) => ({
 })[status] ?? { class: 'bg-gray-100 text-gray-500 border-gray-200', label: 'No Plan' };
 
 const tierMeta = (tier) => ({
-    admin: { label: 'Admin', class: 'bg-purple-100 text-purple-700 border-purple-200' },
-    user:  { label: 'User',  class: 'bg-gray-100 text-gray-600 border-gray-200'       },
+    super_admin: { label: 'Super Admin', class: 'bg-red-100 text-red-700 border-red-200'       },
+    admin:       { label: 'Admin',       class: 'bg-purple-100 text-purple-700 border-purple-200' },
+    user:        { label: 'User',        class: 'bg-gray-100 text-gray-600 border-gray-200'       },
 })[tier] ?? { label: tier, class: 'bg-gray-100 text-gray-500 border-gray-200' };
+
+const toggleStatus = (user) => {
+    router.post(route('admin.users.toggle-status', user.id), {}, { preserveScroll: true });
+};
 
 const initials    = (name) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 const avatarColor = (name) => {
@@ -256,18 +261,20 @@ const impersonate = (userId) => {
 
         <!-- KPI cards -->
         <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-            <div
-                v-for="kpi in kpis" :key="kpi.label"
-                class="bg-white rounded-2xl px-5 py-4 flex items-center gap-4 ring-1 ring-[#DDDDDD]"
-            >
-                <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center" :class="kpi.bg">
-                    <component :is="kpi.icon" class="w-5 h-5" :class="kpi.text" />
-                </div>
-                <div>
-                    <p class="text-xs font-medium text-[#555555]">{{ kpi.label }}</p>
-                    <p class="text-2xl font-black text-[#1A1A1A] leading-tight">{{ kpi.value }}</p>
-                </div>
-            </div>
+            <Tooltip v-for="kpi in kpis" :key="kpi.label">
+                <TooltipTrigger as-child>
+                    <div class="bg-white rounded-2xl px-5 py-4 flex items-center gap-4 ring-1 ring-[#DDDDDD] cursor-default">
+                        <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center" :class="kpi.bg">
+                            <component :is="kpi.icon" class="w-5 h-5" :class="kpi.text" />
+                        </div>
+                        <div>
+                            <p class="text-xs font-medium text-[#555555]">{{ kpi.label }}</p>
+                            <p class="text-2xl font-black text-[#1A1A1A] leading-tight">{{ kpi.value }}</p>
+                        </div>
+                    </div>
+                </TooltipTrigger>
+                <TooltipContent>{{ kpi.tooltip }}</TooltipContent>
+            </Tooltip>
         </div>
 
         <!-- Search bar -->
@@ -493,6 +500,7 @@ const impersonate = (userId) => {
                                         <SelectValue />
                                     </SelectTrigger>
                                     <SelectContent>
+                                        <SelectItem value="super_admin">Super Admin</SelectItem>
                                         <SelectItem value="admin">Admin</SelectItem>
                                         <SelectItem value="user">User</SelectItem>
                                     </SelectContent>
@@ -500,8 +508,19 @@ const impersonate = (userId) => {
                             </div>
                         </div>
 
-                        <!-- Save -->
-                        <div class="flex justify-end">
+                        <!-- Save + Status toggle -->
+                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer"
+                                :class="user.is_active
+                                    ? 'text-green-700 border-green-200 bg-green-50 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+                                    : 'text-red-600 border-red-200 bg-red-50 hover:bg-green-50 hover:text-green-700 hover:border-green-200'"
+                                @click.stop="toggleStatus(user)"
+                            >
+                                <span class="w-2 h-2 rounded-full" :class="user.is_active ? 'bg-green-500' : 'bg-red-400'" />
+                                {{ user.is_active ? 'Active' : 'Inactive' }}
+                            </button>
                             <Button
                                 :disabled="getPlanForm(user).processing || getStatusForm(user).processing || getTierForm(user).processing"
                                 class="gap-1.5 font-semibold bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 transition-all duration-300 disabled:opacity-40"
@@ -525,24 +544,27 @@ const impersonate = (userId) => {
                                             <BookMarked class="w-3.5 h-3.5 text-muted-foreground" />
                                             <span class="text-xs font-semibold text-[#555555]">Stories</span>
                                         </div>
-                                        <span class="text-xs font-bold" :class="user.subscription.story_credits === 0 ? 'text-red-500' : 'text-[#F5A000]'">
+                                        <span v-if="user.tier === 'admin' || user.tier === 'super_admin'" class="text-xs font-bold text-purple-600">Unlimited</span>
+                                        <span v-else class="text-xs font-bold" :class="user.subscription.story_credits === 0 ? 'text-red-500' : 'text-[#F5A000]'">
                                             {{ user.subscription.story_credits }} left
                                         </span>
                                     </div>
-                                    <div class="h-1.5 rounded-full overflow-hidden bg-gray-100">
-                                        <div
-                                            class="h-full rounded-full transition-all duration-300"
-                                            :style="{
-                                                width: storyBarWidth(user.subscription),
-                                                background: user.subscription.story_credits === 0
-                                                    ? '#EF4444'
-                                                    : 'linear-gradient(to right, #FFC837, #F5A000)',
-                                            }"
-                                        />
-                                    </div>
-                                    <p class="text-[10px] text-muted-foreground mt-1.5">
-                                        {{ user.subscription.stories_per_month - user.subscription.story_credits }} of {{ user.subscription.stories_per_month }} used
-                                    </p>
+                                    <template v-if="user.tier !== 'admin' && user.tier !== 'super_admin'">
+                                        <div class="h-1.5 rounded-full overflow-hidden bg-gray-100">
+                                            <div
+                                                class="h-full rounded-full transition-all duration-300"
+                                                :style="{
+                                                    width: storyBarWidth(user.subscription),
+                                                    background: user.subscription.story_credits === 0
+                                                        ? '#EF4444'
+                                                        : 'linear-gradient(to right, #FFC837, #F5A000)',
+                                                }"
+                                            />
+                                        </div>
+                                        <p class="text-[10px] text-muted-foreground mt-1.5">
+                                            {{ user.subscription.stories_per_month - user.subscription.story_credits }} of {{ user.subscription.stories_per_month }} used
+                                        </p>
+                                    </template>
                                 </div>
 
                                 <!-- Refine credits -->
@@ -552,7 +574,10 @@ const impersonate = (userId) => {
                                     </div>
                                     <div>
                                         <p class="text-xs text-[#555555] font-semibold">Refine Credits</p>
-                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.subscription.refine_credits }}</p>
+                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">
+                                            <span v-if="user.tier === 'admin' || user.tier === 'super_admin'" class="text-purple-600">∞</span>
+                                            <span v-else>{{ user.subscription.refine_credits }}</span>
+                                        </p>
                                         <p class="text-[10px] text-muted-foreground">+{{ user.subscription.refine_monthly }}/mo</p>
                                     </div>
                                 </div>
@@ -564,7 +589,10 @@ const impersonate = (userId) => {
                                     </div>
                                     <div>
                                         <p class="text-xs text-[#555555] font-semibold">Episodes / Story</p>
-                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.subscription.effective_episode_limit }}</p>
+                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">
+                                            <span v-if="user.tier === 'admin' || user.tier === 'super_admin'" class="text-purple-600">∞</span>
+                                            <span v-else>{{ user.subscription.effective_episode_limit }}</span>
+                                        </p>
                                         <p class="text-[10px] text-muted-foreground">max per story</p>
                                     </div>
                                 </div>
@@ -585,9 +613,10 @@ const impersonate = (userId) => {
                                 </Link>
                             </div>
 
-                            <p v-if="user.subscription.expires_at" class="text-xs text-muted-foreground">
-                                Subscription expires {{ user.subscription.expires_at }}
-                            </p>
+                            <div class="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
+                                <span v-if="user.subscription.starts_at">Started {{ user.subscription.starts_at }}</span>
+                                <span v-if="user.subscription.expires_at">Expires {{ user.subscription.expires_at }}</span>
+                            </div>
                         </div>
                     </template>
                     <template v-else>
@@ -717,6 +746,7 @@ const impersonate = (userId) => {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
+                                <SelectItem value="super_admin">Super Admin</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
                                 <SelectItem value="user">User</SelectItem>
                             </SelectContent>
