@@ -126,7 +126,7 @@ const menuOpen = ref(false);
                 class="text-xs font-bold px-3 py-1.5 rounded-lg transition hover:opacity-80 cursor-pointer shrink-0"
                 style="background: rgba(0,0,0,0.15); color: #1A1A1A;"
             >
-                Stop Impersonating
+                Switch to your Account
             </Link>
         </div>
 

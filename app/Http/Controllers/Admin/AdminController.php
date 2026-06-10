@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use Anthropic\Client;
 use App\Http\Controllers\Controller;
 use App\Models\Plan;
 use App\Models\SiteSetting;
@@ -9,6 +10,8 @@ use App\Models\Story;
 use App\Models\User;
 use App\Models\UserSubscription;
 use App\Notifications\AccountCreatedNotification;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -89,21 +92,21 @@ class AdminController extends Controller
         }
 
         $paginator = $query->paginate(25)->through(fn (Story $story) => [
-            'id'             => $story->id,
-            'title'          => $story->title,
-            'status'         => $story->status,
+            'id' => $story->id,
+            'title' => $story->title,
+            'status' => $story->status,
             'episodes_count' => $story->episodes_count,
-            'refines_used'   => $story->refines_used,
-            'created_at'     => $story->created_at->format('n/j/Y'),
-            'user'           => [
-                'id'    => $story->user->id,
-                'name'  => $story->user->name,
+            'refines_used' => $story->refines_used,
+            'created_at' => $story->created_at->format('n/j/Y'),
+            'user' => [
+                'id' => $story->user->id,
+                'name' => $story->user->name,
                 'email' => $story->user->email,
             ],
         ]);
 
         return Inertia::render('Admin/Stories', [
-            'stories'    => $paginator,
+            'stories' => $paginator,
             'filterUser' => $filterUser,
         ]);
     }
@@ -114,24 +117,24 @@ class AdminController extends Controller
 
         return Inertia::render('Admin/StoryShow', [
             'story' => [
-                'id'         => $story->id,
-                'title'      => $story->title,
-                'status'     => $story->status,
-                'back'       => $request->query('back', 'user'),
+                'id' => $story->id,
+                'title' => $story->title,
+                'status' => $story->status,
+                'back' => $request->query('back', 'user'),
                 'created_at' => $story->created_at->format('n/j/Y'),
-                'user'       => [
-                    'id'    => $story->user->id,
-                    'name'  => $story->user->name,
+                'user' => [
+                    'id' => $story->user->id,
+                    'name' => $story->user->name,
                     'email' => $story->user->email,
                 ],
-                'episodes'   => $story->episodes->map(fn ($ep) => [
-                    'id'             => $ep->id,
+                'episodes' => $story->episodes->map(fn ($ep) => [
+                    'id' => $ep->id,
                     'episode_number' => $ep->episode_number,
-                    'title'          => $ep->title,
-                    'content'        => $ep->content,
-                    'format'         => $ep->format,
-                    'status'         => $ep->status,
-                    'created_at'     => $ep->created_at->format('n/j/Y'),
+                    'title' => $ep->title,
+                    'content' => $ep->content,
+                    'format' => $ep->format,
+                    'status' => $ep->status,
+                    'created_at' => $ep->created_at->format('n/j/Y'),
                 ]),
             ],
         ]);
@@ -140,64 +143,63 @@ class AdminController extends Controller
     public function billingIndex(): Response
     {
         $genPrice = [
-            'input'  => (float) SiteSetting::get('generation_price_input',  3.00),
+            'input' => (float) SiteSetting::get('generation_price_input', 3.00),
             'output' => (float) SiteSetting::get('generation_price_output', 15.00),
         ];
         $intPrice = [
-            'input'  => (float) SiteSetting::get('interview_price_input',  0.80),
+            'input' => (float) SiteSetting::get('interview_price_input', 0.80),
             'output' => (float) SiteSetting::get('interview_price_output', 4.00),
         ];
 
         $storyCost = function (Story $story) use ($genPrice, $intPrice) {
-            return (
-                ($story->tokens_input            * $genPrice['input']  +
-                 $story->tokens_output           * $genPrice['output'] +
-                 $story->tokens_interview_input  * $intPrice['input']  +
-                 $story->tokens_interview_output * $intPrice['output']) / 1_000_000
-            );
+            return
+                ($story->tokens_input * $genPrice['input'] +
+                 $story->tokens_output * $genPrice['output'] +
+                 $story->tokens_interview_input * $intPrice['input'] +
+                 $story->tokens_interview_output * $intPrice['output']) / 1_000_000;
         };
 
         $stories = Story::with('user')
             ->select(['id', 'user_id', 'generation_model', 'interview_model',
-                      'tokens_input', 'tokens_output',
-                      'tokens_interview_input', 'tokens_interview_output'])
+                'tokens_input', 'tokens_output',
+                'tokens_interview_input', 'tokens_interview_output'])
             ->get();
 
-        $totalCost         = 0;
-        $totalGenInput     = 0;
-        $totalGenOutput    = 0;
-        $totalIntInput     = 0;
-        $totalIntOutput    = 0;
-        $userBuckets       = [];
+        $totalCost = 0;
+        $totalGenInput = 0;
+        $totalGenOutput = 0;
+        $totalIntInput = 0;
+        $totalIntOutput = 0;
+        $userBuckets = [];
 
         foreach ($stories as $story) {
-            $cost               = $storyCost($story);
-            $totalCost         += $cost;
-            $totalGenInput     += $story->tokens_input;
-            $totalGenOutput    += $story->tokens_output;
-            $totalIntInput     += $story->tokens_interview_input;
-            $totalIntOutput    += $story->tokens_interview_output;
+            $cost = $storyCost($story);
+            $totalCost += $cost;
+            $totalGenInput += $story->tokens_input;
+            $totalGenOutput += $story->tokens_output;
+            $totalIntInput += $story->tokens_interview_input;
+            $totalIntOutput += $story->tokens_interview_output;
 
             $uid = $story->user_id;
             if (! isset($userBuckets[$uid])) {
                 $userBuckets[$uid] = [
-                    'id'            => $uid,
-                    'name'          => $story->user->name,
-                    'email'         => $story->user->email,
+                    'id' => $uid,
+                    'name' => $story->user->name,
+                    'email' => $story->user->email,
                     'stories_count' => 0,
-                    'cost'          => 0,
-                    'gen_input'     => 0,
-                    'gen_output'    => 0,
-                    'int_input'     => 0,
-                    'int_output'    => 0,
+                    'cost' => 0,
+                    'gen_input' => 0,
+                    'gen_output' => 0,
+                    'int_input' => 0,
+                    'int_output' => 0,
                 ];
             }
 
             $userBuckets[$uid]['stories_count']++;
-            $userBuckets[$uid]['cost']       += $cost;
-            $userBuckets[$uid]['gen_input']  += $story->tokens_input;
+            $userBuckets[$uid]['cost'] += $cost;
+            $userBuckets[$uid]['gen_input'] += $story->tokens_input;
             $userBuckets[$uid]['gen_output'] += $story->tokens_output;
-            $userBuckets[$uid]['int_input']  += $story->tokens_interview_input;
+            $userBuckets[$uid]['int_input'] += $story->tokens_interview_input;
             $userBuckets[$uid]['int_output'] += $story->tokens_interview_output;
         }
 
@@ -208,27 +210,27 @@ class AdminController extends Controller
             ->values();
 
         return Inertia::render('Admin/Billing', [
-            'totals'  => [
-                'gen_input'     => $totalGenInput,
-                'gen_output'    => $totalGenOutput,
-                'int_input'     => $totalIntInput,
-                'int_output'    => $totalIntOutput,
+            'totals' => [
+                'gen_input' => $totalGenInput,
+                'gen_output' => $totalGenOutput,
+                'int_input' => $totalIntInput,
+                'int_output' => $totalIntOutput,
                 'total_stories' => $stories->count(),
-                'total_cost'    => round($totalCost, 4),
+                'total_cost' => round($totalCost, 4),
             ],
             'models' => [
-                'interview'        => SiteSetting::get('interview_model',  'claude-haiku-4-5-20251001'),
-                'generation'       => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
-                'int_price_input'  => $intPrice['input'],
+                'interview' => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
+                'generation' => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
+                'int_price_input' => $intPrice['input'],
                 'int_price_output' => $intPrice['output'],
-                'gen_price_input'  => $genPrice['input'],
+                'gen_price_input' => $genPrice['input'],
                 'gen_price_output' => $genPrice['output'],
             ],
             'perUser' => $perUser,
         ]);
     }
 
-    public function settingsIndex(): \Illuminate\Http\RedirectResponse
+    public function settingsIndex(): RedirectResponse
     {
         return to_route('admin.settings.access');
     }
@@ -236,15 +238,15 @@ class AdminController extends Controller
     public function accessSettingsIndex(): Response
     {
         return Inertia::render('Admin/Settings/Access', [
-            'landing_lock_enabled'  => (bool) SiteSetting::get('landing_lock_enabled', false),
+            'landing_lock_enabled' => (bool) SiteSetting::get('landing_lock_enabled', false),
             'landing_lock_password' => SiteSetting::get('landing_lock_password', ''),
         ]);
     }
 
-    public function updateAccessSettings(Request $request): \Illuminate\Http\RedirectResponse
+    public function updateAccessSettings(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'landing_lock_enabled'  => 'required|boolean',
+            'landing_lock_enabled' => 'required|boolean',
             'landing_lock_password' => 'nullable|string|max:100',
         ]);
 
@@ -257,51 +259,51 @@ class AdminController extends Controller
     public function aiSettingsIndex(): Response
     {
         return Inertia::render('Admin/Settings/AI', [
-            'anthropic_api_key'           => SiteSetting::get('anthropic_api_key', ''),
-            'env_key_set'                 => (bool) env('ANTHROPIC_API_KEY'),
-            'interview_model'             => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
-            'generation_model'            => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
-            'interview_price_input'       => (float) SiteSetting::get('interview_price_input', 0.80),
-            'interview_price_output'      => (float) SiteSetting::get('interview_price_output', 4.00),
-            'generation_price_input'      => (float) SiteSetting::get('generation_price_input', 3.00),
-            'generation_price_output'     => (float) SiteSetting::get('generation_price_output', 15.00),
+            'anthropic_api_key' => SiteSetting::get('anthropic_api_key', ''),
+            'env_key_set' => (bool) env('ANTHROPIC_API_KEY'),
+            'interview_model' => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
+            'generation_model' => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
+            'interview_price_input' => (float) SiteSetting::get('interview_price_input', 0.80),
+            'interview_price_output' => (float) SiteSetting::get('interview_price_output', 4.00),
+            'generation_price_input' => (float) SiteSetting::get('generation_price_input', 3.00),
+            'generation_price_output' => (float) SiteSetting::get('generation_price_output', 15.00),
         ]);
     }
 
-    public function updateAiSettings(Request $request): \Illuminate\Http\RedirectResponse
+    public function updateAiSettings(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'anthropic_api_key'       => 'nullable|string|max:255',
-            'interview_model'         => 'required|string|max:100',
-            'generation_model'        => 'required|string|max:100',
-            'interview_price_input'   => 'required|numeric|min:0',
-            'interview_price_output'  => 'required|numeric|min:0',
-            'generation_price_input'  => 'required|numeric|min:0',
+            'anthropic_api_key' => 'nullable|string|max:255',
+            'interview_model' => 'required|string|max:100',
+            'generation_model' => 'required|string|max:100',
+            'interview_price_input' => 'required|numeric|min:0',
+            'interview_price_output' => 'required|numeric|min:0',
+            'generation_price_input' => 'required|numeric|min:0',
             'generation_price_output' => 'required|numeric|min:0',
         ]);
 
-        SiteSetting::set('anthropic_api_key',       $data['anthropic_api_key'] ?? '');
-        SiteSetting::set('interview_model',          $data['interview_model']);
-        SiteSetting::set('generation_model',         $data['generation_model']);
-        SiteSetting::set('interview_price_input',    $data['interview_price_input']);
-        SiteSetting::set('interview_price_output',   $data['interview_price_output']);
-        SiteSetting::set('generation_price_input',   $data['generation_price_input']);
-        SiteSetting::set('generation_price_output',  $data['generation_price_output']);
+        SiteSetting::set('anthropic_api_key', $data['anthropic_api_key'] ?? '');
+        SiteSetting::set('interview_model', $data['interview_model']);
+        SiteSetting::set('generation_model', $data['generation_model']);
+        SiteSetting::set('interview_price_input', $data['interview_price_input']);
+        SiteSetting::set('interview_price_output', $data['interview_price_output']);
+        SiteSetting::set('generation_price_input', $data['generation_price_input']);
+        SiteSetting::set('generation_price_output', $data['generation_price_output']);
 
         return back();
     }
 
-    public function fetchModels(): \Illuminate\Http\JsonResponse
+    public function fetchModels(): JsonResponse
     {
         try {
-            $client = new \Anthropic\Client(apiKey: config('anthropic.api_key'));
-            $page   = $client->models->list(limit: 100);
+            $client = new Client(apiKey: config('anthropic.api_key'));
+            $page = $client->models->list(limit: 100);
 
             $models = collect($page->data)
                 ->map(fn ($m) => [
-                    'id'           => $m->id,
+                    'id' => $m->id,
                     'display_name' => $m->displayName,
-                    'max_tokens'   => $m->maxTokens,
+                    'max_tokens' => $m->maxTokens,
                 ])
                 ->values()
                 ->toArray();
@@ -315,20 +317,20 @@ class AdminController extends Controller
     public function stripeSettingsIndex(): Response
     {
         return Inertia::render('Admin/Settings/Stripe', [
-            'stripe_key'            => SiteSetting::get('stripe_key', ''),
-            'stripe_secret'         => SiteSetting::get('stripe_secret', ''),
+            'stripe_key' => SiteSetting::get('stripe_key', ''),
+            'stripe_secret' => SiteSetting::get('stripe_secret', ''),
             'stripe_webhook_secret' => SiteSetting::get('stripe_webhook_secret', ''),
-            'env_key_set'           => (bool) env('STRIPE_KEY'),
-            'env_secret_set'        => (bool) env('STRIPE_SECRET'),
-            'env_webhook_set'       => (bool) env('STRIPE_WEBHOOK_SECRET'),
+            'env_key_set' => (bool) env('STRIPE_KEY'),
+            'env_secret_set' => (bool) env('STRIPE_SECRET'),
+            'env_webhook_set' => (bool) env('STRIPE_WEBHOOK_SECRET'),
         ]);
     }
 
-    public function updateStripeSettings(Request $request): \Illuminate\Http\RedirectResponse
+    public function updateStripeSettings(Request $request): RedirectResponse
     {
         $data = $request->validate([
-            'stripe_key'            => 'nullable|string|max:255',
-            'stripe_secret'         => 'nullable|string|max:255',
+            'stripe_key' => 'nullable|string|max:255',
+            'stripe_secret' => 'nullable|string|max:255',
             'stripe_webhook_secret' => 'nullable|string|max:255',
         ]);
 
@@ -380,13 +382,9 @@ class AdminController extends Controller
 
     public function resetPassword(Request $request, User $user)
     {
-        $request->validate([
-            'password' => 'required|string|min:8|confirmed',
-        ]);
+        Password::sendResetLink(['email' => $user->email]);
 
-        $user->update(['password' => Hash::make($request->password)]);
-
-        return back();
+        return back()->with('password_reset_sent', $user->email);
     }
 
     public function assignPlan(Request $request, User $user)
@@ -460,10 +458,10 @@ class AdminController extends Controller
 
         try {
             $invoices = $user->invoices()->map(fn ($inv) => [
-                'id'     => $inv->id,
+                'id' => $inv->id,
                 'number' => $inv->number ?? $inv->id,
-                'date'   => $inv->date()->format('M j, Y'),
-                'total'  => $inv->total(),
+                'date' => $inv->date()->format('M j, Y'),
+                'total' => $inv->total(),
                 'status' => $inv->status,
             ])->values();
         } catch (\Exception) {
@@ -526,16 +524,16 @@ class AdminController extends Controller
     public function updatePlan(Request $request, Plan $plan)
     {
         $validated = $request->validate([
-            'label'                => 'required|string|max:100',
-            'episode_limit'        => 'required|integer|min:1',
-            'stories_per_month'    => 'required|integer|min:0',
-            'refine_monthly'       => 'required|integer|min:0',
-            'price_monthly'        => 'required|integer|min:0',
-            'price_yearly'         => 'required|integer|min:0',
-            'trial_months'         => 'required|integer|min:0',
-            'is_active'            => 'required|boolean',
+            'label' => 'required|string|max:100',
+            'episode_limit' => 'required|integer|min:1',
+            'stories_per_month' => 'required|integer|min:0',
+            'refine_monthly' => 'required|integer|min:0',
+            'price_monthly' => 'required|integer|min:0',
+            'price_yearly' => 'required|integer|min:0',
+            'trial_months' => 'required|integer|min:0',
+            'is_active' => 'required|boolean',
             'stripe_price_monthly' => 'nullable|string|max:255',
-            'stripe_price_yearly'  => 'nullable|string|max:255',
+            'stripe_price_yearly' => 'nullable|string|max:255',
         ]);
 
         $plan->update($validated);

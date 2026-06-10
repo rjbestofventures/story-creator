@@ -39,7 +39,7 @@ const renewalDate = computed(() => {
 
 // Format labels
 const formatLabel = {
-    social:   'Social Post',
+    social:   'Social Media',
     linkedin: 'LinkedIn',
     blog:     'Blog',
 };

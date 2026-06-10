@@ -182,7 +182,20 @@ const detectCurrentMode = (messages) => {
 const callInterview = async (isAnswer = false) => {
     isLoading.value = true;
     try {
-        let messages = chatLog.value;
+        // Build clean message list for the API: strip invalid-answer/retry pairs so
+        // Claude never miscounts questions when an answer was rejected and re-asked.
+        const raw = chatLog.value;
+        let messages = [];
+        let i = 0;
+        while (i < raw.length) {
+            if (raw[i]._invalid) {
+                i++; // skip the invalid user message
+                if (i < raw.length && raw[i]._retry) i++; // skip the paired retry assistant message
+                continue;
+            }
+            messages.push({ role: raw[i].role, content: raw[i].content });
+            i++;
+        }
         if (messages.length === 0 || messages[0].role === 'assistant') {
             messages = [{ role: 'user', content: 'Please begin the interview.' }, ...messages];
         }
@@ -211,12 +224,23 @@ const callInterview = async (isAnswer = false) => {
         // Only count the answer if Claude accepted it as valid
         if (isAnswer && data.valid) {
             answerCount.value++;
+        } else if (isAnswer && data.valid === false) {
+            // Tag the invalid user answer so it's excluded from future API calls
+            for (let j = chatLog.value.length - 1; j >= 0; j--) {
+                if (chatLog.value[j].role === 'user' && !chatLog.value[j].content.startsWith('[')) {
+                    chatLog.value[j] = { ...chatLog.value[j], _invalid: true };
+                    break;
+                }
+            }
         }
 
-        // Store combined assistant content in chatLog for API history
+        // Store combined assistant content in chatLog for display and API history
         const combined = [data.message, data.question].filter(Boolean).join('\n\n');
         if (combined.trim()) {
-            chatLog.value.push({ role: 'assistant', content: combined });
+            const entry = { role: 'assistant', content: combined };
+            if (data.question) entry._question = data.question;
+            if (data.valid === false) entry._retry = true; // paired with the invalid user msg above
+            chatLog.value.push(entry);
         }
 
         if (data.complete) {
@@ -249,13 +273,14 @@ const handleButtonClick = async () => {
 const saveProgress = async (status = null) => {
     if (!storyId.value || isDemoMode.value) return; // demo: no backend calls
     try {
+        const messages = chatLog.value.map(({ _invalid, _retry, _question, ...m }) => m);
         await fetch(route('stories.progress', storyId.value), {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
             },
-            body: JSON.stringify({ messages: chatLog.value, status }),
+            body: JSON.stringify({ messages, status }),
         });
     } catch { /* non-critical, ignore */ }
 };
@@ -283,28 +308,30 @@ const startInterview = async () => {
         return;
     }
 
-    // Create story + profile in DB before starting
-    try {
-        const res = await fetch(route('stories.init'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-            },
-            body: JSON.stringify({
-                business_name: basics.value.business_name,
-                business_url:  basics.value.business_url,
-                industry:      basics.value.industry,
-                biography:     basics.value.biography,
-                linkedin_url:  basics.value.linkedin_url,
-                social_url:    basics.value.social_url,
-            }),
-        });
-        const data = await res.json();
-        storyId.value = data.story_id;
-    } catch {
-        chatError.value = 'Could not start the interview. Please try again.';
-        return;
+    // Create story + profile in DB before starting (skip if already created — e.g. user went back from Phase 1)
+    if (!storyId.value) {
+        try {
+            const res = await fetch(route('stories.init'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({
+                    business_name: basics.value.business_name,
+                    business_url:  basics.value.business_url,
+                    industry:      basics.value.industry,
+                    biography:     basics.value.biography,
+                    linkedin_url:  basics.value.linkedin_url,
+                    social_url:    basics.value.social_url,
+                }),
+            });
+            const data = await res.json();
+            storyId.value = data.story_id;
+        } catch {
+            chatError.value = 'Could not start the interview. Please try again.';
+            return;
+        }
     }
 
     phase.value = 1;
@@ -406,7 +433,7 @@ const progress = computed(() => {
 });
 
 const formats = [
-    { value: 'social',   label: 'Social Post',  desc: '150–200 words · Instagram / Facebook' },
+    { value: 'social',   label: 'Social Media',  desc: '150–200 words · Instagram / Facebook' },
     { value: 'linkedin', label: 'LinkedIn',      desc: '200–300 words · Professional tone' },
     { value: 'blog',     label: 'Blog Article',  desc: '300–400 words · Long-form narrative' },
 ];
@@ -618,7 +645,15 @@ const formats = [
                                 ? 'bg-white border border-[#DDDDDD] text-[#1A1A1A] rounded-tl-sm'
                                 : 'bg-[#1A1A1A] text-white rounded-tr-sm'"
                         >
-                            {{ msg.content }}
+                            <template v-if="msg.role === 'assistant' && msg._question">
+                                <span v-if="msg.content.replace(msg._question, '').trim()">{{ msg.content.replace(msg._question, '').trim() }}</span>
+                                <div
+                                    v-if="msg.content.replace(msg._question, '').trim()"
+                                    class="mt-2 mb-2 border-t border-amber-200"
+                                />
+                                <span class="block font-semibold text-amber-800 bg-amber-50 rounded-lg px-2.5 py-1.5">{{ msg._question }}</span>
+                            </template>
+                            <template v-else>{{ msg.content }}</template>
                         </div>
                     </div>
 
@@ -781,7 +816,7 @@ const formats = [
 
                         <!-- Format -->
                         <div class="space-y-3">
-                            <Label class="text-[#1A1A1A] font-bold text-base block">Episode format</Label>
+                            <Label class="text-[#1A1A1A] font-bold text-base block">Platform Options</Label>
                             <div class="space-y-2">
                                 <button
                                     v-for="f in formats" :key="f.value"

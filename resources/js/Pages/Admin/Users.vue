@@ -185,7 +185,7 @@ const passwordModalOpen = ref(false);
 const passwordModalUser = ref(null);
 
 const userForm     = useForm({ name: '', email: '', tier: 'user' });
-const passwordForm = useForm({ password: '', password_confirmation: '' });
+const passwordForm = useForm({});
 
 const openCreate = () => {
     userForm.reset();
@@ -218,9 +218,15 @@ const submitUser = () => {
     }
 };
 
+const passwordResetSent = ref(false);
+
 const submitPassword = () => {
     passwordForm.post(route('admin.users.password', passwordModalUser.value.id), {
-        onSuccess: () => { passwordModalOpen.value = false; },
+        onSuccess: () => {
+            passwordModalOpen.value = false;
+            passwordResetSent.value = true;
+            setTimeout(() => { passwordResetSent.value = false; }, 4000);
+        },
     });
 };
 
@@ -366,19 +372,6 @@ const impersonate = (userId) => {
                             <TooltipContent>Reset password</TooltipContent>
                         </Tooltip>
 
-                        <Tooltip>
-                            <TooltipTrigger as-child>
-                                <Button
-                                    variant="ghost" size="sm"
-                                    class="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 cursor-pointer"
-                                    @click.stop="openDeleteDialog(user)"
-                                >
-                                    <Trash2 class="w-4 h-4" />
-                                </Button>
-                            </TooltipTrigger>
-                            <TooltipContent>Delete user</TooltipContent>
-                        </Tooltip>
-
                         <template v-if="user.id !== $page.props.auth.user.id">
                             <Tooltip>
                                 <TooltipTrigger as-child>
@@ -393,12 +386,30 @@ const impersonate = (userId) => {
                             </Tooltip>
                         </template>
 
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="ghost" size="sm"
+                                    class="h-8 w-8 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 cursor-pointer"
+                                    @click.stop="openDeleteDialog(user)"
+                                >
+                                    <Trash2 class="w-4 h-4" />
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Delete user</TooltipContent>
+                        </Tooltip>
+
                         <div class="w-px h-5 bg-[#EBEBEB] mx-1" />
 
-                        <ChevronDown
-                            class="w-4 h-4 text-muted-foreground transition-transform duration-200"
-                            :class="{ 'rotate-180': expandedUser === user.id }"
-                        />
+                        <button
+                            class="h-8 w-8 p-0 inline-flex items-center justify-center rounded-md text-muted-foreground hover:text-[#1A1A1A] hover:bg-[#F0F0F0] transition-colors cursor-pointer"
+                            @click.stop="toggleExpand(user.id)"
+                        >
+                            <ChevronDown
+                                class="w-4 h-4 transition-transform duration-200"
+                                :class="{ 'rotate-180': expandedUser === user.id }"
+                            />
+                        </button>
                     </div>
                 </div>
 
@@ -733,21 +744,12 @@ const impersonate = (userId) => {
         <Dialog v-model:open="passwordModalOpen">
             <DialogContent class="max-w-sm">
                 <DialogHeader>
-                    <DialogTitle>Reset Password</DialogTitle>
-                    <DialogDescription>{{ passwordModalUser?.name }}</DialogDescription>
+                    <DialogTitle>Send Reset Link</DialogTitle>
+                    <DialogDescription>
+                        A password reset link will be sent to
+                        <span class="font-semibold text-foreground">{{ passwordModalUser?.email }}</span>.
+                    </DialogDescription>
                 </DialogHeader>
-
-                <div class="space-y-4">
-                    <div class="space-y-1.5">
-                        <Label for="new-password">New Password</Label>
-                        <Input id="new-password" v-model="passwordForm.password" type="password" placeholder="Min. 8 characters" />
-                        <p v-if="passwordForm.errors.password" class="text-xs text-destructive">{{ passwordForm.errors.password }}</p>
-                    </div>
-                    <div class="space-y-1.5">
-                        <Label for="confirm-password">Confirm Password</Label>
-                        <Input id="confirm-password" v-model="passwordForm.password_confirmation" type="password" placeholder="Repeat password" />
-                    </div>
-                </div>
 
                 <DialogFooter>
                     <Button variant="outline" @click="passwordModalOpen = false">Cancel</Button>
@@ -756,10 +758,28 @@ const impersonate = (userId) => {
                         class="bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 font-semibold transition-all duration-300"
                         @click="submitPassword"
                     >
-                        Reset Password
+                        Send Reset Link
                     </Button>
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <!-- Success alert -->
+        <Transition
+            enter-active-class="transition duration-300 ease-out"
+            enter-from-class="translate-y-4 opacity-0"
+            enter-to-class="translate-y-0 opacity-100"
+            leave-active-class="transition duration-200 ease-in"
+            leave-from-class="translate-y-0 opacity-100"
+            leave-to-class="translate-y-4 opacity-0"
+        >
+            <div
+                v-if="passwordResetSent"
+                class="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-5 py-3 rounded-xl bg-[#1A1A1A] text-white text-sm font-semibold shadow-xl"
+            >
+                <Check class="w-4 h-4 text-[#F5A623] shrink-0" />
+                Reset link sent successfully.
+            </div>
+        </Transition>
     </AdminLayout>
 </template>
