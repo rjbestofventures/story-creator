@@ -96,7 +96,7 @@ import { ShieldCheck, Users, BookOpen, LogIn, KeyRound, Trash2, Search, FileText
                             </li>
                             <li class="flex items-start gap-2">
                                 <LogIn class="w-3.5 h-3.5 shrink-0 mt-0.5" style="color: #F5A000;" />
-                                <span><strong>Impersonate</strong> — click the login icon to view the platform as that user; a gold banner will appear. Click "Stop Impersonating" to return to your admin session.</span>
+                                <span><strong>Impersonate</strong> — click the login icon to view the platform as that user; a gold banner will appear. Click "Switch to your Account" to return to your admin session.</span>
                             </li>
                             <li class="flex items-start gap-2">
                                 <Trash2 class="w-3.5 h-3.5 shrink-0 mt-0.5" style="color: #F5A000;" />

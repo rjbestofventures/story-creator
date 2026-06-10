@@ -16,6 +16,7 @@ const props = defineProps({
 const isDemo       = props.story.is_demo ?? false;
 const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
+const storyTitle   = props.story.title ?? `The Story of ${businessName}`;
 
 // ─── Generating / failed state + polling ─────────────────────────────────────
 const isGenerating = ref(props.story.status === 'generating');
@@ -70,7 +71,7 @@ const retryGeneration = async () => {
 onMounted(() => { if (props.story.status === 'generating') startPolling(); });
 onUnmounted(() => { if (pollTimer) clearInterval(pollTimer); });
 
-const formatLabel = { social: 'Social Post', linkedin: 'LinkedIn', blog: 'Blog' };
+const formatLabel = { social: 'Social Media', linkedin: 'LinkedIn', blog: 'Blog' };
 const formatColor = {
     social:   'bg-blue-50 text-blue-700 border-blue-200',
     linkedin: 'bg-indigo-50 text-indigo-700 border-indigo-200',
@@ -270,7 +271,7 @@ const restoreRevision = async (ep) => {
 </script>
 
 <template>
-    <Head :title="`The Story of ${businessName}`" />
+    <Head :title="storyTitle" />
     <AuthenticatedLayout>
         <!-- Generating overlay -->
         <div v-if="isGenerating && !pollTimedOut" class="fixed inset-0 z-50 flex flex-col items-center justify-center" style="background: rgba(250,250,248,0.97);">
@@ -350,10 +351,10 @@ const restoreRevision = async (ep) => {
                         <Sparkles class="w-3.5 h-3.5" />
                         AI Generated Story
                     </div>
-                    <h1 class="text-2xl md:text-4xl font-black text-[#1A1A1A] mb-3">The Story of {{ businessName }}</h1>
+                    <h1 class="text-2xl md:text-4xl font-black text-[#1A1A1A] mb-3">{{ storyTitle }}</h1>
                     <p class="text-[#555555] text-base md:text-lg">
                         Here's what StoryCreator generated from your interview.
-                        <span class="text-[#F5A000] font-semibold">{{ episodes.length }} episodes</span> ready to publish.
+                        <span class="text-[#F5A000] font-semibold">{{ episodes.length }} episode{{ episodes.length === 1 ? '' : 's' }}</span> ready to publish.
                     </p>
                 </div>
 
@@ -407,6 +408,9 @@ const restoreRevision = async (ep) => {
                                 <Badge :class="formatColor[ep.format]" class="text-xs font-semibold border shrink-0">
                                     {{ formatLabel[ep.format] ?? ep.format }}
                                 </Badge>
+                                <span v-if="!isDemo" class="text-xs font-bold text-[#888888] bg-[#F0F0F0] px-2 py-0.5 rounded-md shrink-0">
+                                    v{{ position(ep) }}
+                                </span>
                             </div>
 
                             <!-- Row 2: revision navigator (non-demo, has history) -->
