@@ -9,33 +9,33 @@ use Illuminate\Support\Facades\Log;
 class InterviewService
 {
     private array $responseTool = [
-        'name'        => 'send_response',
+        'name' => 'send_response',
         'description' => 'Send a structured response to the user during the interview.',
         'input_schema' => [
-            'type'       => 'object',
+            'type' => 'object',
             'properties' => [
                 'message' => [
-                    'type'        => 'string',
+                    'type' => 'string',
                     'description' => 'Conversational text shown in the chat bubble — an intro, a genuine reaction to the user\'s answer, or a closing message. Plain text only, no markdown.',
                 ],
                 'question' => [
-                    'type'        => 'string',
+                    'type' => 'string',
                     'description' => 'The interview question to ask, verbatim from the list. Empty string if this turn is not asking a question.',
                 ],
                 'button_text' => [
-                    'type'        => 'string',
+                    'type' => 'string',
                     'description' => 'Label for the action button shown to the user. Choose something natural and encouraging, e.g. "Get started", "I\'m ready", "Next question", "Keep going". Empty string when the user should type their answer instead.',
                 ],
                 'show_input' => [
-                    'type'        => 'boolean',
+                    'type' => 'boolean',
                     'description' => 'True when the user needs to type their answer to a question. False when showing a button instead.',
                 ],
                 'complete' => [
-                    'type'        => 'boolean',
+                    'type' => 'boolean',
                     'description' => 'True only after the user has answered all 15 questions.',
                 ],
                 'valid' => [
-                    'type'        => 'boolean',
+                    'type' => 'boolean',
                     'description' => 'Whether the user\'s answer was acceptable. Set false if the answer is gibberish, random characters, keyboard mashing, or clearly not a real response. When false, re-ask the same question with show_input true. Always true for button-click turns.',
                 ],
             ],
@@ -46,16 +46,18 @@ class InterviewService
     private string $systemPrompt = <<<'PROMPT'
 You are StoryBot, the AI engine behind StoryCreator.Bot. You conduct a structured brand story interview with a business owner using the send_response tool.
 
+Your voice is warm, direct, and genuinely curious — like a sharp journalist who actually cares about the person they're talking to. You react to what people say. You notice the interesting detail. You sound like a real person, not a chatbot.
+
 Never break character. Never say "As an AI" or reference being a language model.
-If asked what you are: set message to "I am StoryBot. My job is to ask the right questions and turn your answers into content worth sharing. That is all you need to know. Let us keep going." with show_input false and a button.
-If a user seems stuck: set message to "There is no wrong answer here. Just say whatever comes to mind first and we will keep moving." and re-show the same question.
+If asked what you are: set message to "I'm StoryBot. My job is to ask the right questions and help turn your answers into content worth sharing. That's it. Let's keep going." with show_input false and a button.
+If a user seems stuck: set message to "No wrong answers here. Just say whatever comes to mind first — we'll keep moving." and re-show the same question.
 
 TURN-BY-TURN FORMAT — always use send_response:
 
 TURN 1 — user says "Please begin the interview.":
-  message: Warm, brief welcome. Introduce yourself as StoryBot. Mention you will ask 15 questions about their business. End with "Ready?"
+  message: Warm, brief, casual welcome. Introduce yourself as StoryBot. Mention you'll ask 15 questions about their business. End with something like "Ready to go?" Keep it short and human.
   question: "" (empty)
-  button_text: "Get started" (or similar encouraging label)
+  button_text: "Let's go" (or similar encouraging label)
   show_input: false
   complete: false
 
@@ -67,7 +69,7 @@ TURN 2 — user clicks the button (says "[Ready to begin]"):
   complete: false
 
 TURN 3 — user submits their answer to Q1:
-  message: Genuine 1–2 sentence reaction to their specific answer. Respond to the actual detail they shared.
+  message: Genuine 1–2 sentence reaction to their specific answer. Sound like a real person — react to the actual detail they shared, not generic encouragement. Keep it casual and warm.
   question: "" (empty)
   button_text: "Next question" (or similar — you choose)
   show_input: false
@@ -83,7 +85,7 @@ TURN 4 — user clicks the button (says "[Ready for next question]"):
 Continue this pattern — answer → button → question → answer → button → question — through all 15 questions.
 
 AFTER user answers Question 15:
-  message: "That is everything I need. You have given me everything I need to tell your story the right way. Give me a moment while I put your story library together."
+  message: "That's everything I need. You've given me a lot to work with — give me a moment while I put your story library together."
   question: "" (empty)
   button_text: "" (empty)
   show_input: false
@@ -154,29 +156,39 @@ PROMPT;
     public function getNextMessage(array $messages, array $profile): array
     {
         $context = "Business name: {$profile['business_name']}";
-        if (!empty($profile['industry']))      $context .= " | Industry: {$profile['industry']}";
-        if (!empty($profile['business_url']))  $context .= " | Website: {$profile['business_url']}";
-        if (!empty($profile['linkedin_url']))  $context .= " | LinkedIn: {$profile['linkedin_url']}";
-        if (!empty($profile['social_url']))    $context .= " | Social: {$profile['social_url']}";
-        if (!empty($profile['biography']))     $context .= "\n\nOwner bio: {$profile['biography']}";
-        if (!empty($profile['website_content'])) {
+        if (! empty($profile['industry'])) {
+            $context .= " | Industry: {$profile['industry']}";
+        }
+        if (! empty($profile['business_url'])) {
+            $context .= " | Website: {$profile['business_url']}";
+        }
+        if (! empty($profile['linkedin_url'])) {
+            $context .= " | LinkedIn: {$profile['linkedin_url']}";
+        }
+        if (! empty($profile['social_url'])) {
+            $context .= " | Social: {$profile['social_url']}";
+        }
+        if (! empty($profile['biography'])) {
+            $context .= "\n\nOwner bio: {$profile['biography']}";
+        }
+        if (! empty($profile['website_content'])) {
             $context .= "\n\nWebsite content (scraped):\n{$profile['website_content']}";
         }
 
         $model = SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001');
 
         Log::channel('anthropic')->debug('Interview → request', [
-            'model'    => $model,
-            'context'  => $context,
+            'model' => $model,
+            'context' => $context,
             'messages' => $messages,
         ]);
 
         $response = $this->client()->messages->create(
-            maxTokens:  512,
-            messages:   $messages,
-            model:      $model,
-            system:     $this->systemPrompt . "\n\n" . $context,
-            tools:      [$this->responseTool],
+            maxTokens: 512,
+            messages: $messages,
+            model: $model,
+            system: $this->systemPrompt."\n\n".$context,
+            tools: [$this->responseTool],
             toolChoice: ['type' => 'tool', 'name' => 'send_response'],
         );
 
@@ -190,13 +202,13 @@ PROMPT;
         }
 
         Log::channel('anthropic')->debug('Interview ← response', [
-            'result'        => $result,
-            'stop_reason'   => $response->stopReason,
-            'input_tokens'  => $response->usage->inputTokens,
+            'result' => $result,
+            'stop_reason' => $response->stopReason,
+            'input_tokens' => $response->usage->inputTokens,
             'output_tokens' => $response->usage->outputTokens,
         ]);
 
-        $result['_tokens_input']  = $response->usage->inputTokens;
+        $result['_tokens_input'] = $response->usage->inputTokens;
         $result['_tokens_output'] = $response->usage->outputTokens;
 
         return $result;

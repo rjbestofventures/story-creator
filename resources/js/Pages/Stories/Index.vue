@@ -286,16 +286,23 @@ const confirmDelete = () => {
                 <!-- No credits notice (subscribed users only) -->
                 <div
                     v-if="hasSubscription && storyCredits === 0 && stories.length > 0"
-                    class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start gap-3"
+                    class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start justify-between gap-4"
                 >
-                    <Zap class="w-5 h-5 text-[#F5A000] flex-shrink-0 mt-0.5" />
-                    <div>
-                        <p class="text-sm font-semibold text-[#1A1A1A]">You're out of story credits</p>
-                        <p class="text-sm text-[#555555] mt-0.5">
-                            <template v-if="renewalDate">Credits refresh on {{ renewalDate }}.</template>
-                            <template v-else>Credits refresh at the start of your next billing period.</template>
-                        </p>
+                    <div class="flex items-start gap-3">
+                        <Zap class="w-5 h-5 text-[#F5A000] flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p class="text-sm font-semibold text-[#1A1A1A]">You're out of story credits</p>
+                            <p class="text-sm text-[#555555] mt-0.5">
+                                <template v-if="renewalDate">Credits refresh on {{ renewalDate }}.</template>
+                                <template v-else>Credits refresh at the start of your next billing period.</template>
+                            </p>
+                        </div>
                     </div>
+                    <Link :href="route('billing.plans')" class="shrink-0">
+                        <Button class="text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0">
+                            Upgrade Plan
+                        </Button>
+                    </Link>
                 </div>
 
             </div>

@@ -3,32 +3,32 @@
 namespace App\Services;
 
 use Anthropic\Client;
-use App\Models\SiteSetting;
-use Illuminate\Support\Facades\Log;
 use App\Models\BusinessProfile;
 use App\Models\Episode;
+use App\Models\SiteSetting;
 use App\Models\Story;
+use Illuminate\Support\Facades\Log;
 
 class StoryGeneratorService
 {
     private array $outputTool = [
-        'name'        => 'save_story',
+        'name' => 'save_story',
         'description' => 'Save the generated brand story and its episodes.',
         'input_schema' => [
-            'type'       => 'object',
+            'type' => 'object',
             'properties' => [
                 'story_title' => [
-                    'type'        => 'string',
+                    'type' => 'string',
                     'description' => 'A compelling title for the overall story library.',
                 ],
                 'episodes' => [
-                    'type'  => 'array',
+                    'type' => 'array',
                     'items' => [
-                        'type'       => 'object',
+                        'type' => 'object',
                         'properties' => [
                             'episode_number' => ['type' => 'integer'],
-                            'title'          => ['type' => 'string', 'description' => '4 to 7 words, creates curiosity or recognition.'],
-                            'content'        => ['type' => 'string', 'description' => 'Full episode text, first-person present tense throughout.'],
+                            'title' => ['type' => 'string', 'description' => '4 to 7 words, creates curiosity or recognition.'],
+                            'content' => ['type' => 'string', 'description' => 'Full episode text, first-person present tense throughout.'],
                         ],
                         'required' => ['episode_number', 'title', 'content'],
                     ],
@@ -130,9 +130,9 @@ PROMPT;
     public function generate(BusinessProfile $profile, int $episodeCount = 5, string $format = 'social'): array
     {
         $lengthGuide = match ($format) {
-            'blog'     => '300 to 400 words',
+            'blog' => '300 to 400 words',
             'linkedin' => '200 to 300 words',
-            default    => '150 to 200 words',
+            default => '150 to 200 words',
         };
 
         $transcript = '';
@@ -142,10 +142,18 @@ PROMPT;
         }
 
         $extra = '';
-        if (!empty($profile->biography))       $extra .= "\nOwner biography: {$profile->biography}";
-        if (!empty($profile->linkedin_url))    $extra .= "\nLinkedIn: {$profile->linkedin_url}";
-        if (!empty($profile->social_url))      $extra .= "\nSocial: {$profile->social_url}";
-        if (!empty($profile->website_content)) $extra .= "\n\nWebsite content (scraped):\n{$profile->website_content}";
+        if (! empty($profile->biography)) {
+            $extra .= "\nOwner biography: {$profile->biography}";
+        }
+        if (! empty($profile->linkedin_url)) {
+            $extra .= "\nLinkedIn: {$profile->linkedin_url}";
+        }
+        if (! empty($profile->social_url)) {
+            $extra .= "\nSocial: {$profile->social_url}";
+        }
+        if (! empty($profile->website_content)) {
+            $extra .= "\n\nWebsite content (scraped):\n{$profile->website_content}";
+        }
 
         $userPrompt = <<<PROMPT
 Business Name: {$profile->business_name}
@@ -163,45 +171,45 @@ PROMPT;
         $model = SiteSetting::get('generation_model', 'claude-sonnet-4-6');
 
         Log::channel('anthropic')->debug('Generation → request', [
-            'model'        => $model,
-            'episode_count'=> $episodeCount,
-            'format'       => $format,
-            'user_prompt'  => $userPrompt,
+            'model' => $model,
+            'episode_count' => $episodeCount,
+            'format' => $format,
+            'user_prompt' => $userPrompt,
         ]);
 
         $response = $this->client()->messages->create(
-            maxTokens:   8192,
-            messages:    [['role' => 'user', 'content' => $userPrompt]],
-            model:       $model,
-            system:      [
+            maxTokens: 8192,
+            messages: [['role' => 'user', 'content' => $userPrompt]],
+            model: $model,
+            system: [
                 [
-                    'type'          => 'text',
-                    'text'          => $this->systemPrompt,
+                    'type' => 'text',
+                    'text' => $this->systemPrompt,
                     'cache_control' => ['type' => 'ephemeral'],
                 ],
             ],
             temperature: 0.8,
-            tools:      [$this->outputTool],
+            tools: [$this->outputTool],
             toolChoice: ['type' => 'tool', 'name' => 'save_story'],
         );
 
         foreach ($response->content as $block) {
             if ($block->type === 'tool_use' && $block->name === 'save_story') {
                 $cacheCreate = $response->usage->cacheCreationInputTokens ?? 0;
-                $cacheRead   = $response->usage->cacheReadInputTokens   ?? 0;
+                $cacheRead = $response->usage->cacheReadInputTokens ?? 0;
 
                 Log::channel('anthropic')->debug('Generation ← response', [
-                    'stop_reason'           => $response->stopReason,
-                    'input_tokens'          => $response->usage->inputTokens,
+                    'stop_reason' => $response->stopReason,
+                    'input_tokens' => $response->usage->inputTokens,
                     'cache_creation_tokens' => $cacheCreate,
-                    'cache_read_tokens'     => $cacheRead,
-                    'output_tokens'         => $response->usage->outputTokens,
-                    'episodes'              => count($block->input['episodes'] ?? []),
-                    'story_title'           => $block->input['story_title'] ?? null,
+                    'cache_read_tokens' => $cacheRead,
+                    'output_tokens' => $response->usage->outputTokens,
+                    'episodes' => count($block->input['episodes'] ?? []),
+                    'story_title' => $block->input['story_title'] ?? null,
                 ]);
 
                 $result = (array) $block->input;
-                $result['_tokens_input']  = $response->usage->inputTokens + $cacheCreate + $cacheRead;
+                $result['_tokens_input'] = $response->usage->inputTokens + $cacheCreate + $cacheRead;
                 $result['_tokens_output'] = $response->usage->outputTokens;
 
                 return $result;
@@ -210,7 +218,7 @@ PROMPT;
 
         Log::channel('anthropic')->warning('Generation ← no tool_use block found', [
             'stop_reason' => $response->stopReason,
-            'content'     => $response->content,
+            'content' => $response->content,
         ]);
 
         return [];
@@ -219,9 +227,9 @@ PROMPT;
     public function refineTone(string $content, string $tone): array
     {
         $instruction = match ($tone) {
-            'friendlier'   => 'Rewrite this episode with a warmer, more approachable tone. Keep all the facts and story beats. Make the voice feel more personal and inviting.',
-            'shorter'      => 'Condense this episode to roughly half its current length. Keep the core story and the closing line\'s feeling. Cut padding, not substance.',
-            'humor'        => 'Weave light, natural wit into this episode. Keep the story structure intact. The humor should feel organic — a subtle turn of phrase or a self-aware aside, not jokes.',
+            'friendlier' => 'Rewrite this episode with a warmer, more approachable tone. Keep all the facts and story beats. Make the voice feel more personal and inviting.',
+            'shorter' => 'Condense this episode to roughly half its current length. Keep the core story and the closing line\'s feeling. Cut padding, not substance.',
+            'humor' => 'Weave light, natural wit into this episode. Keep the story structure intact. The humor should feel organic — a subtle turn of phrase or a self-aware aside, not jokes.',
             'professional' => 'Polish this episode to a more composed, business-appropriate tone. Keep the story authentic but make the language more precise and measured.',
         };
 
@@ -239,17 +247,17 @@ PROMPT;
 
         Log::channel('anthropic')->debug('RefineTone → request', [
             'model' => $model,
-            'tone'  => $tone,
+            'tone' => $tone,
         ]);
 
         $response = $this->client()->messages->create(
-            maxTokens:   2048,
-            messages:    [['role' => 'user', 'content' => $userPrompt]],
-            model:       $model,
-            system:      [
+            maxTokens: 2048,
+            messages: [['role' => 'user', 'content' => $userPrompt]],
+            model: $model,
+            system: [
                 [
-                    'type'          => 'text',
-                    'text'          => $this->systemPrompt,
+                    'type' => 'text',
+                    'text' => $this->systemPrompt,
                     'cache_control' => ['type' => 'ephemeral'],
                 ],
             ],
@@ -257,21 +265,21 @@ PROMPT;
         );
 
         $cacheCreate = $response->usage->cacheCreationInputTokens ?? 0;
-        $cacheRead   = $response->usage->cacheReadInputTokens   ?? 0;
+        $cacheRead = $response->usage->cacheReadInputTokens ?? 0;
 
         $refined = collect($response->content)
             ->firstWhere('type', 'text')?->text ?? $content;
 
         Log::channel('anthropic')->debug('RefineTone ← response', [
-            'input_tokens'          => $response->usage->inputTokens,
+            'input_tokens' => $response->usage->inputTokens,
             'cache_creation_tokens' => $cacheCreate,
-            'cache_read_tokens'     => $cacheRead,
-            'output_tokens'         => $response->usage->outputTokens,
+            'cache_read_tokens' => $cacheRead,
+            'output_tokens' => $response->usage->outputTokens,
         ]);
 
         return [
-            'content'        => trim($refined),
-            '_tokens_input'  => $response->usage->inputTokens + $cacheCreate + $cacheRead,
+            'content' => trim($refined),
+            '_tokens_input' => $response->usage->inputTokens + $cacheCreate + $cacheRead,
             '_tokens_output' => $response->usage->outputTokens,
         ];
     }
@@ -279,20 +287,20 @@ PROMPT;
     public function saveToStory(BusinessProfile $profile, array $generated, string $format = 'social'): Story
     {
         $story = Story::create([
-            'user_id'             => $profile->user_id,
+            'user_id' => $profile->user_id,
             'business_profile_id' => $profile->id,
-            'title'               => $generated['story_title'],
-            'status'              => 'draft',
+            'title' => $generated['story_title'],
+            'status' => 'draft',
         ]);
 
         foreach ($generated['episodes'] as $ep) {
             Episode::create([
-                'story_id'       => $story->id,
+                'story_id' => $story->id,
                 'episode_number' => $ep['episode_number'],
-                'title'          => $ep['title'],
-                'content'        => $ep['content'],
-                'format'         => $format,
-                'status'         => 'draft',
+                'title' => $ep['title'],
+                'content' => $ep['content'],
+                'format' => $format,
+                'status' => 'draft',
             ]);
         }
 

@@ -1,12 +1,12 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
-use App\Models\Plan;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\LandingLockController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StoryController;
 use App\Http\Middleware\CheckLandingLock;
+use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -19,9 +19,9 @@ Route::get('/', function () {
         ->get(['slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly']);
 
     return Inertia::render('Welcome', [
-        'canLogin'    => Route::has('login'),
+        'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
-        'plans'       => $plans,
+        'plans' => $plans,
     ]);
 })->middleware(CheckLandingLock::class)->name('welcome');
 
@@ -45,6 +45,7 @@ Route::get('/email/verified-success', function () {
 Route::get('/demo', function (Request $request) {
     if (! $request->user()) {
         session()->put('post_register_intent', 'demo');
+
         return redirect()->route('register');
     }
 
@@ -111,7 +112,7 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
 
-Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->group(function () {
+Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('admin.')->group(function () {
 
     // Module pages
     Route::get('/', fn () => to_route('admin.users.index'))->name('index');
@@ -134,6 +135,7 @@ Route::middleware(['auth', 'role:admin'])->prefix('admin')->name('admin.')->grou
     Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
     Route::patch('/users/{user}', [AdminController::class, 'update'])->name('users.update');
     Route::patch('/users/{user}/profile', [AdminController::class, 'updateProfile'])->name('users.profile');
+    Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::post('/users/{user}/password', [AdminController::class, 'resetPassword'])->name('users.password');
     Route::post('/users/{user}/plan', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
     Route::patch('/users/{user}/subscription', [AdminController::class, 'updateSubscription'])->name('users.subscription');
