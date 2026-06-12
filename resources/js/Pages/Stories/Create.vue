@@ -809,7 +809,7 @@ const formats = [
                         <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
                     </div>
 
-                    <p class="text-xs text-[#AAAAAA]">This takes 15–30 seconds. Please don't close this page.</p>
+                    <p class="text-xs text-[#AAAAAA]">This takes up to 1 minute. Please don't close this page.</p>
                 </div>
             </div>
 
@@ -870,7 +870,7 @@ const formats = [
                                 episodes for
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
-                            <p class="text-xs text-[#555555] mt-1">Uses 1 story credit · Takes 15–30 seconds</p>
+                            <p class="text-xs text-[#555555] mt-1">Uses 1 story credit · Takes up to 1 minute</p>
                         </div>
 
                         <Button

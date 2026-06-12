@@ -279,7 +279,7 @@ const restoreRevision = async (ep) => {
                 <Loader2 class="w-12 h-12 animate-spin" style="color: #F5A000;" />
                 <div>
                     <p class="text-xl font-black mb-1" style="color: #1A1A1A;">Generating your story…</p>
-                    <p class="text-sm" style="color: #555555;">This takes 15–30 seconds. You can wait here or come back later.</p>
+                    <p class="text-sm" style="color: #555555;">This takes up to 1 minute. You can wait here or come back later.</p>
                 </div>
                 <Link :href="route('stories.index')" class="text-sm underline mt-2" style="color: #555555;">Go to My Stories</Link>
             </div>
