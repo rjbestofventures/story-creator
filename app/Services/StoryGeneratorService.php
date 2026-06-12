@@ -8,6 +8,8 @@ use App\Models\Episode;
 use App\Models\SiteSetting;
 use App\Models\Story;
 use Illuminate\Support\Facades\Log;
+use Symfony\Component\HttpClient\HttpClient;
+use Symfony\Component\HttpClient\Psr18Client;
 
 class StoryGeneratorService
 {
@@ -124,7 +126,15 @@ PROMPT;
 
     private function client(): Client
     {
-        return new Client(apiKey: config('anthropic.api_key'));
+        $httpClient = new Psr18Client(HttpClient::create([
+            'timeout'      => 300,
+            'max_duration' => 300,
+        ]));
+
+        return new Client(
+            apiKey: config('anthropic.api_key'),
+            requestOptions: ['transporter' => $httpClient],
+        );
     }
 
     public function generate(BusinessProfile $profile, int $episodeCount = 5, string $format = 'social'): array
