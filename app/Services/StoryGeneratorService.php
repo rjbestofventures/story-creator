@@ -178,7 +178,7 @@ PROMPT;
         ]);
 
         $response = $this->client()->messages->create(
-            maxTokens: 4096,
+            maxTokens: 8192,
             messages: [['role' => 'user', 'content' => $userPrompt]],
             model: $model,
             system: [
