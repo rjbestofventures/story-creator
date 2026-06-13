@@ -389,7 +389,7 @@ class StoryController extends Controller
 
         $profile = $story->businessProfile;
         $format = $episode->format ?? 'social';
-        $generator = new StoryGeneratorService;
+        $generator = app(StoryGeneratorService::class);
         $generated = $generator->generate($profile, 1, $format);
 
         $ep = $generated['episodes'][0] ?? null;
@@ -526,7 +526,7 @@ class StoryController extends Controller
             'content' => $episode->content,
         ]);
 
-        $generator = new StoryGeneratorService;
+        $generator = app(StoryGeneratorService::class);
         $refined = $generator->refineTone($episode->content, $data['tone']);
 
         $episode->update(['content' => $refined['content']]);
