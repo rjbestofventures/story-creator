@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, onUnmounted, nextTick } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
@@ -17,16 +17,24 @@ const props = defineProps({
 const isDemo       = props.story.is_demo ?? false;
 const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
-const storyTitle   = props.story.title ?? `The Story of ${businessName}`;
+const storyTitle   = computed(() => props.story.title ?? `The Story of ${businessName}`);
 
 // ─── Generating / failed state + polling ─────────────────────────────────────
-const isGenerating = ref(props.story.status === 'generating');
-const isFailed     = ref(props.story.status === 'failed');
+const isGenerating = computed(() => props.story.status === 'generating');
+const isFailed     = computed(() => props.story.status === 'failed');
 const pollTimedOut = ref(false);
 const retrying     = ref(false);
 let pollTimer      = null;
 let pollCount      = 0;
 const POLL_MAX     = 60;
+
+// Sync episodes from props after Inertia partial reload
+watch(() => props.story.episodes, (eps) => {
+    if (eps?.length) {
+        episodes.value = eps;
+        initAllEditState();
+    }
+});
 
 const startPolling = () => {
     pollCount = 0;
