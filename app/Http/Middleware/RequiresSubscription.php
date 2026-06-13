@@ -12,10 +12,11 @@ class RequiresSubscription
     {
         $user = $request->user();
 
-        if ($user?->hasRole('admin') || $user?->hasActiveSubscription()) {
+        if ($user?->isAdmin() || $user?->hasActiveSubscription()) {
             return $next($request);
         }
 
-        return redirect()->route('billing.plans');
+        return redirect()->route('billing.plans')
+            ->with('notice', 'Please select a plan to start creating your story library.');
     }
 }
