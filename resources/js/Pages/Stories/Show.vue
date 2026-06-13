@@ -11,6 +11,7 @@ import {
 
 const props = defineProps({
     story: Object,
+    canCreateStory: Boolean,
 });
 
 const isDemo       = props.story.is_demo ?? false;
@@ -561,12 +562,22 @@ const restoreRevision = async (ep) => {
                         <p class="text-[#555555] mb-6 max-w-md mx-auto">
                             Each story builds your brand's narrative. Start a new interview to explore a different angle of your business.
                         </p>
-                        <Link :href="route('stories.create')">
-                            <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
-                                <Plus class="w-4 h-4" />
-                                Create Another Story
-                            </Button>
-                        </Link>
+                        <template v-if="canCreateStory">
+                            <Link :href="route('stories.create')">
+                                <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
+                                    <Plus class="w-4 h-4" />
+                                    Create Another Story
+                                </Button>
+                            </Link>
+                        </template>
+                        <template v-else>
+                            <p class="text-sm text-[#555555] mb-4">You've used all your story credits for this plan.</p>
+                            <Link :href="route('billing.plans')">
+                                <Button class="inline-flex items-center gap-2 bg-white border border-[#DDDDDD] text-[#1A1A1A] font-bold h-11 px-8 rounded-xl hover:bg-[#F5F5F5] transition-all duration-300 cursor-pointer">
+                                    Upgrade Plan
+                                </Button>
+                            </Link>
+                        </template>
                     </template>
                 </div>
 

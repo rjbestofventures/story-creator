@@ -51,8 +51,8 @@ class StoryController extends Controller
         $episodeLimit = $request->user()->activeSubscription?->effectiveEpisodeLimit() ?? 5;
 
         return Inertia::render('Stories/Create', [
-            'profile'       => null,
-            'story'         => null,
+            'profile' => null,
+            'story' => null,
             'episode_limit' => $episodeLimit,
         ]);
     }
@@ -70,12 +70,12 @@ class StoryController extends Controller
             : ($request->user()->activeSubscription?->effectiveEpisodeLimit() ?? 5);
 
         return Inertia::render('Stories/Create', [
-            'profile'       => $story->businessProfile,
+            'profile' => $story->businessProfile,
             'episode_limit' => $episodeLimit,
             'story' => [
-                'id'       => $story->id,
-                'status'   => $story->status,
-                'is_demo'  => $story->is_demo,
+                'id' => $story->id,
+                'status' => $story->status,
+                'is_demo' => $story->is_demo,
                 'messages' => $story->businessProfile->answers ?? [],
             ],
         ]);
@@ -181,16 +181,17 @@ class StoryController extends Controller
     {
         abort_unless($story->user_id === $request->user()->id, 403);
 
-        $data   = $request->validate(['format' => 'in:social,blog,linkedin']);
+        $data = $request->validate(['format' => 'in:social,blog,linkedin']);
         $format = $data['format'] ?? 'social';
 
-        $story->update(['status' => 'generating']);
+        $user = $request->user();
 
-        $sub = $request->user()->activeSubscription;
-        if ($sub && $sub->story_credits > 0) {
-            $sub->decrement('story_credits');
+        if (! $user->isAdmin()) {
+            abort_unless($user->canCreateStory(), 403, 'You have no story credits remaining.');
+            $user->activeSubscription->decrement('story_credits');
         }
 
+        $story->update(['status' => 'generating']);
         GenerateStory::dispatch($story, $format);
 
         return to_route('stories.show', $story->id);
@@ -267,6 +268,10 @@ class StoryController extends Controller
 
         $user = $request->user();
 
+        if (! $user->isAdmin()) {
+            abort_unless($user->canCreateStory(), 403, 'You have no story credits remaining.');
+        }
+
         $profile = BusinessProfile::updateOrCreate(
             ['user_id' => $user->id],
             [
@@ -280,15 +285,14 @@ class StoryController extends Controller
         $format = $data['format'] ?? 'social';
 
         $story = Story::create([
-            'user_id'             => $user->id,
+            'user_id' => $user->id,
             'business_profile_id' => $profile->id,
-            'title'               => 'Generating…',
-            'status'              => 'generating',
+            'title' => 'Generating…',
+            'status' => 'generating',
         ]);
 
-        $sub = $user->activeSubscription;
-        if ($sub && $sub->story_credits > 0) {
-            $sub->decrement('story_credits');
+        if (! $user->isAdmin()) {
+            $user->activeSubscription->decrement('story_credits');
         }
 
         GenerateStory::dispatch($story, $format);
@@ -306,22 +310,25 @@ class StoryController extends Controller
 
         $story->load(['episodes.versions', 'businessProfile']);
 
+        $user = $request->user();
+
         return Inertia::render('Stories/Show', [
             'story' => [
-                'id'               => $story->id,
-                'title'            => $story->title,
-                'status'           => $story->status,
-                'is_demo'          => $story->is_demo,
+                'id' => $story->id,
+                'title' => $story->title,
+                'status' => $story->status,
+                'is_demo' => $story->is_demo,
                 'business_profile' => $story->businessProfile,
-                'episodes'         => $story->episodes->map(fn ($ep) => [
-                    'id'             => $ep->id,
+                'episodes' => $story->episodes->map(fn ($ep) => [
+                    'id' => $ep->id,
                     'episode_number' => $ep->episode_number,
-                    'title'          => $ep->title,
-                    'content'        => $ep->content,
-                    'format'         => $ep->format,
+                    'title' => $ep->title,
+                    'content' => $ep->content,
+                    'format' => $ep->format,
                     'versions_count' => $ep->versions->count(),
                 ]),
             ],
+            'canCreateStory' => $user->canCreateStory(),
         ]);
     }
 
@@ -356,6 +363,13 @@ class StoryController extends Controller
     public function regenerateEpisode(Request $request, Story $story)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
+        abort_if($story->is_demo, 403);
+
+        $user = $request->user();
+
+        if (! $user->isAdmin()) {
+            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
+        }
 
         $data = $request->validate([
             'episode_number' => 'required|integer',
@@ -363,7 +377,6 @@ class StoryController extends Controller
 
         $episode = $story->episodes()->where('episode_number', $data['episode_number'])->firstOrFail();
 
-        // Save current content as a version before overwriting
         $nextVersion = $episode->versions()->max('version') ?? 0;
         EpisodeVersion::create([
             'episode_id' => $episode->id,
@@ -386,9 +399,8 @@ class StoryController extends Controller
         $story->increment('tokens_input', $generated['_tokens_input'] ?? 0);
         $story->increment('tokens_output', $generated['_tokens_output'] ?? 0);
 
-        $sub = $request->user()->activeSubscription;
-        if ($sub && $sub->refine_credits > 0) {
-            $sub->decrement('refine_credits');
+        if (! $user->isAdmin()) {
+            $user->activeSubscription->decrement('refine_credits');
         }
 
         return response()->json([
@@ -422,6 +434,7 @@ class StoryController extends Controller
     public function restoreVersion(Request $request, Story $story, Episode $episode, EpisodeVersion $version)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
+        abort_if($story->is_demo, 403);
         abort_unless($episode->story_id === $story->id, 404);
         abort_unless($version->episode_id === $episode->id, 404);
 
@@ -454,10 +467,11 @@ class StoryController extends Controller
     public function updateEpisode(Request $request, Story $story, Episode $episode)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
+        abort_if($story->is_demo, 403);
         abort_unless($episode->story_id === $story->id, 404);
 
         $data = $request->validate([
-            'title'   => 'sometimes|string|max:255',
+            'title' => 'sometimes|string|max:255',
             'content' => 'sometimes|string|max:50000',
         ]);
 
@@ -465,8 +479,8 @@ class StoryController extends Controller
 
         return response()->json([
             'episode' => [
-                'id'      => $episode->id,
-                'title'   => $episode->title,
+                'id' => $episode->id,
+                'title' => $episode->title,
                 'content' => $episode->content,
             ],
         ]);
@@ -479,41 +493,46 @@ class StoryController extends Controller
     public function refineEpisodeTone(Request $request, Story $story, Episode $episode)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
+        abort_if($story->is_demo, 403);
         abort_unless($episode->story_id === $story->id, 404);
+
+        $user = $request->user();
+
+        if (! $user->isAdmin()) {
+            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
+        }
 
         $data = $request->validate([
             'tone' => 'required|in:friendlier,shorter,humor,professional',
         ]);
 
-        // Snapshot current content before overwriting
         $nextVersion = $episode->versions()->max('version') ?? 0;
         EpisodeVersion::create([
             'episode_id' => $episode->id,
-            'version'    => $nextVersion + 1,
-            'title'      => $episode->title,
-            'content'    => $episode->content,
+            'version' => $nextVersion + 1,
+            'title' => $episode->title,
+            'content' => $episode->content,
         ]);
 
         $generator = new StoryGeneratorService;
-        $refined   = $generator->refineTone($episode->content, $data['tone']);
+        $refined = $generator->refineTone($episode->content, $data['tone']);
 
         $episode->update(['content' => $refined['content']]);
 
-        $story->increment('tokens_input',  $refined['_tokens_input']  ?? 0);
+        $story->increment('tokens_input', $refined['_tokens_input'] ?? 0);
         $story->increment('tokens_output', $refined['_tokens_output'] ?? 0);
 
-        $sub = $request->user()->activeSubscription;
-        if ($sub && $sub->refine_credits > 0) {
-            $sub->decrement('refine_credits');
+        if (! $user->isAdmin()) {
+            $user->activeSubscription->decrement('refine_credits');
         }
 
         return response()->json([
             'episode' => [
-                'id'             => $episode->id,
+                'id' => $episode->id,
                 'episode_number' => $episode->episode_number,
-                'title'          => $episode->title,
-                'content'        => $episode->content,
-                'format'         => $episode->format,
+                'title' => $episode->title,
+                'content' => $episode->content,
+                'format' => $episode->format,
             ],
         ]);
     }

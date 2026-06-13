@@ -66,13 +66,26 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->activeSubscription !== null;
     }
 
+    public function isAdmin(): bool
+    {
+        return $this->hasRole('admin') || $this->hasRole('super_admin');
+    }
+
     public function canCreateStory(): bool
     {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
         return $this->activeSubscription?->canCreateStory() ?? false;
     }
 
     public function canRefine(): bool
     {
+        if ($this->isAdmin()) {
+            return true;
+        }
+
         return $this->activeSubscription?->canRefine() ?? false;
     }
 }
