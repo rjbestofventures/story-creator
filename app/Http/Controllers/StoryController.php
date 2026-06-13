@@ -40,6 +40,7 @@ class StoryController extends Controller
             'subscription' => $sub,
             'plan' => $plan,
             'isAdmin' => $user->isAdmin(),
+            'adminRole' => $user->hasRole('super_admin') ? 'super_admin' : ($user->hasRole('admin') ? 'admin' : null),
         ]);
     }
 
