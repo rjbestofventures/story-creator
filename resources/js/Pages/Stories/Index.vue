@@ -21,6 +21,7 @@ const props = defineProps({
     subscription: Object,
     plan:         Object,
     isAdmin:      Boolean,
+    adminRole:    String,
 });
 
 // Subscription state
@@ -153,7 +154,7 @@ const confirmDelete = () => {
                             <TrendingUp class="w-4 h-4 text-[#F5A000]" />
                             <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Plan</span>
                         </div>
-                        <div class="text-lg font-black text-[#1A1A1A] truncate">{{ isAdmin ? 'Admin' : planLabel }}</div>
+                        <div class="text-lg font-black text-[#1A1A1A] truncate">{{ adminRole === 'super_admin' ? 'Super Admin' : adminRole === 'admin' ? 'Admin' : planLabel }}</div>
                         <div class="text-xs text-[#555555] mt-0.5">current plan</div>
                     </div>
                 </div>
