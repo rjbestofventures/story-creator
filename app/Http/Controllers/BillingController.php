@@ -6,11 +6,16 @@ use App\Models\Plan;
 use App\Models\User;
 use App\Models\UserSubscription;
 use Carbon\Carbon;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
+use Stripe\Checkout\Session;
 use Stripe\Exception\SignatureVerificationException;
+use Stripe\Stripe;
+use Stripe\Subscription;
 use Stripe\Webhook;
 
 class BillingController extends Controller
@@ -23,7 +28,10 @@ class BillingController extends Controller
             ->get(['id', 'slug', 'label', 'episode_limit', 'stories_per_month',
                 'refine_monthly', 'price_monthly', 'price_yearly', 'trial_months']);
 
-        return Inertia::render('Billing/Plans', ['plans' => $plans]);
+        return Inertia::render('Billing/Plans', [
+            'plans' => $plans,
+            'notice' => session('notice'),
+        ]);
     }
 
     public function selectFree(Request $request): RedirectResponse
@@ -40,24 +48,24 @@ class BillingController extends Controller
         $this->cancelExistingSubscriptions($request->user());
 
         UserSubscription::create([
-            'user_id'               => $request->user()->id,
-            'plan_id'               => $plan->id,
-            'billing_interval'      => 'monthly',
-            'status'                => 'active',
-            'starts_at'             => now(),
-            'expires_at'            => null,
-            'billing_period_ends_at'=> now()->addMonth(),
-            'story_credits'         => $plan->stories_per_month,
-            'refine_credits'        => $plan->refine_monthly,
+            'user_id' => $request->user()->id,
+            'plan_id' => $plan->id,
+            'billing_interval' => 'monthly',
+            'status' => 'active',
+            'starts_at' => now(),
+            'expires_at' => null,
+            'billing_period_ends_at' => now()->addMonth(),
+            'story_credits' => $plan->stories_per_month,
+            'refine_credits' => $plan->refine_monthly,
         ]);
 
         return redirect()->route('stories.index');
     }
 
-    public function checkout(Request $request): \Illuminate\Http\JsonResponse
+    public function checkout(Request $request): JsonResponse
     {
         $data = $request->validate([
-            'plan_id'  => 'required|integer|exists:plans,id',
+            'plan_id' => 'required|integer|exists:plans,id',
             'interval' => 'required|in:monthly,yearly',
         ]);
 
@@ -71,12 +79,12 @@ class BillingController extends Controller
         abort_if(is_null($priceId), 422, 'This plan is not yet configured for online payment. Please contact support.');
 
         $session = $request->user()->checkout([$priceId => 1], [
-            'success_url'         => route('billing.success').'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url'          => route('billing.plans'),
-            'mode'                => 'subscription',
+            'success_url' => route('billing.success').'?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route('billing.plans'),
+            'mode' => 'subscription',
             'client_reference_id' => (string) $request->user()->id,
-            'metadata'            => [
-                'plan_id'  => (string) $plan->id,
+            'metadata' => [
+                'plan_id' => (string) $plan->id,
                 'interval' => $data['interval'],
             ],
         ]);
@@ -90,13 +98,13 @@ class BillingController extends Controller
 
         if ($sessionId && ! $request->user()->hasActiveSubscription()) {
             try {
-                \Stripe\Stripe::setApiKey(config('services.stripe.secret'));
-                $session = \Stripe\Checkout\Session::retrieve($sessionId);
+                Stripe::setApiKey(config('services.stripe.secret'));
+                $session = Session::retrieve($sessionId);
                 if ($session->payment_status === 'paid') {
                     $this->handleCheckoutCompleted($session);
                 }
             } catch (\Exception $e) {
-                \Illuminate\Support\Facades\Log::error('Stripe success page error', ['error' => $e->getMessage()]);
+                Log::error('Stripe success page error', ['error' => $e->getMessage()]);
             }
         }
 
@@ -110,8 +118,8 @@ class BillingController extends Controller
     public function webhook(Request $request): Response
     {
         $payload = $request->getContent();
-        $sig     = $request->header('Stripe-Signature');
-        $secret  = config('services.stripe.webhook.secret');
+        $sig = $request->header('Stripe-Signature');
+        $secret = config('services.stripe.webhook.secret');
 
         try {
             $event = Webhook::constructEvent($payload, $sig, $secret);
@@ -120,10 +128,10 @@ class BillingController extends Controller
         }
 
         match ($event->type) {
-            'checkout.session.completed'    => $this->handleCheckoutCompleted($event->data->object),
-            'invoice.paid'                  => $this->handleInvoicePaid($event->data->object),
+            'checkout.session.completed' => $this->handleCheckoutCompleted($event->data->object),
+            'invoice.paid' => $this->handleInvoicePaid($event->data->object),
             'customer.subscription.deleted' => $this->handleSubscriptionDeleted($event->data->object),
-            default                         => null,
+            default => null,
         };
 
         return response('OK', 200);
@@ -146,9 +154,9 @@ class BillingController extends Controller
             $user->forceFill(['stripe_id' => $session->customer])->save();
         }
 
-        $planId   = (int) $session->metadata->plan_id;
+        $planId = (int) $session->metadata->plan_id;
         $interval = $session->metadata->interval;
-        $plan     = Plan::find($planId);
+        $plan = Plan::find($planId);
 
         if (! $plan) {
             return;
@@ -158,7 +166,7 @@ class BillingController extends Controller
             return;
         }
 
-        $stripeSub = \Stripe\Subscription::retrieve($session->subscription);
+        $stripeSub = Subscription::retrieve($session->subscription);
         $periodEnd = $stripeSub->current_period_end
             ? Carbon::createFromTimestamp($stripeSub->current_period_end)
             : now()->addMonth();
@@ -166,16 +174,16 @@ class BillingController extends Controller
         $this->cancelExistingSubscriptions($user);
 
         UserSubscription::create([
-            'user_id'                    => $user->id,
-            'plan_id'                    => $plan->id,
-            'billing_interval'           => $interval,
-            'status'                     => 'active',
-            'starts_at'                  => now(),
-            'expires_at'                 => null,
-            'billing_period_ends_at'     => $periodEnd,
-            'story_credits'              => $plan->stories_per_month,
-            'refine_credits'             => $plan->refine_monthly,
-            'stripe_subscription_id'     => $session->subscription,
+            'user_id' => $user->id,
+            'plan_id' => $plan->id,
+            'billing_interval' => $interval,
+            'status' => 'active',
+            'starts_at' => now(),
+            'expires_at' => null,
+            'billing_period_ends_at' => $periodEnd,
+            'story_credits' => $plan->stories_per_month,
+            'refine_credits' => $plan->refine_monthly,
+            'stripe_subscription_id' => $session->subscription,
             'stripe_checkout_session_id' => $session->id,
         ]);
     }
@@ -192,10 +200,10 @@ class BillingController extends Controller
         }
 
         $sub->update([
-            'story_credits'          => $sub->plan->stories_per_month,
-            'refine_credits'         => $sub->refine_credits + $sub->plan->refine_monthly,
+            'story_credits' => $sub->plan->stories_per_month,
+            'refine_credits' => $sub->refine_credits + $sub->plan->refine_monthly,
             'billing_period_ends_at' => Carbon::createFromTimestamp($invoice->period_end),
-            'status'                 => 'active',
+            'status' => 'active',
         ]);
     }
 
@@ -207,7 +215,7 @@ class BillingController extends Controller
         }
 
         $sub->update([
-            'status'     => 'cancelled',
+            'status' => 'cancelled',
             'expires_at' => Carbon::createFromTimestamp($stripeSub->current_period_end),
         ]);
     }

@@ -20,6 +20,7 @@ const props = defineProps({
     profile:      Object,
     subscription: Object,
     plan:         Object,
+    isAdmin:      Boolean,
 });
 
 // Subscription state
@@ -29,7 +30,7 @@ const hasSubscription = computed(() => !!props.subscription);
 const storyCredits  = computed(() => props.subscription?.story_credits  ?? 0);
 const refineCredits = computed(() => props.subscription?.refine_credits ?? 0);
 const planLabel     = computed(() => props.plan?.label ?? 'Free');
-const canCreateStory = computed(() => hasSubscription.value && storyCredits.value > 0);
+const canCreateStory = computed(() => props.isAdmin || (hasSubscription.value && storyCredits.value > 0));
 
 const renewalDate = computed(() => {
     const d = props.subscription?.billing_period_ends_at;
@@ -85,15 +86,15 @@ const confirmDelete = () => {
                         </div>
                     </div>
 
-                    <!-- Unsubscribed: link to plans -->
-                    <Link v-if="!hasSubscription" :href="route('billing.plans')">
+                    <!-- Unsubscribed non-admin: link to plans -->
+                    <Link v-if="!hasSubscription && !isAdmin" :href="route('billing.plans')">
                         <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
                             <Sparkles class="w-4 h-4" />
                             Create My Own Story
                         </Button>
                     </Link>
 
-                    <!-- Subscribed: normal create flow with credit check -->
+                    <!-- Subscribed or admin: create flow with credit check -->
                     <TooltipProvider v-else>
                         <Tooltip :delay-duration="100">
                             <TooltipTrigger as-child>
@@ -283,9 +284,9 @@ const confirmDelete = () => {
                     </div>
                 </div>
 
-                <!-- No credits notice (subscribed users only) -->
+                <!-- No credits notice (subscribed non-admin users only) -->
                 <div
-                    v-if="hasSubscription && storyCredits === 0 && stories.length > 0"
+                    v-if="hasSubscription && !isAdmin && storyCredits === 0 && stories.length > 0"
                     class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start justify-between gap-4"
                 >
                     <div class="flex items-start gap-3">
