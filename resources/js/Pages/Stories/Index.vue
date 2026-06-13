@@ -130,14 +130,14 @@ const confirmDelete = () => {
 
             <div class="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
-                <!-- Stats row (subscribed users only) -->
-                <div v-if="hasSubscription" class="grid grid-cols-3 gap-4">
+                <!-- Stats row (subscribed users or admins) -->
+                <div v-if="hasSubscription || isAdmin" class="grid grid-cols-3 gap-4">
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
                         <div class="flex items-center gap-2 mb-1">
                             <Zap class="w-4 h-4 text-[#F5A000]" />
                             <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Story Credits</span>
                         </div>
-                        <div class="text-2xl font-black text-[#1A1A1A]">{{ storyCredits }}</div>
+                        <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : storyCredits }}</div>
                         <div class="text-xs text-[#555555] mt-0.5">remaining</div>
                     </div>
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
@@ -145,7 +145,7 @@ const confirmDelete = () => {
                             <RefreshCcw class="w-4 h-4 text-[#F5A000]" />
                             <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Refine Credits</span>
                         </div>
-                        <div class="text-2xl font-black text-[#1A1A1A]">{{ refineCredits }}</div>
+                        <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : refineCredits }}</div>
                         <div class="text-xs text-[#555555] mt-0.5">remaining</div>
                     </div>
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
@@ -153,7 +153,7 @@ const confirmDelete = () => {
                             <TrendingUp class="w-4 h-4 text-[#F5A000]" />
                             <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Plan</span>
                         </div>
-                        <div class="text-lg font-black text-[#1A1A1A] truncate">{{ planLabel }}</div>
+                        <div class="text-lg font-black text-[#1A1A1A] truncate">{{ isAdmin ? 'Admin' : planLabel }}</div>
                         <div class="text-xs text-[#555555] mt-0.5">current plan</div>
                     </div>
                 </div>
