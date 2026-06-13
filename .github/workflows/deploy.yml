@@ -41,7 +41,7 @@ jobs:
             echo "→ Restarting queue workers..."
             php artisan queue:restart
 
-            echo "→ Reloading PHP-FPM..."
-            systemctl reload php8.4-fpm || systemctl reload php8.3-fpm || true
+            echo "→ Restarting PHP-FPM (clears OPcache)..."
+            systemctl restart php8.4-fpm || systemctl restart php8.3-fpm || true
 
             echo "✓ Deployment complete."
