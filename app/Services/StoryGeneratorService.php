@@ -127,7 +127,7 @@ PROMPT;
     private function client(): Client
     {
         $httpClient = new Psr18Client(HttpClient::create([
-            'timeout'      => 300,
+            'timeout' => 300,
             'max_duration' => 300,
         ]));
 

@@ -29,9 +29,9 @@ class AppServiceProvider extends ServiceProvider
     {
         try {
             $map = [
-                'anthropic_api_key'     => ['anthropic.api_key'],
-                'stripe_key'            => ['cashier.key',            'services.stripe.key'],
-                'stripe_secret'         => ['cashier.secret',         'services.stripe.secret'],
+                'anthropic_api_key' => ['anthropic.api_key'],
+                'stripe_key' => ['cashier.key',            'services.stripe.key'],
+                'stripe_secret' => ['cashier.secret',         'services.stripe.secret'],
                 'stripe_webhook_secret' => ['cashier.webhook.secret', 'services.stripe.webhook.secret'],
             ];
 

@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Check, Zap, ArrowRight, Loader2 } from 'lucide-vue-next';
 
-const props = defineProps({ plans: Array });
+const props = defineProps({ plans: Array, notice: String });
 
 const interval = ref('monthly');
 
@@ -68,6 +68,13 @@ const isProcessing = (plan) => plan.price_monthly === 0
                 <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">StoryCreator</span>
                 <span style="color: #1A1A1A;">.Bot</span>
             </Link>
+        </div>
+
+        <!-- Notice banner -->
+        <div v-if="notice" class="max-w-xl mx-auto w-full px-4 pt-6">
+            <div class="rounded-lg px-4 py-3 text-sm font-medium text-center" style="background-color: #FEF9EC; color: #F5A000; border: 1px solid #FDE68A;">
+                {{ notice }}
+            </div>
         </div>
 
         <!-- Header -->

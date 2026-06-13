@@ -6,10 +6,11 @@ use App\Models\SiteSetting;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Inertia\Response;
 
 class LandingLockController extends Controller
 {
-    public function show(): \Inertia\Response|RedirectResponse
+    public function show(): Response|RedirectResponse
     {
         if (! SiteSetting::get('landing_lock_enabled')) {
             return redirect()->route('welcome');

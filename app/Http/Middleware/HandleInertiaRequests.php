@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -40,8 +41,8 @@ class HandleInertiaRequests extends Middleware
                 ) : null,
             ],
             'impersonating' => $adminId ? [
-                'admin_id'   => $adminId,
-                'admin_name' => \App\Models\User::find($adminId)?->name,
+                'admin_id' => $adminId,
+                'admin_name' => User::find($adminId)?->name,
             ] : null,
         ];
     }

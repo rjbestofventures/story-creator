@@ -39,6 +39,7 @@ class StoryController extends Controller
             'profile' => $profile,
             'subscription' => $sub,
             'plan' => $plan,
+            'isAdmin' => $user->isAdmin(),
         ]);
     }
 
@@ -438,6 +439,12 @@ class StoryController extends Controller
         abort_unless($episode->story_id === $story->id, 404);
         abort_unless($version->episode_id === $episode->id, 404);
 
+        $user = $request->user();
+
+        if (! $user->isAdmin()) {
+            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
+        }
+
         // Save current as a version before restoring
         $nextVersion = $episode->versions()->max('version') ?? 0;
         EpisodeVersion::create([
@@ -448,6 +455,10 @@ class StoryController extends Controller
         ]);
 
         $episode->update(['title' => $version->title, 'content' => $version->content]);
+
+        if (! $user->isAdmin()) {
+            $user->activeSubscription->decrement('refine_credits');
+        }
 
         return response()->json([
             'episode' => [
