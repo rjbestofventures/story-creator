@@ -39,7 +39,7 @@ class StoryInterviewSeeder extends Seeder
             ['role' => 'user',      'content' => 'I took on too much in year two. Said yes to everything because I was scared of slow months. Had four jobs overlapping, not enough crew, quality started slipping. Lost two clients in the same week. Both called me personally. One of them said she trusted me and she felt let down. That hurt more than losing the money. I turned down work for the first time the following month. It was the hardest call I made and the best decision I ever made.'],
             ['role' => 'assistant', 'content' => "Losing those clients back to back would break most people. The fact that you heard \"she felt let down\" and let that be the lesson — not the revenue, not the logistics — that tells me a lot about how you run things now.\n\nHow did working for someone else shape your approach or perspective?"],
             ['role' => 'user',      'content' => '[Ready for next question]'],
-            ['role' => 'assistant', 'content' => "How did working for someone else shape your approach or perspective?"],
+            ['role' => 'assistant', 'content' => 'How did working for someone else shape your approach or perspective?'],
             ['role' => 'user',      'content' => 'It showed me what I never wanted to be. The company I worked for treated clients like accounts, not people. Nobody knew the client\'s name. Nobody knew what mattered to them. We showed up, did the job, moved on. I swore my business would never feel like that. Every client I have, I know their dog\'s name. I know which neighbor they don\'t get along with. I know if they\'re going through something hard. That\'s not strategy. That\'s just how I think people deserve to be treated.'],
             ['role' => 'assistant', 'content' => "Knowing the dog\'s name. That is not a detail — that is a philosophy.\n\nWhat's different about the way you work with customers or clients?"],
             ['role' => 'user',      'content' => '[Ready for next question]'],
@@ -71,7 +71,7 @@ class StoryInterviewSeeder extends Seeder
             ['role' => 'user',      'content' => 'We do pro bono maintenance for two group homes in our area that house adults with disabilities. Started three years ago, one of my crew members suggested it. We go out once a month. The residents sometimes come outside and watch. A few of them help with small things. It\'s become one of my favorite days of the month.'],
             ['role' => 'assistant', 'content' => "A crew member suggested it and you said yes. That tells me what kind of culture you\'ve built.\n\nWhat stage is your business in: starting, growing, or maintaining?"],
             ['role' => 'user',      'content' => '[Ready for next question]'],
-            ['role' => 'assistant', 'content' => "What stage is your business in: starting, growing, or maintaining?"],
+            ['role' => 'assistant', 'content' => 'What stage is your business in: starting, growing, or maintaining?'],
             ['role' => 'user',      'content' => 'Growing, carefully. I could take on more but I won\'t until I\'m sure the quality stays the same. I\'ve seen what happens when landscaping companies scale too fast. I\'m not in a rush.'],
             ['role' => 'assistant', 'content' => "Growing carefully is still a choice. Most people do not have the discipline to say no to revenue.\n\nWhat are you most proud of?"],
             ['role' => 'user',      'content' => '[Ready for next question]'],
@@ -88,9 +88,9 @@ class StoryInterviewSeeder extends Seeder
             ['user_id' => $user->id],
             [
                 'business_name' => 'Torres Landscaping',
-                'business_url'  => 'torreslandscaping.com',
-                'industry'      => 'Landscaping',
-                'answers'       => $messages,
+                'business_url' => 'torreslandscaping.com',
+                'industry' => 'Landscaping',
+                'answers' => $messages,
             ]
         );
 
@@ -100,10 +100,10 @@ class StoryInterviewSeeder extends Seeder
             ->delete();
 
         $story = Story::create([
-            'user_id'             => $user->id,
+            'user_id' => $user->id,
             'business_profile_id' => $profile->id,
-            'title'               => null,
-            'status'              => 'interview_complete',
+            'title' => null,
+            'status' => 'interview_complete',
         ]);
 
         $this->command->info("✓ Story #{$story->id} created for {$user->email}");

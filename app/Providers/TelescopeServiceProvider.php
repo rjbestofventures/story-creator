@@ -5,10 +5,11 @@ namespace App\Providers;
 use App\Models\User;
 use Illuminate\Support\Facades\Gate;
 
-if (! class_exists(\Laravel\Telescope\TelescopeApplicationServiceProvider::class)) {
+if (! class_exists(TelescopeApplicationServiceProvider::class)) {
     return;
 }
 
+use Laravel\Telescope\EntryType;
 use Laravel\Telescope\IncomingEntry;
 use Laravel\Telescope\Telescope;
 use Laravel\Telescope\TelescopeApplicationServiceProvider;
@@ -28,7 +29,7 @@ class TelescopeServiceProvider extends TelescopeApplicationServiceProvider
                    $entry->isFailedJob() ||
                    $entry->isScheduledTask() ||
                    $entry->hasMonitoredTag() ||
-                   $entry->type === \Laravel\Telescope\EntryType::JOB;
+                   $entry->type === EntryType::JOB;
         });
     }
 

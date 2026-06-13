@@ -54,9 +54,9 @@ return [
 
         'anthropic' => [
             'driver' => 'daily',
-            'path'   => storage_path('logs/anthropic.log'),
-            'level'  => 'debug',
-            'days'   => 14,
+            'path' => storage_path('logs/anthropic.log'),
+            'level' => 'debug',
+            'days' => 14,
         ],
 
         'stack' => [
