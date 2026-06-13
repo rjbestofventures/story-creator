@@ -202,8 +202,10 @@ const toneOptions = [
     { key: 'professional', label: 'More Professional' },
 ];
 
+const refineError = ref(null);
+
 const applyTone = async (ep, toneKey) => {
-    // Flush any unsaved local edits first so the AI sees the latest content
+    refineError.value = null;
     await saveEdit(ep);
 
     toningEpId.value = ep.id;
@@ -218,8 +220,15 @@ const applyTone = async (ep, toneKey) => {
             },
             body: JSON.stringify({ tone: toneKey }),
         });
+
         const data = await res.json();
-        const idx  = episodes.value.findIndex(e => e.id === data.episode.id);
+
+        if (!res.ok) {
+            refineError.value = data.message ?? 'Refine failed. Please try again.';
+            return;
+        }
+
+        const idx = episodes.value.findIndex(e => e.id === data.episode.id);
         if (idx !== -1) {
             episodes.value[idx] = {
                 ...episodes.value[idx],
@@ -227,8 +236,8 @@ const applyTone = async (ep, toneKey) => {
                 versions_count: (episodes.value[idx].versions_count ?? 0) + 1,
             };
             syncEditState(ep.id);
+            revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
         }
-        revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
     } finally {
         toningEpId.value = null;
         toningId.value   = null;
@@ -509,6 +518,7 @@ const restoreRevision = async (ep) => {
                                 v-if="!isDemo && isAtCurrent(ep) && isEditing(ep)"
                                 class="mt-5 pt-4 border-t border-[#F0F0F0]"
                             >
+                                <p v-if="refineError && toningEpId === null" class="text-xs text-red-600 mb-2">{{ refineError }}</p>
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="flex items-center gap-1 text-xs font-semibold text-[#888888] shrink-0">
                                         <Wand2 class="w-3.5 h-3.5 text-[#F5A000]" />
