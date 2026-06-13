@@ -15,6 +15,10 @@ class CheckLandingLock
             return $next($request);
         }
 
+        if ($request->user()) {
+            return $next($request);
+        }
+
         if ($request->session()->get('landing_unlocked')) {
             return $next($request);
         }
