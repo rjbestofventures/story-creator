@@ -95,6 +95,7 @@ Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function
     Route::post('/stories/{story}/episodes/{episode}/versions/{version}/restore', [StoryController::class, 'restoreVersion'])->name('stories.episode.restore');
     Route::patch('/stories/{story}/episodes/{episode}', [StoryController::class, 'updateEpisode'])->name('stories.episode.update');
     Route::post('/stories/{story}/episodes/{episode}/refine', [StoryController::class, 'refineEpisodeTone'])->name('stories.episode.refine');
+    Route::patch('/stories/{story}/episodes/{episode}/refine-instruction', [StoryController::class, 'saveRefineInstruction'])->name('stories.episode.refine-instruction');
 });
 
 // Stories read-only by ID — wildcard routes, registered after literal /stories/create

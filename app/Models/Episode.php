@@ -15,6 +15,7 @@ class Episode extends Model
         'content',
         'format',
         'status',
+        'custom_refine_instruction',
     ];
 
     public function story(): BelongsTo

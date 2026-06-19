@@ -328,6 +328,7 @@ class StoryController extends Controller
                     'content' => $ep->content,
                     'format' => $ep->format,
                     'versions_count' => $ep->versions->count(),
+                    'custom_refine_instruction' => $ep->custom_refine_instruction,
                 ]),
             ],
             'canCreateStory' => $user->canCreateStory(),
@@ -475,6 +476,21 @@ class StoryController extends Controller
     // -------------------------------------------------------------------------
     // Inline edit — save title / content edits made directly in the card
     // -------------------------------------------------------------------------
+
+    public function saveRefineInstruction(Request $request, Story $story, Episode $episode)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_if($story->is_demo, 403);
+        abort_unless($episode->story_id === $story->id, 404);
+
+        $data = $request->validate([
+            'custom_refine_instruction' => 'nullable|string|max:2000',
+        ]);
+
+        $episode->update(['custom_refine_instruction' => $data['custom_refine_instruction']]);
+
+        return response()->noContent();
+    }
 
     public function updateEpisode(Request $request, Story $story, Episode $episode)
     {

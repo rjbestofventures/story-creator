@@ -217,7 +217,26 @@ const toneOptions2 = [
     { key: 'promotional', label: 'Make it Promotional' },
 ];
 
-const customInstructions = ref({});
+const customInstructions = ref(
+    Object.fromEntries(props.story.episodes.map(ep => [ep.id, ep.custom_refine_instruction ?? '']))
+);
+
+const refineInstructionTimers = {};
+
+const persistRefineInstruction = (ep, value) => {
+    clearTimeout(refineInstructionTimers[ep.id]);
+    refineInstructionTimers[ep.id] = setTimeout(() => {
+        fetch(route('stories.episode.refine-instruction', { story: props.story.id, episode: ep.id }), {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ custom_refine_instruction: value }),
+        });
+    }, 600);
+};
 
 const refineError = ref(null);
 
@@ -627,6 +646,7 @@ const restoreRevision = async (ep) => {
                                     <textarea
                                         v-model="customInstructions[ep.id]"
                                         :disabled="toningEpId === ep.id"
+                                        @input="persistRefineInstruction(ep, customInstructions[ep.id])"
                                         placeholder="Describe how you'd like this refined... (e.g. add more urgency, include a biblical reference)"
                                         rows="2"
                                         class="flex-1 text-sm text-[#333333] bg-white border border-[#DDDDDD] rounded-lg px-3 py-2 resize-none placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#F5A000]/60 disabled:opacity-50 disabled:cursor-not-allowed"
