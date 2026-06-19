@@ -515,7 +515,8 @@ class StoryController extends Controller
         }
 
         $data = $request->validate([
-            'tone' => 'required|in:friendlier,shorter,humor,professional',
+            'tone' => 'required|in:friendlier,shorter,humor,professional,longer,more_cta,less_cta,promotional,custom',
+            'custom_instruction' => 'required_if:tone,custom|string|max:2000',
         ]);
 
         $nextVersion = $episode->versions()->max('version') ?? 0;
@@ -527,7 +528,7 @@ class StoryController extends Controller
         ]);
 
         $generator = new StoryGeneratorService;
-        $refined = $generator->refineTone($episode->content, $data['tone']);
+        $refined = $generator->refineTone($episode->content, $data['tone'], $data['custom_instruction'] ?? null);
 
         $episode->update(['content' => $refined['content']]);
 

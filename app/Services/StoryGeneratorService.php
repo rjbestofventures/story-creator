@@ -234,14 +234,20 @@ PROMPT;
         return [];
     }
 
-    public function refineTone(string $content, string $tone): array
+    public function refineTone(string $content, string $tone, ?string $customInstruction = null): array
     {
-        $instruction = match ($tone) {
-            'friendlier' => 'Rewrite this episode with a warmer, more approachable tone. Keep all the facts and story beats. Make the voice feel more personal and inviting.',
-            'shorter' => 'Condense this episode to roughly half its current length. Keep the core story and the closing line\'s feeling. Cut padding, not substance.',
-            'humor' => 'Weave light, natural wit into this episode. Keep the story structure intact. The humor should feel organic — a subtle turn of phrase or a self-aware aside, not jokes.',
-            'professional' => 'Polish this episode to a more composed, business-appropriate tone. Keep the story authentic but make the language more precise and measured.',
-        };
+        $instruction = $tone === 'custom'
+            ? $customInstruction
+            : match ($tone) {
+                'friendlier'   => 'Rewrite this episode with a warmer, more approachable tone. Keep all the facts and story beats. Make the voice feel more personal and inviting.',
+                'shorter'      => 'Condense this episode to roughly half its current length. Keep the core story and the closing line\'s feeling. Cut padding, not substance.',
+                'humor'        => 'Weave light, natural wit into this episode. Keep the story structure intact. The humor should feel organic — a subtle turn of phrase or a self-aware aside, not jokes.',
+                'professional' => 'Polish this episode to a more composed, business-appropriate tone. Keep the story authentic but make the language more precise and measured.',
+                'longer'       => 'Expand this episode with more depth, detail, and texture. Keep the same story structure and voice. Add substance — not filler or repetition.',
+                'more_cta'     => 'Strengthen and add calls to action throughout this episode. Make them feel natural and motivated by the story — not bolted on. Keep the voice consistent.',
+                'less_cta'     => 'Soften or reduce the calls to action in this episode. Let the story do more of the work. Keep any remaining CTAs subtle and earned.',
+                'promotional'  => 'Rewrite this episode with a more promotional tone. Highlight the value, outcome, or offer more confidently. Keep it authentic — persuasive but not pushy.',
+            };
 
         $userPrompt = <<<PROMPT
 Original episode:

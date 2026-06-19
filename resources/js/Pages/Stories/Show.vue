@@ -203,12 +203,21 @@ const saveEdit = async (ep) => {
 const toningEpId = ref(null);
 const toningId   = ref(null);
 
-const toneOptions = [
+const toneOptions1 = [
     { key: 'friendlier',   label: 'Make it Friendlier' },
     { key: 'shorter',      label: 'Make it Shorter' },
     { key: 'humor',        label: 'Add Humor' },
     { key: 'professional', label: 'More Professional' },
 ];
+
+const toneOptions2 = [
+    { key: 'longer',      label: 'Make it Longer' },
+    { key: 'more_cta',    label: 'More Call to Action' },
+    { key: 'less_cta',    label: 'Less Call to Action' },
+    { key: 'promotional', label: 'Make it Promotional' },
+];
+
+const customInstructions = ref({});
 
 const refineError = ref(null);
 
@@ -227,6 +236,49 @@ const applyTone = async (ep, toneKey) => {
                 Accept: 'application/json',
             },
             body: JSON.stringify({ tone: toneKey }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            refineError.value = data.message ?? 'Refine failed. Please try again.';
+            return;
+        }
+
+        const idx = episodes.value.findIndex(e => e.id === data.episode.id);
+        if (idx !== -1) {
+            episodes.value[idx] = {
+                ...episodes.value[idx],
+                content:        data.episode.content,
+                versions_count: (episodes.value[idx].versions_count ?? 0) + 1,
+            };
+            syncEditState(ep.id);
+            revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
+        }
+    } finally {
+        toningEpId.value = null;
+        toningId.value   = null;
+    }
+};
+
+const applyCustomRefine = async (ep) => {
+    const instruction = customInstructions.value[ep.id]?.trim();
+    if (!instruction) return;
+
+    refineError.value = null;
+    await saveEdit(ep);
+
+    toningEpId.value = ep.id;
+    toningId.value   = 'custom';
+    try {
+        const res = await fetch(route('stories.episode.refine', { story: props.story.id, episode: ep.id }), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ tone: 'custom', custom_instruction: instruction }),
         });
 
         const data = await res.json();
@@ -533,7 +585,7 @@ const restoreRevision = async (ep) => {
                                         AI Refine:
                                     </span>
                                     <button
-                                        v-for="opt in toneOptions"
+                                        v-for="opt in toneOptions1"
                                         :key="opt.key"
                                         type="button"
                                         :disabled="toningEpId === ep.id"
@@ -552,6 +604,47 @@ const restoreRevision = async (ep) => {
                                         <Loader2 class="w-3 h-3 animate-spin" />
                                         Saving…
                                     </span>
+                                </div>
+                                <div class="flex items-center gap-2 flex-wrap mt-2">
+                                    <button
+                                        v-for="opt in toneOptions2"
+                                        :key="opt.key"
+                                        type="button"
+                                        :disabled="toningEpId === ep.id"
+                                        @click="applyTone(ep, opt.key)"
+                                        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
+                                        :class="toningEpId === ep.id && toningId === opt.key
+                                            ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50 opacity-100'
+                                            : toningEpId === ep.id
+                                                ? 'text-[#AAAAAA] border-[#EEEEEE] opacity-50'
+                                                : 'text-[#555555] border-[#DDDDDD] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        <Loader2 v-if="toningEpId === ep.id && toningId === opt.key" class="w-3 h-3 animate-spin" />
+                                        {{ opt.label }}
+                                    </button>
+                                </div>
+                                <div class="flex gap-2 items-start mt-3">
+                                    <textarea
+                                        v-model="customInstructions[ep.id]"
+                                        :disabled="toningEpId === ep.id"
+                                        placeholder="Describe how you'd like this refined... (e.g. add more urgency, include a biblical reference)"
+                                        rows="2"
+                                        class="flex-1 text-xs text-[#333333] bg-white border border-[#DDDDDD] rounded-lg px-3 py-2 resize-none placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#F5A000]/60 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    />
+                                    <button
+                                        type="button"
+                                        :disabled="toningEpId === ep.id || !customInstructions[ep.id]?.trim()"
+                                        @click="applyCustomRefine(ep)"
+                                        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed shrink-0"
+                                        :class="toningEpId === ep.id && toningId === 'custom'
+                                            ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50'
+                                            : toningEpId === ep.id || !customInstructions[ep.id]?.trim()
+                                                ? 'text-[#AAAAAA] border-[#EEEEEE] opacity-50'
+                                                : 'text-[#555555] border-[#DDDDDD] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        <Loader2 v-if="toningEpId === ep.id && toningId === 'custom'" class="w-3 h-3 animate-spin" />
+                                        Refine
+                                    </button>
                                 </div>
                             </div>
                         </div>
