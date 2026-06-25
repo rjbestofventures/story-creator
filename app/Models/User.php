@@ -9,12 +9,13 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use App\Models\UserCredit;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'is_active'])]
+#[Fillable(['name', 'email', 'password', 'is_active', 'refine_credits'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -27,17 +28,13 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
+            'refine_credits' => 'integer',
         ];
     }
 
     // -------------------------------------------------------------------------
     // Relationships
     // -------------------------------------------------------------------------
-
-    public function subscriptions(): HasMany
-    {
-        return $this->hasMany(UserSubscription::class)->latest();
-    }
 
     public function businessProfile(): HasOne
     {
@@ -49,22 +46,19 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Story::class)->latest();
     }
 
-    public function activeSubscription(): HasOne
+    public function userCredits(): HasMany
     {
-        return $this->hasOne(UserSubscription::class)
-            ->whereIn('status', ['active', 'trialing'])
-            ->where(fn ($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>', now()))
-            ->latestOfMany();
+        return $this->hasMany(UserCredit::class)->latest();
+    }
+
+    public function availableCredits(): HasMany
+    {
+        return $this->hasMany(UserCredit::class)->where('status', 'available');
     }
 
     // -------------------------------------------------------------------------
-    // Subscription helpers
+    // Credit helpers
     // -------------------------------------------------------------------------
-
-    public function hasActiveSubscription(): bool
-    {
-        return $this->activeSubscription !== null;
-    }
 
     public function isAdmin(): bool
     {
@@ -77,7 +71,7 @@ class User extends Authenticatable implements MustVerifyEmail
             return true;
         }
 
-        return $this->activeSubscription?->canCreateStory() ?? false;
+        return $this->availableCredits()->exists();
     }
 
     public function canRefine(): bool
@@ -86,6 +80,6 @@ class User extends Authenticatable implements MustVerifyEmail
             return true;
         }
 
-        return $this->activeSubscription?->canRefine() ?? false;
+        return $this->refine_credits > 0;
     }
 }

@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolesAndPermissionsSeeder::class,
             PlanSeeder::class,
+            CreditPackSeeder::class,
         ]);
 
         User::firstOrCreate(['email' => 'support@storycreator.bot'], [

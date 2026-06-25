@@ -9,9 +9,9 @@ import { Textarea } from '@/Components/ui/textarea';
 import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil } from 'lucide-vue-next';
 
 const props = defineProps({
-    profile:       Object,
-    story:         Object,
-    episode_limit: Number,
+    profile:         Object,
+    story:           Object,
+    available_packs: Array,
 });
 
 // ─── Phase: 0 = basics, 1 = AI chat, 2 = generate options ───────────────────
@@ -166,10 +166,28 @@ const enrichedDisplayLog = computed(() => {
 });
 
 // ─── Generate options ─────────────────────────────────────────────────────────
-const episodeCount = computed(() => isDemoMode.value ? 3 : (props.episode_limit ?? 5));
-const format       = ref('social');
-const storeForm    = useForm({
-    format: 'social',
+const format         = ref('social');
+const selectedCreditId = ref(null);
+
+// Auto-select first available credit on mount (can be overridden by user)
+const initSelectedCredit = () => {
+    const first = props.available_packs?.[0];
+    if (first?.credit_ids?.length) selectedCreditId.value = first.credit_ids[0];
+};
+
+const selectedPack = computed(() => {
+    if (!selectedCreditId.value || !props.available_packs) return null;
+    return props.available_packs.find(g => g.credit_ids.includes(selectedCreditId.value)) ?? null;
+});
+
+const episodeCount = computed(() => {
+    if (isDemoMode.value) return 3;
+    return selectedPack.value?.credit_pack?.episode_limit ?? props.available_packs?.[0]?.credit_pack?.episode_limit ?? 12;
+});
+
+const storeForm = useForm({
+    format:    'social',
+    credit_id: null,
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -371,6 +389,7 @@ const startInterview = async () => {
 
 // ─── Restore on mount (DB only) ──────────────────────────────────────────────
 onMounted(async () => {
+    initSelectedCredit();
     localStorage.removeItem('sc_interview_session');
     if (props.story) {
         storyId.value = props.story.id;
@@ -434,8 +453,17 @@ const submit = () => {
         }, 3200);
         return;
     }
-    generateError.value = '';
-    storeForm.format = format.value;
+
+    if (!selectedCreditId.value) {
+        router.visit(route('shop.index'), {
+            data: { notice: 'Purchase a story pack to generate your story. Your interview answers are saved.' },
+        });
+        return;
+    }
+
+    generateError.value   = '';
+    storeForm.format      = format.value;
+    storeForm.credit_id   = selectedCreditId.value;
     storeForm.post(route('stories.generate', storyId.value), {
         onError: () => {
             generateError.value = 'Something went wrong generating your story. Please try again.';
@@ -847,6 +875,37 @@ const formats = [
 
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-8">
 
+                        <!-- Credit Pack Selection (only when multiple types available) -->
+                        <div v-if="available_packs && available_packs.length > 1" class="space-y-3">
+                            <Label class="text-[#1A1A1A] font-bold text-base block">Choose Story Pack</Label>
+                            <div class="space-y-2">
+                                <button
+                                    v-for="group in available_packs"
+                                    :key="group.credit_pack.id"
+                                    type="button"
+                                    @click="selectedCreditId = group.credit_ids[0]"
+                                    class="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all duration-200 cursor-pointer"
+                                    :class="selectedCreditId === group.credit_ids[0] || group.credit_ids.includes(selectedCreditId)
+                                        ? 'border-[#F5A000] bg-amber-50'
+                                        : 'border-[#DDDDDD] hover:border-[#F5A000]/50'"
+                                >
+                                    <div
+                                        class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
+                                        :class="group.credit_ids.includes(selectedCreditId) ? 'border-[#F5A000] bg-[#F5A000]' : 'border-[#DDDDDD]'"
+                                    >
+                                        <div v-if="group.credit_ids.includes(selectedCreditId)" class="w-2 h-2 rounded-full bg-white" />
+                                    </div>
+                                    <div class="flex-1">
+                                        <div class="font-bold text-[#1A1A1A] text-sm">{{ group.credit_pack.label }}</div>
+                                        <div class="text-xs text-[#555555] mt-0.5">
+                                            {{ group.credit_pack.episode_limit }} episodes · {{ group.credit_pack.revision_credits }} revisions
+                                            <span class="ml-2 text-[#AAAAAA]">×{{ group.count }} available</span>
+                                        </div>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
                         <!-- Format -->
                         <div class="space-y-3">
                             <Label class="text-[#1A1A1A] font-bold text-base block">Platform Options</Label>
@@ -882,7 +941,9 @@ const formats = [
                                 episodes for
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
-                            <p class="text-xs text-[#555555] mt-1">Uses 1 story credit · Takes up to 1 minute</p>
+                            <p class="text-xs text-[#555555] mt-1">
+                                Uses 1 {{ selectedPack?.credit_pack?.label ?? '' }} story pack · Takes up to 1 minute
+                            </p>
                         </div>
 
                         <Button

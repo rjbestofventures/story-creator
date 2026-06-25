@@ -1,27 +1,25 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\BillingController;
+use App\Http\Controllers\ShopController;
 use App\Http\Controllers\LandingLockController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StoryController;
 use App\Http\Middleware\CheckLandingLock;
+use App\Models\CreditPack;
 use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    $plans = Plan::where('is_active', true)
-        ->where('slug', '!=', 'partner')
-        ->where('price_monthly', '>', 0)
-        ->orderBy('price_monthly')
-        ->get(['slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly']);
+    $packs = CreditPack::active()->orderBy('price')
+        ->get(['slug', 'label', 'price', 'episode_limit', 'revision_credits']);
 
     return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
+        'canLogin'    => Route::has('login'),
         'canRegister' => Route::has('register'),
-        'plans' => $plans,
+        'packs'       => $packs,
     ]);
 })->middleware(CheckLandingLock::class)->name('welcome');
 
@@ -63,16 +61,15 @@ Route::get('/dashboard', function () {
     return to_route('stories.index');
 })->middleware(['auth'])->name('dashboard');
 
-// Billing — auth + verified
+// Shop — auth + verified
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/billing/plans', [BillingController::class, 'plans'])->name('billing.plans');
-    Route::post('/billing/free', [BillingController::class, 'selectFree'])->name('billing.free');
-    Route::post('/billing/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
-    Route::get('/billing/success', [BillingController::class, 'success'])->name('billing.success');
+    Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
+    Route::post('/shop/checkout', [ShopController::class, 'checkout'])->name('shop.checkout');
+    Route::get('/shop/success', [ShopController::class, 'success'])->name('shop.success');
 });
 
 // Stripe webhook — no auth, no CSRF
-Route::post('/stripe/webhook', [BillingController::class, 'webhook'])->name('stripe.webhook');
+Route::post('/stripe/webhook', [ShopController::class, 'webhook'])->name('stripe.webhook');
 
 // Stories index — auth only (demo browsing, no subscription needed)
 Route::middleware(['auth'])->group(function () {
@@ -81,7 +78,7 @@ Route::middleware(['auth'])->group(function () {
 
 // Stories write/AI routes — registered before wildcard /{story} routes to avoid conflict
 // Require verified email + active subscription
-Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function () {
+Route::middleware(['auth', 'verified', 'requires.credits'])->group(function () {
     Route::get('/stories/create', [StoryController::class, 'create'])->name('stories.create');
     Route::post('/stories/init', [StoryController::class, 'init'])->name('stories.init');
     Route::post('/stories/interview', [StoryController::class, 'interview'])->name('stories.interview');

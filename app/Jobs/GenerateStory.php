@@ -23,10 +23,10 @@ class GenerateStory implements ShouldQueue
 
     public function handle(StoryGeneratorService $generator): void
     {
-        $story = $this->story->load(['businessProfile', 'user.activeSubscription.plan']);
+        $story = $this->story->load(['businessProfile', 'user']);
         $profile = $story->businessProfile;
         $user = $story->user;
-        $count = $story->is_demo ? 3 : ($user->activeSubscription?->effectiveEpisodeLimit() ?? 5);
+        $count = $story->is_demo ? 3 : ($story->episode_limit ?? 12);
 
         try {
             $generated = $generator->generate($profile, $count, $this->format);

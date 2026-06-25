@@ -11,33 +11,24 @@ import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
 import {
-    Sparkles, BookOpen, Plus, Trash2, Eye, ChevronRight,
-    Zap, RefreshCcw, TrendingUp, Calendar, FileText, MessageSquare, Clock
+    Sparkles, BookOpen, Plus, Trash2, ChevronRight,
+    Zap, RefreshCcw, Calendar, FileText, MessageSquare, Clock
 } from 'lucide-vue-next';
 
 const props = defineProps({
-    stories:      Array,
-    profile:      Object,
-    subscription: Object,
-    plan:         Object,
-    isAdmin:      Boolean,
-    adminRole:    String,
+    stories:             Array,
+    profile:             Object,
+    availablePackCounts: Array,
+    refineCredits:       Number,
+    isAdmin:             Boolean,
+    adminRole:           String,
 });
 
-// Subscription state
-const hasSubscription = computed(() => !!props.subscription);
-
-// Credits
-const storyCredits  = computed(() => props.subscription?.story_credits  ?? 0);
-const refineCredits = computed(() => props.subscription?.refine_credits ?? 0);
-const planLabel     = computed(() => props.plan?.label ?? 'Free');
-const canCreateStory = computed(() => props.isAdmin || (hasSubscription.value && storyCredits.value > 0));
-
-const renewalDate = computed(() => {
-    const d = props.subscription?.billing_period_ends_at;
-    if (!d) return null;
-    return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
-});
+const totalAvailablePacks = computed(() =>
+    props.availablePackCounts?.reduce((sum, g) => sum + g.count, 0) ?? 0
+);
+const canCreateStory = computed(() => props.isAdmin || totalAvailablePacks.value > 0);
+const hasCredits     = computed(() => props.isAdmin || totalAvailablePacks.value > 0);
 
 // Format labels
 const formatLabel = {
@@ -87,23 +78,14 @@ const confirmDelete = () => {
                         </div>
                     </div>
 
-                    <!-- Unsubscribed non-admin: link to plans -->
-                    <Link v-if="!hasSubscription && !isAdmin" :href="route('billing.plans')">
-                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
-                            <Sparkles class="w-4 h-4" />
-                            Create My Own Story
-                        </Button>
-                    </Link>
-
-                    <!-- Subscribed or admin: create flow with credit check -->
-                    <TooltipProvider v-else>
+                    <TooltipProvider>
                         <Tooltip :delay-duration="100">
                             <TooltipTrigger as-child>
                                 <span>
                                     <Link v-if="canCreateStory" :href="route('stories.create')">
                                         <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
                                             <Plus class="w-4 h-4" />
-                                            New Story
+                                            + New Story
                                         </Button>
                                     </Link>
                                     <Button
@@ -113,16 +95,13 @@ const confirmDelete = () => {
                                         style="background: #DDDDDD; color: #888888;"
                                     >
                                         <Plus class="w-4 h-4" />
-                                        New Story
+                                        + New Story
                                     </Button>
                                 </span>
                             </TooltipTrigger>
-                            <TooltipContent v-if="!canCreateStory" side="bottom" class="max-w-xs text-center p-3">
-                                <p class="font-semibold text-xs mb-1">No story credits left</p>
-                                <p class="text-xs text-muted-foreground leading-relaxed">
-                                    <template v-if="renewalDate">Your credits refresh on {{ renewalDate }}.</template>
-                                    <template v-else>Credits refresh at the start of your next billing period.</template>
-                                </p>
+                            <TooltipContent v-if="!canCreateStory && !isAdmin" side="bottom" class="max-w-xs text-center p-3">
+                                <p class="font-semibold text-xs mb-1">No story packs available</p>
+                                <p class="text-xs text-muted-foreground leading-relaxed">Purchase a pack to create a new story.</p>
                             </TooltipContent>
                         </Tooltip>
                     </TooltipProvider>
@@ -131,31 +110,37 @@ const confirmDelete = () => {
 
             <div class="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
-                <!-- Stats row (subscribed users or admins) -->
-                <div v-if="hasSubscription || isAdmin" class="grid grid-cols-3 gap-4">
+                <!-- Stats row -->
+                <div class="grid grid-cols-2 gap-4">
+                    <!-- Available story packs -->
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
-                        <div class="flex items-center gap-2 mb-1">
+                        <div class="flex items-center gap-2 mb-2">
                             <Zap class="w-4 h-4 text-[#F5A000]" />
-                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Story Credits</span>
+                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Story Packs</span>
                         </div>
-                        <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : storyCredits }}</div>
-                        <div class="text-xs text-[#555555] mt-0.5">remaining</div>
+                        <div v-if="isAdmin" class="text-2xl font-black text-[#1A1A1A]">∞</div>
+                        <div v-else-if="totalAvailablePacks === 0" class="text-2xl font-black text-[#1A1A1A]">0</div>
+                        <div v-else class="space-y-1">
+                            <div
+                                v-for="group in availablePackCounts"
+                                :key="group.pack.id"
+                                class="flex items-center justify-between"
+                            >
+                                <span class="text-sm font-semibold text-[#1A1A1A]">{{ group.pack.label }}</span>
+                                <span class="text-sm font-black text-[#F5A000]">×{{ group.count }}</span>
+                            </div>
+                        </div>
+                        <div class="text-xs text-[#555555] mt-1">available</div>
                     </div>
+
+                    <!-- Revision credits -->
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
                         <div class="flex items-center gap-2 mb-1">
                             <RefreshCcw class="w-4 h-4 text-[#F5A000]" />
-                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Refine Credits</span>
+                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Revision Credits</span>
                         </div>
-                        <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : refineCredits }}</div>
+                        <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : (refineCredits ?? 0) }}</div>
                         <div class="text-xs text-[#555555] mt-0.5">remaining</div>
-                    </div>
-                    <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
-                        <div class="flex items-center gap-2 mb-1">
-                            <TrendingUp class="w-4 h-4 text-[#F5A000]" />
-                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Plan</span>
-                        </div>
-                        <div class="text-lg font-black text-[#1A1A1A] truncate">{{ adminRole === 'super_admin' ? 'Super Admin' : adminRole === 'admin' ? 'Admin' : planLabel }}</div>
-                        <div class="text-xs text-[#555555] mt-0.5">current plan</div>
                     </div>
                 </div>
 
@@ -285,24 +270,21 @@ const confirmDelete = () => {
                     </div>
                 </div>
 
-                <!-- No credits notice (subscribed non-admin users only) -->
+                <!-- No packs notice (non-admin users only) -->
                 <div
-                    v-if="hasSubscription && !isAdmin && storyCredits === 0 && stories.length > 0"
+                    v-if="!isAdmin && totalAvailablePacks === 0 && stories.length > 0"
                     class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start justify-between gap-4"
                 >
                     <div class="flex items-start gap-3">
                         <Zap class="w-5 h-5 text-[#F5A000] flex-shrink-0 mt-0.5" />
                         <div>
                             <p class="text-sm font-semibold text-[#1A1A1A]">You're out of story credits</p>
-                            <p class="text-sm text-[#555555] mt-0.5">
-                                <template v-if="renewalDate">Credits refresh on {{ renewalDate }}.</template>
-                                <template v-else>Credits refresh at the start of your next billing period.</template>
-                            </p>
+                            <p class="text-sm text-[#555555] mt-0.5">Purchase a pack to create your next story.</p>
                         </div>
                     </div>
-                    <Link :href="route('billing.plans')" class="shrink-0">
+                    <Link :href="route('shop.index')" class="shrink-0">
                         <Button class="text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0">
-                            Upgrade Plan
+                            Buy More Credits
                         </Button>
                     </Link>
                 </div>
