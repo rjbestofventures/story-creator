@@ -7,7 +7,6 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\StoryController;
 use App\Http\Middleware\CheckLandingLock;
 use App\Models\CreditPack;
-use App\Models\Plan;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -115,7 +114,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     // Module pages
     Route::get('/', fn () => to_route('admin.users.index'))->name('index');
     Route::get('/users', [AdminController::class, 'usersIndex'])->name('users.index');
-    Route::get('/plans', [AdminController::class, 'plansIndex'])->name('plans.index');
+    Route::get('/packs', [AdminController::class, 'packsIndex'])->name('packs.index');
     Route::get('/stories', [AdminController::class, 'storiesIndex'])->name('stories.index');
     Route::get('/stories/{story}', [AdminController::class, 'storyShow'])->name('stories.show');
     Route::get('/manual', fn () => Inertia::render('Admin/Manual'))->name('manual');
@@ -135,16 +134,15 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::patch('/users/{user}/profile', [AdminController::class, 'updateProfile'])->name('users.profile');
     Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::post('/users/{user}/password', [AdminController::class, 'resetPassword'])->name('users.password');
-    Route::post('/users/{user}/plan', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
-    Route::patch('/users/{user}/subscription', [AdminController::class, 'updateSubscription'])->name('users.subscription');
+    Route::post('/users/{user}/grant-pack', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/impersonate', [AdminController::class, 'impersonate'])->name('users.impersonate');
     Route::get('/users/{user}/invoices', [AdminController::class, 'userInvoices'])->name('users.invoices');
 
-    // Plan actions
-    Route::post('/plans', [AdminController::class, 'storePlan'])->name('plans.store');
-    Route::patch('/plans/{plan}', [AdminController::class, 'updatePlan'])->name('plans.update');
-    Route::delete('/plans/{plan}', [AdminController::class, 'destroyPlan'])->name('plans.destroy');
+    // Credit pack actions
+    Route::post('/packs', [AdminController::class, 'storePack'])->name('packs.store');
+    Route::patch('/packs/{pack}', [AdminController::class, 'updatePack'])->name('packs.update');
+    Route::delete('/packs/{pack}', [AdminController::class, 'destroyPack'])->name('packs.destroy');
 });
 
 require __DIR__.'/auth.php';

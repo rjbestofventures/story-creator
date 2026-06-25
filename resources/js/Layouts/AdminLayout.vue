@@ -9,7 +9,7 @@ const isSuperAdmin = computed(() => page.props.auth?.user?.roles?.includes('supe
 
 const allNav = [
     { label: 'Users & Plans',   name: 'admin.users.index',    icon: Users,      match: 'admin.users.*',    superOnly: false },
-    { label: 'Manage Plans',    name: 'admin.plans.index',    icon: Layers,     match: 'admin.plans.*',    superOnly: true  },
+    { label: 'Credit Packs',    name: 'admin.packs.index',    icon: Layers,     match: 'admin.packs.*',    superOnly: true  },
     { label: 'All Stories',     name: 'admin.stories.index',  icon: BookOpen,   match: 'admin.stories.*',  superOnly: false },
     { label: 'Usage & Billing', name: 'admin.billing.index',  icon: TrendingUp, match: 'admin.billing.*',  superOnly: true  },
     { label: 'Settings',        name: 'admin.settings.index', icon: Settings,   match: 'admin.settings.*', superOnly: true  },

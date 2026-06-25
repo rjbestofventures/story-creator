@@ -25,7 +25,7 @@ class ShopController extends Controller
         ]);
 
         return Inertia::render('Shop/Index', [
-            'packs'  => $packs,
+            'packs' => $packs,
             'notice' => session('notice'),
         ]);
     }
@@ -48,15 +48,15 @@ class ShopController extends Controller
 
         $session = Session::create([
             'payment_method_types' => ['card'],
-            'mode'                 => 'payment',
-            'line_items'           => [[
-                'price'    => $pack->stripe_price_id,
+            'mode' => 'payment',
+            'line_items' => [[
+                'price' => $pack->stripe_price_id,
                 'quantity' => 1,
             ]],
-            'success_url'          => route('shop.success').'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url'           => route('shop.index'),
-            'client_reference_id'  => (string) $request->user()->id,
-            'metadata'             => ['pack_id' => (string) $pack->id],
+            'success_url' => route('shop.success').'?session_id={CHECKOUT_SESSION_ID}',
+            'cancel_url' => route('shop.index'),
+            'client_reference_id' => (string) $request->user()->id,
+            'metadata' => ['pack_id' => (string) $pack->id],
         ]);
 
         return response()->json(['url' => $session->url]);
@@ -85,8 +85,8 @@ class ShopController extends Controller
     public function webhook(Request $request): Response
     {
         $payload = $request->getContent();
-        $sig     = $request->header('Stripe-Signature');
-        $secret  = config('services.stripe.webhook.secret');
+        $sig = $request->header('Stripe-Signature');
+        $secret = config('services.stripe.webhook.secret');
 
         try {
             $event = Webhook::constructEvent($payload, $sig, $secret);
@@ -120,13 +120,13 @@ class ShopController extends Controller
         }
 
         UserCredit::create([
-            'user_id'                    => $user->id,
-            'credit_pack_id'             => $pack->id,
-            'episode_limit'              => $pack->episode_limit,
-            'revision_credits_granted'   => $pack->revision_credits,
+            'user_id' => $user->id,
+            'credit_pack_id' => $pack->id,
+            'episode_limit' => $pack->episode_limit,
+            'revision_credits_granted' => $pack->revision_credits,
             'stripe_checkout_session_id' => $session->id,
-            'status'                     => 'available',
-            'purchased_at'               => now(),
+            'status' => 'available',
+            'purchased_at' => now(),
         ]);
 
         $user->increment('refine_credits', $pack->revision_credits);

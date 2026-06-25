@@ -5,12 +5,10 @@ namespace App\Http\Controllers\Admin;
 use Anthropic\Client;
 use App\Http\Controllers\Controller;
 use App\Models\CreditPack;
-use App\Models\Plan;
 use App\Models\SiteSetting;
 use App\Models\Story;
 use App\Models\User;
 use App\Models\UserCredit;
-use App\Models\UserSubscription;
 use App\Notifications\AccountCreatedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -38,39 +36,49 @@ class AdminController extends Controller
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (User $user) => [
-                'id'            => $user->id,
-                'name'          => $user->name,
-                'email'         => $user->email,
-                'tier'          => $user->roles->first()?->name ?? 'user',
-                'is_active'     => $user->is_active,
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+                'tier' => $user->roles->first()?->name ?? 'user',
+                'is_active' => $user->is_active,
                 'refine_credits' => $user->refine_credits,
                 'available_packs' => $user->availableCredits
                     ->groupBy('credit_pack_id')
                     ->map(fn ($credits) => [
-                        'pack'  => $credits->first()->creditPack?->only('id', 'slug', 'label', 'episode_limit', 'revision_credits'),
+                        'pack' => $credits->first()->creditPack?->only('id', 'slug', 'label', 'episode_limit', 'revision_credits'),
                         'count' => $credits->count(),
                     ])
                     ->values(),
                 'stories_total' => $user->stories_count,
-                'created_at'    => $user->created_at->format('n/j/Y'),
+                'created_at' => $user->created_at->format('n/j/Y'),
             ]);
 
         return Inertia::render('Admin/Users', [
-            'users'       => $users,
+            'users' => $users,
             'creditPacks' => $creditPacks,
-            'stats'       => [
-                'users'   => User::count(),
+            'stats' => [
+                'users' => User::count(),
                 'stories' => 0,
             ],
         ]);
     }
 
-    public function plansIndex(): Response
+    public function packsIndex(): Response
     {
-        $plans = Plan::orderBy('price_monthly')
-            ->get(['id', 'slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly', 'trial_months', 'is_active', 'stripe_price_monthly', 'stripe_price_yearly']);
+        $packs = CreditPack::orderBy('price')
+            ->get(['id', 'slug', 'label', 'price', 'episode_limit', 'revision_credits', 'stripe_price_id', 'is_active'])
+            ->map(fn (CreditPack $pack) => [
+                'id' => $pack->id,
+                'slug' => $pack->slug,
+                'label' => $pack->label,
+                'price_dollars' => $pack->price / 100,
+                'episode_limit' => $pack->episode_limit,
+                'revision_credits' => $pack->revision_credits,
+                'stripe_price_id' => $pack->stripe_price_id,
+                'is_active' => $pack->is_active,
+            ]);
 
-        return Inertia::render('Admin/Plans', ['plans' => $plans]);
+        return Inertia::render('Admin/Packs', ['packs' => $packs]);
     }
 
     public function storiesIndex(Request $request): Response
@@ -399,22 +407,16 @@ class AdminController extends Controller
         $pack = CreditPack::findOrFail($validated['pack_id']);
 
         UserCredit::create([
-            'user_id'                  => $user->id,
-            'credit_pack_id'           => $pack->id,
-            'episode_limit'            => $pack->episode_limit,
+            'user_id' => $user->id,
+            'credit_pack_id' => $pack->id,
+            'episode_limit' => $pack->episode_limit,
             'revision_credits_granted' => $pack->revision_credits,
-            'status'                   => 'available',
-            'purchased_at'             => now(),
+            'status' => 'available',
+            'purchased_at' => now(),
         ]);
 
         $user->increment('refine_credits', $pack->revision_credits);
 
-        return back();
-    }
-
-    public function updateSubscription(Request $request, User $user)
-    {
-        // Legacy endpoint — no-op under the new credits model
         return back();
     }
 
@@ -480,67 +482,70 @@ class AdminController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // Plan management
+    // Credit pack management
     // -------------------------------------------------------------------------
 
-    public function storePlan(Request $request)
+    public function storePack(Request $request)
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
             'episode_limit' => 'required|integer|min:1',
-            'stories_per_month' => 'required|integer|min:0',
-            'refine_monthly' => 'required|integer|min:0',
-            'price_monthly' => 'required|integer|min:0',
-            'price_yearly' => 'required|integer|min:0',
-            'trial_months' => 'required|integer|min:0',
+            'revision_credits' => 'required|integer|min:0',
+            'price_dollars' => 'required|numeric|min:0',
+            'stripe_price_id' => 'nullable|string|max:255',
         ]);
 
         $slug = Str::slug($validated['label']);
-        $suffix = 2;
         $base = $slug;
-        while (Plan::where('slug', $slug)->exists()) {
+        $suffix = 2;
+        while (CreditPack::where('slug', $slug)->exists()) {
             $slug = $base.'-'.$suffix++;
         }
 
-        Plan::create(array_merge($validated, ['slug' => $slug, 'is_active' => true]));
+        CreditPack::create([
+            'slug' => $slug,
+            'label' => $validated['label'],
+            'price' => (int) round($validated['price_dollars'] * 100),
+            'episode_limit' => $validated['episode_limit'],
+            'revision_credits' => $validated['revision_credits'],
+            'stripe_price_id' => $validated['stripe_price_id'] ?: null,
+            'is_active' => true,
+        ]);
 
         return back();
     }
 
-    public function updatePlan(Request $request, Plan $plan)
+    public function updatePack(Request $request, CreditPack $pack)
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
             'episode_limit' => 'required|integer|min:1',
-            'stories_per_month' => 'required|integer|min:0',
-            'refine_monthly' => 'required|integer|min:0',
-            'price_monthly' => 'required|integer|min:0',
-            'price_yearly' => 'required|integer|min:0',
-            'trial_months' => 'required|integer|min:0',
+            'revision_credits' => 'required|integer|min:0',
+            'price_dollars' => 'required|numeric|min:0',
+            'stripe_price_id' => 'nullable|string|max:255',
             'is_active' => 'required|boolean',
-            'stripe_price_monthly' => 'nullable|string|max:255',
-            'stripe_price_yearly' => 'nullable|string|max:255',
         ]);
 
-        $plan->update($validated);
+        $pack->update([
+            'label' => $validated['label'],
+            'price' => (int) round($validated['price_dollars'] * 100),
+            'episode_limit' => $validated['episode_limit'],
+            'revision_credits' => $validated['revision_credits'],
+            'stripe_price_id' => $validated['stripe_price_id'] ?: null,
+            'is_active' => $validated['is_active'],
+        ]);
 
         return back();
     }
 
-    public function destroyPlan(Plan $plan)
+    public function destroyPack(CreditPack $pack)
     {
-        $active = $plan->subscriptions()->whereIn('status', ['active', 'trialing'])->count();
-
-        if ($active > 0) {
-            return back()->withErrors(['plan' => "Cannot delete \"{$plan->label}\" — it has {$active} active subscriber(s)."]);
+        if ($pack->userCredits()->exists()) {
+            return back()->withErrors(['pack' => "Cannot delete \"{$pack->label}\" — it has purchase history. Deactivate it instead."]);
         }
 
-        if ($plan->subscriptions()->exists()) {
-            return back()->withErrors(['plan' => "Cannot delete \"{$plan->label}\" — it has historical subscriptions. Deactivate it instead."]);
-        }
+        $pack->delete();
 
-        $plan->delete();
-
-        return to_route('admin.plans.index');
+        return to_route('admin.packs.index');
     }
 }
