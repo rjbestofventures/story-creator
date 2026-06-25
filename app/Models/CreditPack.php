@@ -29,6 +29,7 @@ class CreditPack extends Model
     public function grantTo(User $user, ?string $stripeSessionId = null): void
     {
         $count = max(1, $this->stories_count);
+        $purchasedAt = now();
 
         for ($i = 0; $i < $count; $i++) {
             UserCredit::create([
@@ -38,7 +39,7 @@ class CreditPack extends Model
                 'revision_credits_granted' => $i === 0 ? $this->revision_credits : 0,
                 'stripe_checkout_session_id' => $i === 0 ? $stripeSessionId : null,
                 'status' => 'available',
-                'purchased_at' => now(),
+                'purchased_at' => $purchasedAt,
             ]);
         }
 

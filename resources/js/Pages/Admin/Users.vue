@@ -51,7 +51,7 @@ const fetchInvoices = async (userId) => {
         const data = await res.json();
         invoicesCache.value[userId] = data;
     } catch {
-        invoicesCache.value[userId] = { invoices: [], has_stripe: false };
+        invoicesCache.value[userId] = { purchases: [] };
     } finally {
         invoicesLoading.value[userId] = false;
     }
@@ -529,10 +529,10 @@ const impersonate = (userId) => {
                         </div>
                     </div>
 
-                    <!-- Billing / Invoices -->
+                    <!-- Purchases & Grants -->
                     <div class="border-t border-[#EBEBEB] px-5 py-4">
                         <div class="flex items-center justify-between mb-3">
-                            <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Billing / Invoices</p>
+                            <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Purchases &amp; Grants</p>
                         </div>
 
                         <!-- Loading -->
@@ -542,49 +542,47 @@ const impersonate = (userId) => {
                             <div class="w-3 h-3 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
                         </div>
 
-                        <!-- No Stripe -->
-                        <template v-else-if="invoicesCache[user.id] && !invoicesCache[user.id].has_stripe">
-                            <p class="text-xs text-muted-foreground">No Stripe account — this user has not purchased a pack online.</p>
-                        </template>
-
-                        <!-- Invoices -->
+                        <!-- Purchases -->
                         <template v-else-if="invoicesCache[user.id]">
-                            <template v-if="invoicesCache[user.id].invoices.length === 0">
-                                <p class="text-xs text-muted-foreground">No invoices found.</p>
+                            <template v-if="invoicesCache[user.id].purchases.length === 0">
+                                <p class="text-xs text-muted-foreground">No purchases or grants yet.</p>
                             </template>
                             <template v-else>
                                 <div class="space-y-1.5">
                                     <div
-                                        v-for="inv in (invoicesExpanded[user.id] ? invoicesCache[user.id].invoices : invoicesCache[user.id].invoices.slice(0, 3))"
-                                        :key="inv.id"
+                                        v-for="p in (invoicesExpanded[user.id] ? invoicesCache[user.id].purchases : invoicesCache[user.id].purchases.slice(0, 3))"
+                                        :key="p.id"
                                         class="flex items-center justify-between px-3 py-2.5 rounded-lg"
                                         style="background-color: #F8F8F8;"
                                     >
                                         <div class="flex items-center gap-2.5">
                                             <Receipt class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                             <div>
-                                                <p class="text-xs font-semibold text-[#1A1A1A]">{{ inv.number }}</p>
-                                                <p class="text-[10px] text-muted-foreground">{{ inv.date }}</p>
+                                                <p class="text-xs font-semibold text-[#1A1A1A]">
+                                                    {{ p.pack_label }}
+                                                    <span class="text-muted-foreground font-normal">· {{ p.stories }} {{ p.stories === 1 ? 'story' : 'stories' }}</span>
+                                                </p>
+                                                <p class="text-[10px] text-muted-foreground">{{ p.date }}</p>
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-3">
                                             <span
-                                                class="text-[10px] font-bold px-1.5 py-0.5 rounded capitalize"
-                                                :class="inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'"
-                                            >{{ inv.status }}</span>
-                                            <span class="text-xs font-bold text-[#1A1A1A]">{{ inv.total }}</span>
+                                                class="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                                :class="p.source === 'online' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'"
+                                            >{{ p.source === 'online' ? 'Paid' : 'Granted' }}</span>
+                                            <span class="text-xs font-bold text-[#1A1A1A]">{{ p.amount ?? 'Free' }}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <button
-                                    v-if="invoicesCache[user.id].invoices.length > 3"
+                                    v-if="invoicesCache[user.id].purchases.length > 3"
                                     class="mt-2.5 text-xs font-semibold transition hover:opacity-70 flex items-center gap-1"
                                     style="color: #F5A000;"
                                     @click="invoicesExpanded[user.id] = !invoicesExpanded[user.id]"
                                 >
                                     <ExternalLink class="w-3 h-3" />
-                                    {{ invoicesExpanded[user.id] ? 'Show less' : `View all ${invoicesCache[user.id].invoices.length} invoices` }}
+                                    {{ invoicesExpanded[user.id] ? 'Show less' : `View all ${invoicesCache[user.id].purchases.length}` }}
                                 </button>
                             </template>
                         </template>

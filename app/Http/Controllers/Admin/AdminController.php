@@ -431,23 +431,31 @@ class AdminController extends Controller
 
     public function userInvoices(User $user)
     {
-        if (! $user->stripe_id) {
-            return response()->json(['invoices' => [], 'has_stripe' => false]);
-        }
+        $credits = $user->userCredits()
+            ->with('creditPack:id,slug,label,price')
+            ->orderByDesc('purchased_at')
+            ->get();
 
-        try {
-            $invoices = $user->invoices()->map(fn ($inv) => [
-                'id' => $inv->id,
-                'number' => $inv->number ?? $inv->id,
-                'date' => $inv->date()->format('M j, Y'),
-                'total' => $inv->total(),
-                'status' => $inv->status,
-            ])->values();
-        } catch (\Exception) {
-            return response()->json(['invoices' => [], 'has_stripe' => true]);
-        }
+        $purchases = $credits
+            ->groupBy(fn ($c) => $c->stripe_checkout_session_id
+                ?: 'grant-'.$c->credit_pack_id.'-'.optional($c->purchased_at)->timestamp)
+            ->map(function ($group) {
+                $first = $group->first();
+                $online = ! is_null($first->stripe_checkout_session_id);
+                $pack = $first->creditPack;
 
-        return response()->json(['invoices' => $invoices, 'has_stripe' => true]);
+                return [
+                    'id' => $first->id,
+                    'pack_label' => $pack?->label ?? 'Story Pack',
+                    'stories' => $group->count(),
+                    'date' => optional($first->purchased_at)->format('M j, Y'),
+                    'source' => $online ? 'online' : 'grant',
+                    'amount' => $online && $pack ? '$'.number_format($pack->price / 100, 0) : null,
+                ];
+            })
+            ->values();
+
+        return response()->json(['purchases' => $purchases]);
     }
 
     public function impersonate(User $user)
