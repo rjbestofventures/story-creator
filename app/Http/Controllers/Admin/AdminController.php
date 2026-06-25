@@ -4,10 +4,12 @@ namespace App\Http\Controllers\Admin;
 
 use Anthropic\Client;
 use App\Http\Controllers\Controller;
+use App\Models\CreditPack;
 use App\Models\Plan;
 use App\Models\SiteSetting;
 use App\Models\Story;
 use App\Models\User;
+use App\Models\UserCredit;
 use App\Models\UserSubscription;
 use App\Notifications\AccountCreatedNotification;
 use Illuminate\Http\JsonResponse;
@@ -28,44 +30,36 @@ class AdminController extends Controller
 
     public function usersIndex(): Response
     {
-        $plans = Plan::where('is_active', true)
-            ->orderBy('price_monthly')
-            ->get(['id', 'slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly', 'trial_months', 'is_active']);
+        $creditPacks = CreditPack::active()->orderBy('price')
+            ->get(['id', 'slug', 'label', 'price', 'episode_limit', 'revision_credits']);
 
-        $users = User::with(['roles', 'activeSubscription.plan'])
+        $users = User::with(['roles', 'availableCredits.creditPack'])
             ->withCount('stories')
             ->orderByDesc('created_at')
             ->get()
             ->map(fn (User $user) => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'tier' => $user->roles->first()?->name ?? 'user',
-                'is_active' => $user->is_active,
-                'subscription' => $user->activeSubscription ? [
-                    'id' => $user->activeSubscription->id,
-                    'plan_id' => $user->activeSubscription->plan_id,
-                    'plan_slug' => $user->activeSubscription->plan->slug,
-                    'plan_label' => $user->activeSubscription->plan->label,
-                    'status' => $user->activeSubscription->status,
-                    'billing_interval' => $user->activeSubscription->billing_interval,
-                    'starts_at' => $user->activeSubscription->starts_at?->toDateString(),
-                    'expires_at' => $user->activeSubscription->expires_at?->toDateString(),
-                    'story_credits' => $user->activeSubscription->story_credits,
-                    'refine_credits' => $user->activeSubscription->refine_credits,
-                    'effective_episode_limit' => $user->activeSubscription->effectiveEpisodeLimit(),
-                    'stories_per_month' => $user->activeSubscription->plan->stories_per_month,
-                    'refine_monthly' => $user->activeSubscription->plan->refine_monthly,
-                ] : null,
+                'id'            => $user->id,
+                'name'          => $user->name,
+                'email'         => $user->email,
+                'tier'          => $user->roles->first()?->name ?? 'user',
+                'is_active'     => $user->is_active,
+                'refine_credits' => $user->refine_credits,
+                'available_packs' => $user->availableCredits
+                    ->groupBy('credit_pack_id')
+                    ->map(fn ($credits) => [
+                        'pack'  => $credits->first()->creditPack?->only('id', 'slug', 'label', 'episode_limit', 'revision_credits'),
+                        'count' => $credits->count(),
+                    ])
+                    ->values(),
                 'stories_total' => $user->stories_count,
-                'created_at' => $user->created_at->format('n/j/Y'),
+                'created_at'    => $user->created_at->format('n/j/Y'),
             ]);
 
         return Inertia::render('Admin/Users', [
-            'users' => $users,
-            'plans' => $plans,
-            'stats' => [
-                'users' => User::count(),
+            'users'       => $users,
+            'creditPacks' => $creditPacks,
+            'stats'       => [
+                'users'   => User::count(),
                 'stories' => 0,
             ],
         ]);
@@ -399,45 +393,28 @@ class AdminController extends Controller
     public function assignPlan(Request $request, User $user)
     {
         $validated = $request->validate([
-            'plan_id' => 'required|exists:plans,id',
-            'billing_interval' => 'required|in:monthly,yearly',
+            'pack_id' => 'required|exists:credit_packs,id',
         ]);
 
-        $plan = Plan::findOrFail($validated['plan_id']);
-        $interval = $validated['billing_interval'];
+        $pack = CreditPack::findOrFail($validated['pack_id']);
 
-        $user->subscriptions()->whereIn('status', ['active', 'trialing'])->update(['status' => 'cancelled']);
-
-        $expiresAt = match (true) {
-            $plan->trial_months > 0 => now()->addMonths($plan->trial_months),
-            $plan->isFree() => null,
-            $interval === 'yearly' => now()->addYear(),
-            default => now()->addMonth(),
-        };
-
-        UserSubscription::create([
-            'user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'billing_interval' => $interval,
-            'status' => 'active',
-            'starts_at' => now(),
-            'expires_at' => $expiresAt,
-            'billing_period_ends_at' => now()->addMonth(),
-            'story_credits' => $plan->stories_per_month,
-            'refine_credits' => $plan->refine_monthly,
+        UserCredit::create([
+            'user_id'                  => $user->id,
+            'credit_pack_id'           => $pack->id,
+            'episode_limit'            => $pack->episode_limit,
+            'revision_credits_granted' => $pack->revision_credits,
+            'status'                   => 'available',
+            'purchased_at'             => now(),
         ]);
+
+        $user->increment('refine_credits', $pack->revision_credits);
 
         return back();
     }
 
     public function updateSubscription(Request $request, User $user)
     {
-        $validated = $request->validate([
-            'status' => 'required|in:active,trialing,cancelled,expired',
-        ]);
-
-        $user->subscriptions()->latest()->first()?->update(['status' => $validated['status']]);
-
+        // Legacy endpoint — no-op under the new credits model
         return back();
     }
 
