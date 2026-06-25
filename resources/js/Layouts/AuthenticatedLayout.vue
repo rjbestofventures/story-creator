@@ -5,7 +5,10 @@ import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck }
 
 const page  = usePage();
 const user  = computed(() => page.props.auth.user);
-const isAdmin = computed(() => page.props.auth.user?.roles?.includes('admin') ?? false);
+const isAdmin = computed(() => {
+    const roles = page.props.auth.user?.roles ?? [];
+    return roles.includes('admin') || roles.includes('super_admin');
+});
 const impersonating = computed(() => page.props.impersonating ?? null);
 
 const menuOpen = ref(false);
