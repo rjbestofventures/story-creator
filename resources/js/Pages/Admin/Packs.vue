@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { Plus, Pencil, Layers, RefreshCcw, Trash2, AlertTriangle } from '@lucide/vue';
+import { Plus, Pencil, Layers, RefreshCcw, Trash2, AlertTriangle, BookOpen } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -30,6 +30,7 @@ const getEditForm = (pack) => {
     if (!editForms.value[pack.id]) {
         editForms.value[pack.id] = useForm({
             label:            pack.label,
+            stories_count:    pack.stories_count,
             episode_limit:    pack.episode_limit,
             revision_credits: pack.revision_credits,
             price_dollars:    pack.price_dollars,
@@ -66,6 +67,7 @@ const createDialogOpen = ref(false);
 
 const newForm = useForm({
     label:            '',
+    stories_count:    1,
     episode_limit:    12,
     revision_credits: 36,
     price_dollars:    9,
@@ -158,7 +160,9 @@ const editDialogOpen = computed({
                             ${{ pack.price_dollars }}
                             <span class="text-sm font-medium text-muted-foreground">one-time</span>
                         </p>
-                        <p class="text-xs text-muted-foreground mt-0.5">1 story · never expires</p>
+                        <p class="text-xs text-muted-foreground mt-0.5">
+                            {{ pack.stories_count }} {{ pack.stories_count === 1 ? 'story' : 'stories' }} · never expires
+                        </p>
                     </div>
 
                     <!-- Stripe warning -->
@@ -171,11 +175,16 @@ const editDialogOpen = computed({
                     </div>
 
                     <!-- Stats row -->
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-3 gap-2">
+                        <div class="flex flex-col items-center gap-1 rounded-xl py-2.5 px-1" style="background: #F8F8F8;">
+                            <BookOpen class="w-3.5 h-3.5 text-muted-foreground" />
+                            <p class="text-base font-black leading-none" style="color: #1A1A1A;">{{ pack.stories_count }}</p>
+                            <p class="text-[10px] font-medium text-muted-foreground leading-none">Stories</p>
+                        </div>
                         <div class="flex flex-col items-center gap-1 rounded-xl py-2.5 px-1" style="background: #F8F8F8;">
                             <Layers class="w-3.5 h-3.5 text-muted-foreground" />
                             <p class="text-base font-black leading-none" style="color: #1A1A1A;">{{ pack.episode_limit }}</p>
-                            <p class="text-[10px] font-medium text-muted-foreground leading-none">Episodes</p>
+                            <p class="text-[10px] font-medium text-muted-foreground leading-none">Eps/story</p>
                         </div>
                         <div class="flex flex-col items-center gap-1 rounded-xl py-2.5 px-1" style="background: #F8F8F8;">
                             <RefreshCcw class="w-3.5 h-3.5 text-muted-foreground" />
@@ -257,7 +266,11 @@ const editDialogOpen = computed({
                     <!-- Limits -->
                     <div>
                         <p class="text-xs font-bold tracking-widest uppercase text-muted-foreground mb-3">Limits</p>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="space-y-1.5">
+                                <Label class="text-xs">Stories</Label>
+                                <Input v-model.number="getEditForm(editingPack).stories_count" type="number" min="1" class="text-center" />
+                            </div>
                             <div class="space-y-1.5">
                                 <Label class="text-xs">Episodes / story</Label>
                                 <Input v-model.number="getEditForm(editingPack).episode_limit" type="number" min="1" class="text-center" />
@@ -338,7 +351,11 @@ const editDialogOpen = computed({
 
                     <div>
                         <p class="text-xs font-bold tracking-widest uppercase text-muted-foreground mb-3">Limits</p>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="space-y-1.5">
+                                <Label class="text-xs">Stories</Label>
+                                <Input v-model.number="newForm.stories_count" type="number" min="1" class="text-center" />
+                            </div>
                             <div class="space-y-1.5">
                                 <Label class="text-xs">Episodes / story</Label>
                                 <Input v-model.number="newForm.episode_limit" type="number" min="1" class="text-center" />

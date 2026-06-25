@@ -13,7 +13,7 @@ use Inertia\Inertia;
 
 Route::get('/', function () {
     $packs = CreditPack::active()->orderBy('price')
-        ->get(['slug', 'label', 'price', 'episode_limit', 'revision_credits']);
+        ->get(['slug', 'label', 'stories_count', 'price', 'episode_limit', 'revision_credits']);
 
     return Inertia::render('Welcome', [
         'canLogin'    => Route::has('login'),

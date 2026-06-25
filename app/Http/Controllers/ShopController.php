@@ -21,7 +21,7 @@ class ShopController extends Controller
     public function index(Request $request): \Inertia\Response
     {
         $packs = CreditPack::active()->orderBy('price')->get([
-            'id', 'slug', 'label', 'price', 'episode_limit', 'revision_credits', 'stripe_price_id',
+            'id', 'slug', 'label', 'stories_count', 'price', 'episode_limit', 'revision_credits', 'stripe_price_id',
         ]);
 
         return Inertia::render('Shop/Index', [
@@ -119,16 +119,6 @@ class ShopController extends Controller
             return;
         }
 
-        UserCredit::create([
-            'user_id' => $user->id,
-            'credit_pack_id' => $pack->id,
-            'episode_limit' => $pack->episode_limit,
-            'revision_credits_granted' => $pack->revision_credits,
-            'stripe_checkout_session_id' => $session->id,
-            'status' => 'available',
-            'purchased_at' => now(),
-        ]);
-
-        $user->increment('refine_credits', $pack->revision_credits);
+        $pack->grantTo($user, $session->id);
     }
 }

@@ -135,13 +135,13 @@ const formatPrice = (cents) => '$' + (cents / 100).toFixed(0);
                                     <div class="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                                         <Check class="w-2.5 h-2.5 text-[#F5A000]" />
                                     </div>
-                                    <span><strong class="text-[#1A1A1A]">1 story</strong></span>
+                                    <span><strong class="text-[#1A1A1A]">{{ pack.stories_count }} {{ pack.stories_count === 1 ? 'story' : 'stories' }}</strong></span>
                                 </li>
                                 <li class="flex items-center gap-2.5 text-sm text-[#555555]">
                                     <div class="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                                         <Check class="w-2.5 h-2.5 text-[#F5A000]" />
                                     </div>
-                                    <span><strong class="text-[#1A1A1A]">{{ pack.episode_limit }} episodes</strong> generated</span>
+                                    <span><strong class="text-[#1A1A1A]">{{ pack.episode_limit }} episodes</strong> per story</span>
                                 </li>
                                 <li class="flex items-center gap-2.5 text-sm text-[#555555]">
                                     <div class="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">

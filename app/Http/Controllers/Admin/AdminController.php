@@ -8,7 +8,6 @@ use App\Models\CreditPack;
 use App\Models\SiteSetting;
 use App\Models\Story;
 use App\Models\User;
-use App\Models\UserCredit;
 use App\Notifications\AccountCreatedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -66,11 +65,12 @@ class AdminController extends Controller
     public function packsIndex(): Response
     {
         $packs = CreditPack::orderBy('price')
-            ->get(['id', 'slug', 'label', 'price', 'episode_limit', 'revision_credits', 'stripe_price_id', 'is_active'])
+            ->get(['id', 'slug', 'label', 'stories_count', 'price', 'episode_limit', 'revision_credits', 'stripe_price_id', 'is_active'])
             ->map(fn (CreditPack $pack) => [
                 'id' => $pack->id,
                 'slug' => $pack->slug,
                 'label' => $pack->label,
+                'stories_count' => $pack->stories_count,
                 'price_dollars' => $pack->price / 100,
                 'episode_limit' => $pack->episode_limit,
                 'revision_credits' => $pack->revision_credits,
@@ -406,16 +406,7 @@ class AdminController extends Controller
 
         $pack = CreditPack::findOrFail($validated['pack_id']);
 
-        UserCredit::create([
-            'user_id' => $user->id,
-            'credit_pack_id' => $pack->id,
-            'episode_limit' => $pack->episode_limit,
-            'revision_credits_granted' => $pack->revision_credits,
-            'status' => 'available',
-            'purchased_at' => now(),
-        ]);
-
-        $user->increment('refine_credits', $pack->revision_credits);
+        $pack->grantTo($user);
 
         return back();
     }
@@ -489,6 +480,7 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
+            'stories_count' => 'required|integer|min:1',
             'episode_limit' => 'required|integer|min:1',
             'revision_credits' => 'required|integer|min:0',
             'price_dollars' => 'required|numeric|min:0',
@@ -505,6 +497,7 @@ class AdminController extends Controller
         CreditPack::create([
             'slug' => $slug,
             'label' => $validated['label'],
+            'stories_count' => $validated['stories_count'],
             'price' => (int) round($validated['price_dollars'] * 100),
             'episode_limit' => $validated['episode_limit'],
             'revision_credits' => $validated['revision_credits'],
@@ -519,6 +512,7 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
+            'stories_count' => 'required|integer|min:1',
             'episode_limit' => 'required|integer|min:1',
             'revision_credits' => 'required|integer|min:0',
             'price_dollars' => 'required|numeric|min:0',
@@ -528,6 +522,7 @@ class AdminController extends Controller
 
         $pack->update([
             'label' => $validated['label'],
+            'stories_count' => $validated['stories_count'],
             'price' => (int) round($validated['price_dollars'] * 100),
             'episode_limit' => $validated['episode_limit'],
             'revision_credits' => $validated['revision_credits'],
