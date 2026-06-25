@@ -3,6 +3,8 @@ import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap } from '@lucide/vue';
 
+const props = defineProps({ isDemo: Boolean });
+
 const showPassword        = ref(false);
 const showPasswordConfirm = ref(false);
 
@@ -21,7 +23,7 @@ const submit = () => {
 </script>
 
 <template>
-    <Head title="Create account" />
+    <Head :title="props.isDemo ? 'Create demo account' : 'Create account'" />
 
     <div class="min-h-screen flex">
 
@@ -89,7 +91,7 @@ const submit = () => {
 
             <div class="w-full max-w-sm">
 
-                <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">Create your account</h1>
+                <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">{{ props.isDemo ? 'Create your demo account' : 'Create your account' }}</h1>
                 <p class="text-sm mb-8" style="color: #555555;">
                     Already have an account?
                     <Link :href="route('login')" class="font-semibold underline transition hover:opacity-70" style="color: #1A1A1A;">Log in</Link>
@@ -202,9 +204,9 @@ const submit = () => {
                         :class="{ 'opacity-60 cursor-not-allowed': form.processing }"
                         style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                     >
-                        <span v-if="form.processing">Creating account…</span>
+                        <span v-if="form.processing">{{ props.isDemo ? 'Creating demo account…' : 'Creating account…' }}</span>
                         <template v-else>
-                            Create account <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                            {{ props.isDemo ? 'Create demo account' : 'Create account' }} <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </template>
                     </button>
 

@@ -155,6 +155,16 @@ const displayLog = computed(() =>
     chatLog.value.filter(m => !(m.role === 'user' && m.content.startsWith('[')))
 );
 
+const enrichedDisplayLog = computed(() => {
+    let qNum = 0;
+    return displayLog.value.map(msg => {
+        if (msg.role === 'assistant' && msg._question) {
+            return { ...msg, _questionNumber: ++qNum };
+        }
+        return msg;
+    });
+});
+
 // ─── Generate options ─────────────────────────────────────────────────────────
 const episodeCount = computed(() => isDemoMode.value ? 3 : (props.episode_limit ?? 5));
 const format       = ref('social');
@@ -648,7 +658,7 @@ const formats = [
                 <div class="flex-1 min-h-0 space-y-4 overflow-y-auto pb-4 pr-1">
 
                     <div
-                        v-for="(msg, i) in displayLog"
+                        v-for="(msg, i) in enrichedDisplayLog"
                         :key="i"
                         class="flex gap-3"
                         :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
@@ -671,7 +681,9 @@ const formats = [
                                     v-if="msg.content.replace(msg._question, '').trim()"
                                     class="mt-2 mb-2 border-t border-amber-200"
                                 />
-                                <span class="block font-semibold text-amber-800 bg-amber-50 rounded-lg px-2.5 py-1.5">{{ msg._question }}</span>
+                                <span class="block font-semibold text-amber-800 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                                    <span class="text-amber-500 mr-1.5">{{ msg._questionNumber }}.</span>{{ msg._question }}
+                                </span>
                             </template>
                             <template v-else>{{ msg.content }}</template>
                         </div>
