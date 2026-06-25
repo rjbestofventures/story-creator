@@ -8,11 +8,8 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/Components/ui/dialog';
 import {
-    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from '@/Components/ui/tooltip';
-import {
     Sparkles, BookOpen, Plus, Trash2, ChevronRight,
-    Zap, RefreshCcw, Calendar, FileText, MessageSquare, Clock
+    Zap, RefreshCcw, Calendar, FileText, MessageSquare, Clock, ShoppingBag
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -28,7 +25,6 @@ const totalAvailablePacks = computed(() =>
     props.availablePackCounts?.reduce((sum, g) => sum + g.count, 0) ?? 0
 );
 const canCreateStory = computed(() => props.isAdmin || totalAvailablePacks.value > 0);
-const hasCredits     = computed(() => props.isAdmin || totalAvailablePacks.value > 0);
 
 // Format labels
 const formatLabel = {
@@ -78,33 +74,21 @@ const confirmDelete = () => {
                         </div>
                     </div>
 
-                    <TooltipProvider>
-                        <Tooltip :delay-duration="100">
-                            <TooltipTrigger as-child>
-                                <span>
-                                    <Link v-if="canCreateStory" :href="route('stories.create')">
-                                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
-                                            <Plus class="w-4 h-4" />
-                                            + New Story
-                                        </Button>
-                                    </Link>
-                                    <Button
-                                        v-else
-                                        disabled
-                                        class="flex items-center gap-2 font-bold h-10 px-5 rounded-xl opacity-50 cursor-not-allowed"
-                                        style="background: #DDDDDD; color: #888888;"
-                                    >
-                                        <Plus class="w-4 h-4" />
-                                        + New Story
-                                    </Button>
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent v-if="!canCreateStory && !isAdmin" side="bottom" class="max-w-xs text-center p-3">
-                                <p class="font-semibold text-xs mb-1">No story packs available</p>
-                                <p class="text-xs text-muted-foreground leading-relaxed">Purchase a pack to create a new story.</p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                    <!-- Has credits (or admin): create a story -->
+                    <Link v-if="canCreateStory" :href="route('stories.create')">
+                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                            <Plus class="w-4 h-4" />
+                            + New Story
+                        </Button>
+                    </Link>
+
+                    <!-- Out of credits: buy more -->
+                    <Link v-else :href="route('shop.index')">
+                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                            <ShoppingBag class="w-4 h-4" />
+                            Buy Story Credits
+                        </Button>
+                    </Link>
                 </div>
             </div>
 
@@ -119,18 +103,28 @@ const confirmDelete = () => {
                             <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Story Packs</span>
                         </div>
                         <div v-if="isAdmin" class="text-2xl font-black text-[#1A1A1A]">∞</div>
-                        <div v-else-if="totalAvailablePacks === 0" class="text-2xl font-black text-[#1A1A1A]">0</div>
-                        <div v-else class="space-y-1">
-                            <div
-                                v-for="group in availablePackCounts"
-                                :key="group.pack.id"
-                                class="flex items-center justify-between"
+                        <template v-else-if="totalAvailablePacks === 0">
+                            <div class="text-2xl font-black text-[#1A1A1A]">0</div>
+                            <Link
+                                :href="route('shop.index')"
+                                class="inline-flex items-center gap-1 mt-1 text-xs font-bold text-[#F5A000] hover:underline"
                             >
-                                <span class="text-sm font-semibold text-[#1A1A1A]">{{ group.pack.label }}</span>
-                                <span class="text-sm font-black text-[#F5A000]">×{{ group.count }}</span>
+                                <ShoppingBag class="w-3 h-3" /> Buy story credits
+                            </Link>
+                        </template>
+                        <template v-else>
+                            <div class="space-y-1">
+                                <div
+                                    v-for="group in availablePackCounts"
+                                    :key="group.pack.id"
+                                    class="flex items-center justify-between"
+                                >
+                                    <span class="text-sm font-semibold text-[#1A1A1A]">{{ group.pack.label }}</span>
+                                    <span class="text-sm font-black text-[#F5A000]">×{{ group.count }}</span>
+                                </div>
                             </div>
-                        </div>
-                        <div class="text-xs text-[#555555] mt-1">available</div>
+                            <div class="text-xs text-[#555555] mt-1">available</div>
+                        </template>
                     </div>
 
                     <!-- Revision credits -->
@@ -144,9 +138,31 @@ const confirmDelete = () => {
                     </div>
                 </div>
 
-                <!-- Empty state -->
+                <!-- Empty state: no credits → buy first -->
                 <div
-                    v-if="stories.length === 0"
+                    v-if="stories.length === 0 && !canCreateStory"
+                    class="bg-white rounded-2xl border border-[#DDDDDD] p-12 text-center"
+                >
+                    <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <ShoppingBag class="w-8 h-8 text-[#F5A000]" />
+                    </div>
+                    <h2 class="text-xl font-black text-[#1A1A1A] mb-2">Get your first story pack</h2>
+                    <p class="text-[#555555] mb-6 max-w-sm mx-auto">
+                        Story packs let you create professional content from a quick interview. Pick a pack to get started — credits never expire.
+                    </p>
+                    <Link :href="route('shop.index')">
+                        <Button
+                            class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
+                        >
+                            <ShoppingBag class="w-4 h-4" />
+                            Buy Story Credits
+                        </Button>
+                    </Link>
+                </div>
+
+                <!-- Empty state: has credits → create -->
+                <div
+                    v-else-if="stories.length === 0"
                     class="bg-white rounded-2xl border border-[#DDDDDD] p-12 text-center"
                 >
                     <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
