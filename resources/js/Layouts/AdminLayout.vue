@@ -1,15 +1,21 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings, FileText } from '@lucide/vue';
 import { TooltipProvider } from '@/Components/ui/tooltip';
 
-const nav = [
-    { label: 'Users & Plans',   name: 'admin.users.index',   icon: Users,      match: 'admin.users.*'     },
-    { label: 'Manage Plans',    name: 'admin.plans.index',   icon: Layers,     match: 'admin.plans.*'     },
-    { label: 'All Stories',     name: 'admin.stories.index', icon: BookOpen,   match: 'admin.stories.*'   },
-    { label: 'Usage & Billing', name: 'admin.billing.index', icon: TrendingUp, match: 'admin.billing.*'   },
-    { label: 'Settings',        name: 'admin.settings.index', icon: Settings,  match: 'admin.settings.*'  },
+const page = usePage();
+const isSuperAdmin = computed(() => page.props.auth?.user?.roles?.includes('super_admin'));
+
+const allNav = [
+    { label: 'Users & Plans',   name: 'admin.users.index',    icon: Users,      match: 'admin.users.*',    superOnly: false },
+    { label: 'Manage Plans',    name: 'admin.plans.index',    icon: Layers,     match: 'admin.plans.*',    superOnly: true  },
+    { label: 'All Stories',     name: 'admin.stories.index',  icon: BookOpen,   match: 'admin.stories.*',  superOnly: false },
+    { label: 'Usage & Billing', name: 'admin.billing.index',  icon: TrendingUp, match: 'admin.billing.*',  superOnly: true  },
+    { label: 'Settings',        name: 'admin.settings.index', icon: Settings,   match: 'admin.settings.*', superOnly: true  },
 ];
+
+const nav = computed(() => allNav.filter(item => !item.superOnly || isSuperAdmin.value));
 
 const isActive = (item) => route().current(item.match);
 </script>
