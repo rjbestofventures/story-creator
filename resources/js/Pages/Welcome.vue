@@ -6,38 +6,36 @@ import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, Circle
 const props = defineProps({
     canLogin: Boolean,
     canRegister: Boolean,
-    plans: Array,
+    packs: Array,
 });
-
-const yearly = ref(false);
 
 const openFaq = ref(null);
 
 const faqs = [
     { q: 'How does StoryCreator.Bot work?', a: 'Answer a few questions about your business, audience, and goals. Our engine turns your answers into a series of ready-to-publish content episodes.' },
     { q: 'Do I need to be a good writer?', a: 'Not at all. StoryCreator.Bot does the writing for you. You just provide the details about your business and we handle the rest.' },
-    { q: "Can I edit the episodes after they're generated?", a: 'Yes. Every episode is fully editable. You can refine the content, adjust the tone, or rewrite sections before publishing.' },
-    { q: 'What if I run out of story credits?', a: 'Credits accumulate month to month — they never expire. You can also upgrade your plan at any time to get more credits.' },
+    { q: "Can I edit the episodes after they're generated?", a: 'Yes. Every episode is fully editable. You can refine the content, adjust the tone, or rewrite sections before publishing — that\'s what revision credits are for.' },
+    { q: 'Do my credits expire?', a: 'Never. Story packs are a one-time purchase — your stories and revision credits stay in your account until you use them, with no monthly fees or expiry.' },
     { q: 'Do I need all three URLs (website, LinkedIn, social)?', a: 'No. You can provide as many or as few as you have. More context helps us generate better content, but none are required.' },
-    { q: 'Can I cancel anytime?', a: 'Yes, you can cancel your subscription at any time. You keep access until the end of your billing period.' },
+    { q: 'What if I need more stories?', a: 'Just buy another pack whenever you\'re ready. There\'s no subscription — you only pay for what you need, and credits never expire.' },
 ];
 
+const priceDollars = (pack) => Math.round(pack.price / 100);
+
 const popularSlug = computed(() => {
-    if (!props.plans?.length) return null;
-    const sorted = [...props.plans].sort((a, b) => a.price_monthly - b.price_monthly);
+    if (!props.packs?.length) return null;
+    const sorted = [...props.packs].sort((a, b) => a.price - b.price);
     return sorted[Math.floor(sorted.length / 2)]?.slug ?? null;
 });
 
-const planFeatures = (plan) => [
-    `${plan.episode_limit} episodes per story`,
-    `${plan.refine_monthly} revision credits`,
-    `${plan.stories_per_month} stories per month`,
-    'Credits accumulate',
-    plan.slug === 'basic' ? 'Basic support' : 'Priority support',
-    ...(plan.slug === 'professional' ? ['Dedicated account manager'] : []),
+const packFeatures = (pack) => [
+    `${pack.stories_count} ${pack.stories_count === 1 ? 'story' : 'stories'}`,
+    `${pack.episode_limit} episodes per story`,
+    `${pack.revision_credits} revision credits`,
+    'Credits never expire',
+    pack.slug === 'basic' ? 'Basic support' : 'Priority support',
+    ...(pack.slug === 'professional' ? ['Dedicated account manager'] : []),
 ];
-
-const yearlyMonthly = (plan) => Math.round(plan.price_yearly / 12);
 </script>
 
 <template>
@@ -197,23 +195,7 @@ const yearlyMonthly = (plan) => Math.round(plan.price_yearly / 12);
                 <div class="text-center mb-10">
                     <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #555555;">Pricing</p>
                     <h2 class="text-4xl md:text-5xl font-black mb-3" style="color: #1A1A1A;">Simple, Transparent Pricing</h2>
-                    <p class="text-sm" style="color: #555555;">Pick the plan that fits your content needs. Retain all credits you pay for!</p>
-
-                    <!-- Toggle -->
-                    <div class="inline-flex items-center gap-3 mt-6">
-                        <span class="text-sm font-semibold" :style="{ color: yearly ? '#555555' : '#1A1A1A' }">Monthly</span>
-                        <button
-                            @click="yearly = !yearly"
-                            class="relative inline-flex items-center w-11 h-6 rounded-full transition-colors duration-200 overflow-hidden shrink-0"
-                            :style="{ backgroundColor: yearly ? '#F5A000' : '#DDDDDD' }"
-                        >
-                            <span
-                                class="absolute left-1 w-4 h-4 rounded-full bg-white shadow transition-transform duration-200"
-                                :style="{ transform: yearly ? 'translateX(20px)' : 'translateX(0px)' }"
-                            />
-                        </button>
-                        <span class="text-sm font-semibold" :style="{ color: yearly ? '#1A1A1A' : '#555555' }">Yearly</span>
-                    </div>
+                    <p class="text-sm" style="color: #555555;">Buy a story pack when you need one. No subscription — credits never expire.</p>
                 </div>
 
                 <!-- Partner Banner -->
@@ -228,11 +210,11 @@ const yearlyMonthly = (plan) => Math.round(plan.price_yearly / 12);
                         <div>
                             <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Partner Program</span>
                             <h3 class="text-2xl font-black text-white">Verified Business Partner</h3>
-                            <p class="text-sm mb-1" style="color: #888888;">12 episodes · 2 stories/mo ·
-                                <span class="font-bold text-2xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Six Months Free</span>
+                            <p class="text-sm mb-1" style="color: #888888;">Complimentary story credits for
+                                <span class="font-bold text-2xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Verified Local Businesses</span>
                             </p>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1 mt-3">
-                                <span v-for="f in ['12 episodes per story', 'Credits accumulate', '12 revision credits', 'Basic support', '2 stories per month', 'First six months 100% free']"
+                                <span v-for="f in ['Complimentary story packs', 'Credits never expire', 'Priority support', 'Hands-on onboarding', 'Verified partner badge', 'Episodes for every story']"
                                     :key="f" class="flex items-center gap-1.5 text-xs" style="color: #AAAAAA;">
                                     <Check class="w-3 h-3 shrink-0" style="color: #F5A000;" :stroke-width="3" />
                                     {{ f }}
@@ -249,31 +231,31 @@ const yearlyMonthly = (plan) => Math.round(plan.price_yearly / 12);
                     </div>
                 </div>
 
-                <!-- Plans -->
+                <!-- Packs -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div
-                        v-for="plan in plans"
-                        :key="plan.slug"
+                        v-for="pack in packs"
+                        :key="pack.slug"
                         class="relative rounded-2xl bg-white p-6 flex flex-col"
-                        :style="plan.slug === popularSlug ? 'border: 2px solid #F5A000;' : 'border: 1px solid #DDDDDD;'"
+                        :style="pack.slug === popularSlug ? 'border: 2px solid #F5A000;' : 'border: 1px solid #DDDDDD;'"
                     >
                         <!-- Most Popular badge -->
-                        <div v-if="plan.slug === popularSlug" class="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                        <div v-if="pack.slug === popularSlug" class="absolute -top-3.5 left-1/2 -translate-x-1/2">
                             <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Most Popular</span>
                         </div>
 
-                        <h3 class="text-base font-bold mb-3" style="color: #1A1A1A;">{{ plan.label }}</h3>
+                        <h3 class="text-base font-bold mb-3" style="color: #1A1A1A;">{{ pack.label }}</h3>
 
                         <div class="flex items-baseline gap-1 mb-1">
-                            <span class="text-4xl font-black" style="color: #1A1A1A;">${{ yearly ? yearlyMonthly(plan) : plan.price_monthly }}</span>
-                            <span class="text-sm" style="color: #555555;">/month</span>
+                            <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
+                            <span class="text-sm" style="color: #555555;">one-time</span>
                         </div>
-                        <p class="text-xs mb-5" style="color: #555555;">{{ plan.episode_limit }} episodes · {{ plan.stories_per_month }} stories/mo</p>
+                        <p class="text-xs mb-5" style="color: #555555;">{{ pack.stories_count }} {{ pack.stories_count === 1 ? 'story' : 'stories' }} · {{ pack.episode_limit }} episodes each</p>
 
                         <Link
                             :href="route('register')"
                             class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:opacity-90"
-                            :style="plan.slug === popularSlug
+                            :style="pack.slug === popularSlug
                                 ? 'background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;'
                                 : 'background: #FFFFFF; color: #1A1A1A; border: 1px solid #DDDDDD;'"
                         >
@@ -281,8 +263,8 @@ const yearlyMonthly = (plan) => Math.round(plan.price_yearly / 12);
                         </Link>
 
                         <ul class="flex flex-col gap-2.5">
-                            <li v-for="f in planFeatures(plan)" :key="f" class="flex items-center gap-2 text-sm" style="color: #555555;">
-                                <Check class="w-4 h-4 shrink-0" :style="plan.slug === popularSlug ? 'color: #F5A000;' : 'color: #555555;'" :stroke-width="2.5" />
+                            <li v-for="f in packFeatures(pack)" :key="f" class="flex items-center gap-2 text-sm" style="color: #555555;">
+                                <Check class="w-4 h-4 shrink-0" :style="pack.slug === popularSlug ? 'color: #F5A000;' : 'color: #555555;'" :stroke-width="2.5" />
                                 {{ f }}
                             </li>
                         </ul>
