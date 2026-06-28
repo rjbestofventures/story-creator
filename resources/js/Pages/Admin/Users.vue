@@ -12,6 +12,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Badge } from '@/Components/ui/badge';
+import { Switch } from '@/Components/ui/switch';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/Components/ui/select';
@@ -85,10 +86,10 @@ const filtered = computed(() =>
 );
 
 const kpis = computed(() => [
-    { label: 'Total Users', value: props.stats.users,                                   icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Total registered accounts'                     },
-    { label: 'Active',      value: props.users.filter(u => u.is_active).length,          icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are currently enabled'           },
-    { label: 'Partners',    value: props.users.filter(u => u.is_verified_partner).length, icon: Package, color: '#6366F1', bg: 'bg-indigo-50', text: 'text-indigo-600', tooltip: 'Verified business partners'                    },
-    { label: 'Credits',     value: props.users.reduce((s, u) => s + (u.credits ?? 0), 0), icon: BookOpen, color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-600', tooltip: 'Total unspent credits across all users'        },
+    { label: 'Verified Users',     value: props.users.filter(u => u.is_verified_partner).length,  icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Verified business partners'                       },
+    { label: 'Non-Verified Users', value: props.users.filter(u => !u.is_verified_partner).length, icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are not verified partners'           },
+    { label: 'Total Sold Packs',   value: props.stats.sold_packs,                                 icon: Package,  color: '#6366F1', bg: 'bg-indigo-50', text: 'text-indigo-600', tooltip: 'Packs purchased across all users'                 },
+    { label: 'Stories',            value: props.stats.stories,                                    icon: BookOpen, color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-600', tooltip: 'Total stories generated across the platform'      },
 ]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -160,7 +161,7 @@ const userModalUser     = ref(null);
 const passwordModalOpen = ref(false);
 const passwordModalUser = ref(null);
 
-const userForm     = useForm({ name: '', email: '', tier: 'user' });
+const userForm     = useForm({ name: '', email: '', tier: 'user', is_active: true, is_verified_partner: false, pack_id: '' });
 const passwordForm = useForm({});
 
 const openCreate = () => {
@@ -219,7 +220,7 @@ const impersonate = (userId) => {
         <div class="flex items-start justify-between mb-6">
             <div>
                 <h1 class="text-lg font-black text-[#1A1A1A]">Users & Credits</h1>
-                <p class="text-xs mt-0.5 text-muted-foreground">Manage accounts, roles, and story credits.</p>
+                <p class="text-xs mt-0.5 text-muted-foreground">Manage accounts, roles, and StoryBot credits.</p>
             </div>
             <Button
                 class="shrink-0 gap-2 font-semibold bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 transition-all duration-300"
@@ -641,6 +642,40 @@ const impersonate = (userId) => {
                         </Select>
                         <p v-if="userForm.errors.tier" class="text-xs text-destructive">{{ userForm.errors.tier }}</p>
                     </div>
+
+                    <template v-if="userModalMode === 'create'">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <Label>Account active</Label>
+                                <p class="text-xs text-muted-foreground">Inactive accounts can't sign in.</p>
+                            </div>
+                            <Switch v-model="userForm.is_active" :class="userForm.is_active ? '!bg-green-500' : '!bg-gray-300'" />
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <Label>Verified Partner</Label>
+                                <p class="text-xs text-muted-foreground">Unlocks discounted partner pricing.</p>
+                            </div>
+                            <Switch v-model="userForm.is_verified_partner" :class="userForm.is_verified_partner ? '!bg-[#F5A000]' : '!bg-gray-300'" />
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <Label>Grant a Story Pack <span class="text-muted-foreground font-normal">(optional)</span></Label>
+                            <Select :model-value="userForm.pack_id" @update:model-value="val => userForm.pack_id = val">
+                                <SelectTrigger class="w-full"><SelectValue placeholder="— No pack —" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="pack in creditPacks"
+                                        :key="pack.id"
+                                        :value="String(pack.id)"
+                                    >{{ pack.label }} — {{ pack.credits }} credits ({{ pack.type }})</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p v-if="userForm.errors.pack_id" class="text-xs text-destructive">{{ userForm.errors.pack_id }}</p>
+                            <p class="text-xs text-muted-foreground">Adds the pack's credits to the new user's wallet as a free grant.</p>
+                        </div>
+                    </template>
 
                     <p v-if="userModalMode === 'create'" class="text-xs" style="color: #888888;">A password reset link will be emailed to the user automatically.</p>
                 </div>

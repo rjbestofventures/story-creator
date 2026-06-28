@@ -41,6 +41,7 @@ const getEditForm = (pack) => {
             label:           pack.label,
             type:            pack.type,
             credits:         pack.credits,
+            max_episodes:    pack.max_episodes,
             price_dollars:   pack.price_dollars,
             stripe_price_id: pack.stripe_price_id ?? '',
             is_active:       pack.is_active,
@@ -74,6 +75,7 @@ const newForm = useForm({
     label:           '',
     type:            'storybot',
     credits:         48,
+    max_episodes:    24,
     price_dollars:   180,
     stripe_price_id: '',
 });
@@ -266,7 +268,7 @@ const editDialogOpen = computed({
 
                     <Separator />
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-3 gap-3">
                         <div class="space-y-1.5">
                             <Label class="text-xs">StoryBot Credits</Label>
                             <Input v-model.number="getEditForm(editingPack).credits" type="number" min="1" class="text-center" />
@@ -274,6 +276,17 @@ const editDialogOpen = computed({
                         <div class="space-y-1.5">
                             <Label class="text-xs">Price ($, one-time)</Label>
                             <Input v-model.number="getEditForm(editingPack).price_dollars" type="number" min="0" step="0.01" class="text-center" />
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label class="text-xs">Episodes / story</Label>
+                            <Select :model-value="String(getEditForm(editingPack).max_episodes)" @update:model-value="val => getEditForm(editingPack).max_episodes = Number(val)">
+                                <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="12">12</SelectItem>
+                                    <SelectItem value="18">12, 18</SelectItem>
+                                    <SelectItem value="24">12, 18, 24</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 
@@ -344,7 +357,7 @@ const editDialogOpen = computed({
 
                     <Separator />
 
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-3 gap-3">
                         <div class="space-y-1.5">
                             <Label class="text-xs">StoryBot Credits</Label>
                             <Input v-model.number="newForm.credits" type="number" min="1" class="text-center" />
@@ -352,6 +365,17 @@ const editDialogOpen = computed({
                         <div class="space-y-1.5">
                             <Label class="text-xs">Price ($, one-time)</Label>
                             <Input v-model.number="newForm.price_dollars" type="number" min="0" step="0.01" class="text-center" />
+                        </div>
+                        <div class="space-y-1.5">
+                            <Label class="text-xs">Episodes / story</Label>
+                            <Select :model-value="String(newForm.max_episodes)" @update:model-value="val => newForm.max_episodes = Number(val)">
+                                <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="12">12</SelectItem>
+                                    <SelectItem value="18">12, 18</SelectItem>
+                                    <SelectItem value="24">12, 18, 24</SelectItem>
+                                </SelectContent>
+                            </Select>
                         </div>
                     </div>
 

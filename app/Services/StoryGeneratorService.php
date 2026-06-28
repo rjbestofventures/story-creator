@@ -62,7 +62,7 @@ Layer 3 — What They Do Now:
 Bring the story into the present. Connect the past experience directly to what the narrator does today and how they do it. The reader should understand clearly what problem this person solves and who they solve it for. It must never feel like a pitch. It should feel like the natural conclusion of the story that came before it.
 
 Layer 4 — The Invisible Invitation:
-End every episode by inviting response and opening the door to dialogue. Do not include specific calls to buy, book, or sign up. The closing line should feel like the narrator is reflecting quietly to themselves. It should never sound like it is addressed to the reader directly.
+End every episode with a call to action, without exception. Keep it subtle and indirect. It does not need to be obvious or direct, and it never reads as a pitch. Draw the invitation from the central thought of that specific episode so it feels earned rather than bolted on. Do not include specific calls to buy, book, or sign up. The closing line should feel like the narrator is reflecting quietly to themselves while still gently moving the reader toward a response or a next step. It should never sound like it is addressed to the reader directly.
 
 Wrong closing: "If you are struggling with your brand story, reach out and let us talk."
 Wrong closing: "DM me if any of this resonates."
@@ -86,6 +86,9 @@ VOICE AND IMMERSION RULES:
 AUTHENTICITY:
 Never fabricate facts, achievements, statistics, or specific details. Use only what the person actually said in their interview answers. If an answer was short or vague, write around it using atmosphere, feeling, and implication rather than inventing specifics.
 Treat the business described in the responses as unique. No two businesses are alike even when they provide the exact same service. Preserve the owner's history, experiences, mentors, and intangible influences as provided. Do not generalize or rewrite responses into generic industry language.
+
+HUMILITY:
+Keep the narrator genuinely humble throughout. Credit mentors, teammates, luck, and the people served rather than claiming sole credit. Acknowledge doubt, mistakes, and things still being learned. Let competence show through actions and outcomes, never through self-praise or proving a point. When the choice is between sounding impressive and sounding honest, choose honest, and when in doubt, understate. A humble narrator earns more trust than a polished one.
 
 LANGUAGE RULES:
 - Never use em dashes under any circumstances.
@@ -256,7 +259,7 @@ Original episode:
 
 Task: {$instruction}
 
-Return only the rewritten episode text. Preserve the first-person present tense voice throughout. No labels, no commentary, no title — just the episode body.
+Return only the rewritten episode text. Preserve the first-person present tense voice throughout. Do not use em dashes or en dashes anywhere in the output; use commas, periods, or new sentences instead, so the writing reads as naturally human. No labels, no commentary, no title. Just the episode body.
 PROMPT;
 
         $model = SiteSetting::get('generation_model', 'claude-sonnet-4-6');
@@ -294,10 +297,19 @@ PROMPT;
         ]);
 
         return [
-            'content' => trim($refined),
+            'content' => $this->stripDashes(trim($refined)),
             '_tokens_input' => $response->usage->inputTokens + $cacheCreate + $cacheRead,
             '_tokens_output' => $response->usage->outputTokens,
         ];
+    }
+
+    /**
+     * Em and en dashes read as AI-written. Collapse them into natural punctuation
+     * so refined copy stays human and persuasive.
+     */
+    private function stripDashes(string $text): string
+    {
+        return preg_replace('/\s*[—–]\s*/u', ', ', $text);
     }
 
     public function saveToStory(BusinessProfile $profile, array $generated, string $format = 'social'): Story
@@ -313,8 +325,8 @@ PROMPT;
             Episode::create([
                 'story_id' => $story->id,
                 'episode_number' => $ep['episode_number'],
-                'title' => $ep['title'],
-                'content' => $ep['content'],
+                'title' => $this->stripDashes($ep['title']),
+                'content' => $this->stripDashes($ep['content']),
                 'format' => $format,
                 'status' => 'draft',
             ]);

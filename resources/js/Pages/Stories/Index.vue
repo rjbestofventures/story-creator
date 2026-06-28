@@ -24,7 +24,9 @@ const props = defineProps({
 });
 
 const creditBalance  = computed(() => props.credits ?? 0);
-const canCreateStory = computed(() => props.isAdmin || creditBalance.value > 0);
+// Smallest story is 12 episodes (1 credit each), so below 12 a new story can't be afforded.
+const MIN_STORY_CREDITS = 12;
+const canCreateStory = computed(() => props.isAdmin || creditBalance.value >= MIN_STORY_CREDITS);
 
 // Format labels
 const formatLabel = {
@@ -86,7 +88,7 @@ const confirmDelete = () => {
                     <Link v-else :href="route('shop.index')">
                         <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
                             <ShoppingBag class="w-4 h-4" />
-                            Buy Story Credits
+                            Buy StoryBot Credits
                         </Button>
                     </Link>
                 </div>
@@ -123,7 +125,7 @@ const confirmDelete = () => {
                         <Link v-if="!isAdmin" :href="route('shop.index')">
                             <Button class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer">
                                 <ShoppingBag class="w-4 h-4 text-[#F5A000]" />
-                                Buy Credits
+                                Buy StoryBot Credits
                             </Button>
                         </Link>
                     </div>
@@ -146,7 +148,7 @@ const confirmDelete = () => {
                             class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
                         >
                             <ShoppingBag class="w-4 h-4" />
-                            Buy Story Credits
+                            Buy StoryBot Credits
                         </Button>
                     </Link>
                 </div>
@@ -285,13 +287,13 @@ const confirmDelete = () => {
                     <div class="flex items-start gap-3">
                         <Zap class="w-5 h-5 text-[#F5A000] flex-shrink-0 mt-0.5" />
                         <div>
-                            <p class="text-sm font-semibold text-[#1A1A1A]">You're out of credits</p>
-                            <p class="text-sm text-[#555555] mt-0.5">Buy credits to generate or refine more episodes.</p>
+                            <p class="text-sm font-semibold text-[#1A1A1A]">You're out of StoryBot credits</p>
+                            <p class="text-sm text-[#555555] mt-0.5">Buy StoryBot credits to generate or refine more episodes.</p>
                         </div>
                     </div>
                     <Link :href="route('shop.index')" class="shrink-0">
                         <Button class="text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0">
-                            Buy More Credits
+                            Buy More StoryBot Credits
                         </Button>
                     </Link>
                 </div>

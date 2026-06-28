@@ -210,7 +210,7 @@ const packFeatures = (pack) => [
                         <div>
                             <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Partner Program</span>
                             <h3 class="text-2xl font-black text-white">Verified Business Partner</h3>
-                            <p class="text-sm mb-1" style="color: #888888;">Complimentary story credits for
+                            <p class="text-sm mb-1" style="color: #888888;">Complimentary StoryBot credits for
                                 <span class="font-bold text-2xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Verified Local Businesses</span>
                             </p>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1 mt-3">
@@ -253,11 +253,20 @@ const packFeatures = (pack) => [
                         <p class="text-xs mb-5" style="color: #555555;">{{ pack.credits }} credits · 12, 18 or 24 episodes per story</p>
 
                         <Link
+                            v-if="pack.type !== 'partner'"
                             :href="route('register')"
                             class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:opacity-90"
                             style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
                             Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                        </Link>
+                        <Link
+                            v-else
+                            :href="route('partner')"
+                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:bg-amber-50"
+                            style="border: 2px solid #F5A000; color: #1A1A1A;"
+                        >
+                            For verified partners <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </Link>
 
                         <ul class="flex flex-col gap-2.5">

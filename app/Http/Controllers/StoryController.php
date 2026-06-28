@@ -557,6 +557,7 @@ class StoryController extends Controller
 
         $episode->update(['content' => $refined['content']]);
 
+        $story->increment('refines_used');
         $story->increment('tokens_input', $refined['_tokens_input'] ?? 0);
         $story->increment('tokens_output', $refined['_tokens_output'] ?? 0);
 

@@ -493,6 +493,20 @@ const submit = () => {
     });
 };
 
+const confirmGenerateOpen = ref(false);
+
+const requestGenerate = () => {
+    // Demo has no cost, and an unaffordable choice routes straight to the shop —
+    // only confirm when real credits are about to be spent.
+    if (isDemoMode.value || !canAffordSelected.value) { submit(); return; }
+    confirmGenerateOpen.value = true;
+};
+
+const confirmGenerate = () => {
+    confirmGenerateOpen.value = false;
+    submit();
+};
+
 // ─── Back navigation ─────────────────────────────────────────────────────────
 const goBack = () => {
     if (phase.value > 0) {
@@ -618,7 +632,6 @@ const formats = [
                             <div class="space-y-2">
                                 <Label for="business_url" class="text-[#1A1A1A] font-semibold">
                                     Website
-                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
                                 </Label>
                                 <Input
                                     id="business_url"
@@ -645,7 +658,6 @@ const formats = [
                             <div class="space-y-2">
                                 <Label for="linkedin_url" class="text-[#1A1A1A] font-semibold">
                                     LinkedIn
-                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
                                 </Label>
                                 <Input
                                     id="linkedin_url"
@@ -657,7 +669,6 @@ const formats = [
                             <div class="space-y-2">
                                 <Label for="social_url" class="text-[#1A1A1A] font-semibold">
                                     Facebook / Instagram
-                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
                                 </Label>
                                 <Input
                                     id="social_url"
@@ -961,18 +972,18 @@ const formats = [
                         <div class="bg-amber-50 rounded-xl p-4 border border-amber-100">
                             <p class="text-sm font-medium text-[#1A1A1A]">
                                 ✨ Generating
-                                <span class="text-[#F5A000] font-bold">{{ episodeCount }} {{ format }}</span>
+                                <span class="text-[#F5A000] font-bold">{{ episodeCount }} Story</span>
                                 episodes for
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
                             <p class="text-xs text-[#555555] mt-1">
-                                <template v-if="!isUnlimited">Uses {{ episodeCount }} credits · </template>Takes up to 1 minute
+                                <template v-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes up to 1 minute
                             </p>
                         </div>
 
                         <Button
                             type="button"
-                            @click="submit"
+                            @click="requestGenerate"
                             class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-12 rounded-xl transition-all duration-300 cursor-pointer"
                         >
                             <Sparkles class="w-4 h-4" />
@@ -1004,6 +1015,36 @@ const formats = [
                         class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
                     >
                         Yes, start my interview
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Generate confirmation -->
+        <Dialog v-model:open="confirmGenerateOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+                        <Sparkles class="w-5 h-5 text-[#F5A000]" />
+                    </div>
+                    <DialogTitle class="text-[#1A1A1A]">Generate your story?</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        StoryBot will generate
+                        <strong class="text-[#1A1A1A]">{{ episodeCount }} episodes</strong>
+                        for <strong class="text-[#1A1A1A]">{{ basics.business_name }}</strong>.
+                        <template v-if="!isUnlimited">
+                            This costs <strong class="text-[#1A1A1A]">{{ episodeCount }} StoryBot credit{{ episodeCount === 1 ? '' : 's' }}</strong>
+                            (1 per episode), leaving you {{ creditBalance - episodeCount }}.
+                        </template>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="confirmGenerateOpen = false" class="cursor-pointer">Cancel</Button>
+                    <Button
+                        @click="confirmGenerate"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Yes, generate
                     </Button>
                 </DialogFooter>
             </DialogContent>

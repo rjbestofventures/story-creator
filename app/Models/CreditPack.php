@@ -7,13 +7,14 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CreditPack extends Model
 {
-    protected $fillable = ['slug', 'label', 'type', 'credits', 'price', 'stripe_price_id', 'is_active'];
+    protected $fillable = ['slug', 'label', 'type', 'credits', 'max_episodes', 'price', 'stripe_price_id', 'is_active'];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
             'credits' => 'integer',
+            'max_episodes' => 'integer',
         ];
     }
 

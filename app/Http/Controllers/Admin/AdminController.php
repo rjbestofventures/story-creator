@@ -8,6 +8,7 @@ use App\Models\CreditPack;
 use App\Models\SiteSetting;
 use App\Models\Story;
 use App\Models\User;
+use App\Models\UserCredit;
 use App\Notifications\AccountCreatedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -51,7 +52,8 @@ class AdminController extends Controller
             'creditPacks' => $creditPacks,
             'stats' => [
                 'users' => User::count(),
-                'stories' => 0,
+                'stories' => Story::count(),
+                'sold_packs' => UserCredit::where('source', 'online')->count(),
             ],
         ]);
     }
@@ -59,13 +61,14 @@ class AdminController extends Controller
     public function packsIndex(): Response
     {
         $packs = CreditPack::orderBy('type')->orderBy('price')
-            ->get(['id', 'slug', 'label', 'type', 'credits', 'price', 'stripe_price_id', 'is_active'])
+            ->get(['id', 'slug', 'label', 'type', 'credits', 'max_episodes', 'price', 'stripe_price_id', 'is_active'])
             ->map(fn (CreditPack $pack) => [
                 'id' => $pack->id,
                 'slug' => $pack->slug,
                 'label' => $pack->label,
                 'type' => $pack->type,
                 'credits' => $pack->credits,
+                'max_episodes' => $pack->max_episodes,
                 'price_dollars' => $pack->price / 100,
                 'stripe_price_id' => $pack->stripe_price_id,
                 'is_active' => $pack->is_active,
@@ -344,10 +347,15 @@ class AdminController extends Controller
 
     public function storeUser(Request $request)
     {
+        $request->merge(['pack_id' => $request->input('pack_id') ?: null]);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'tier' => 'required|in:super_admin,admin,user',
+            'is_active' => 'required|boolean',
+            'is_verified_partner' => 'required|boolean',
+            'pack_id' => 'nullable|exists:credit_packs,id',
         ]);
 
         $user = User::create([
@@ -355,9 +363,15 @@ class AdminController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make(Str::random(32)),
             'email_verified_at' => now(),
+            'is_active' => $validated['is_active'],
+            'is_verified_partner' => $validated['is_verified_partner'],
         ]);
 
         $user->assignRole($validated['tier']);
+
+        if (! empty($validated['pack_id'])) {
+            CreditPack::findOrFail($validated['pack_id'])->grantTo($user);
+        }
 
         $token = Password::createToken($user);
         $user->notify(new AccountCreatedNotification($token));
@@ -481,6 +495,7 @@ class AdminController extends Controller
             'label' => 'required|string|max:100',
             'type' => 'required|in:partner,storybot,addon',
             'credits' => 'required|integer|min:1',
+            'max_episodes' => 'required|integer|in:12,18,24',
             'price_dollars' => 'required|numeric|min:0',
             'stripe_price_id' => 'nullable|string|max:255',
         ]);
@@ -497,6 +512,7 @@ class AdminController extends Controller
             'label' => $validated['label'],
             'type' => $validated['type'],
             'credits' => $validated['credits'],
+            'max_episodes' => $validated['max_episodes'],
             'price' => (int) round($validated['price_dollars'] * 100),
             'stripe_price_id' => $validated['stripe_price_id'] ?: null,
             'is_active' => true,
@@ -511,6 +527,7 @@ class AdminController extends Controller
             'label' => 'required|string|max:100',
             'type' => 'required|in:partner,storybot,addon',
             'credits' => 'required|integer|min:1',
+            'max_episodes' => 'required|integer|in:12,18,24',
             'price_dollars' => 'required|numeric|min:0',
             'stripe_price_id' => 'nullable|string|max:255',
             'is_active' => 'required|boolean',
@@ -520,6 +537,7 @@ class AdminController extends Controller
             'label' => $validated['label'],
             'type' => $validated['type'],
             'credits' => $validated['credits'],
+            'max_episodes' => $validated['max_episodes'],
             'price' => (int) round($validated['price_dollars'] * 100),
             'stripe_price_id' => $validated['stripe_price_id'] ?: null,
             'is_active' => $validated['is_active'],
