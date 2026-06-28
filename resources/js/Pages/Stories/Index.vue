@@ -8,23 +8,23 @@ import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/Components/ui/dialog';
 import {
+    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/Components/ui/tooltip';
+import {
     Sparkles, BookOpen, Plus, Trash2, ChevronRight,
-    Zap, RefreshCcw, Calendar, FileText, MessageSquare, Clock, ShoppingBag
+    Zap, Calendar, FileText, MessageSquare, Clock, ShoppingBag, CircleHelp
 } from 'lucide-vue-next';
 
 const props = defineProps({
     stories:             Array,
-    profile:             Object,
-    availablePackCounts: Array,
-    refineCredits:       Number,
-    isAdmin:             Boolean,
-    adminRole:           String,
+    profile:   Object,
+    credits:   { type: Number, default: null },
+    isAdmin:   Boolean,
+    adminRole: String,
 });
 
-const totalAvailablePacks = computed(() =>
-    props.availablePackCounts?.reduce((sum, g) => sum + g.count, 0) ?? 0
-);
-const canCreateStory = computed(() => props.isAdmin || totalAvailablePacks.value > 0);
+const creditBalance  = computed(() => props.credits ?? 0);
+const canCreateStory = computed(() => props.isAdmin || creditBalance.value > 0);
 
 // Format labels
 const formatLabel = {
@@ -95,46 +95,37 @@ const confirmDelete = () => {
             <div class="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
                 <!-- Stats row -->
-                <div class="grid grid-cols-2 gap-4">
-                    <!-- Available story packs -->
-                    <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <Zap class="w-4 h-4 text-[#F5A000]" />
-                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Story Packs</span>
-                        </div>
-                        <div v-if="isAdmin" class="text-2xl font-black text-[#1A1A1A]">∞</div>
-                        <template v-else-if="totalAvailablePacks === 0">
-                            <div class="text-2xl font-black text-[#1A1A1A]">0</div>
-                            <Link
-                                :href="route('shop.index')"
-                                class="inline-flex items-center gap-1 mt-1 text-xs font-bold text-[#F5A000] hover:underline"
-                            >
-                                <ShoppingBag class="w-3 h-3" /> Buy story credits
-                            </Link>
-                        </template>
-                        <template v-else>
-                            <div class="space-y-1">
-                                <div
-                                    v-for="group in availablePackCounts"
-                                    :key="group.pack.id"
-                                    class="flex items-center justify-between"
-                                >
-                                    <span class="text-sm font-semibold text-[#1A1A1A]">{{ group.pack.label }}</span>
-                                    <span class="text-sm font-black text-[#F5A000]">×{{ group.count }}</span>
-                                </div>
+                <div class="grid grid-cols-1 gap-4">
+                    <!-- StoryBot credits -->
+                    <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4 flex items-center justify-between">
+                        <div>
+                            <div class="flex items-center gap-2 mb-1">
+                                <Zap class="w-4 h-4 text-[#F5A000]" />
+                                <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">StoryBot Credits</span>
+                                <TooltipProvider>
+                                    <Tooltip :delay-duration="100">
+                                        <TooltipTrigger as-child>
+                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help transition-colors" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="bottom" class="max-w-xs p-3">
+                                            <p class="text-xs leading-relaxed">
+                                                Credits power everything. <strong>1 credit generates 1 episode</strong>, and
+                                                <strong>1 credit refines or redoes</strong> an episode. Choose 12, 18, or 24 episodes per story.
+                                                Credits never expire.
+                                            </p>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </TooltipProvider>
                             </div>
-                            <div class="text-xs text-[#555555] mt-1">available</div>
-                        </template>
-                    </div>
-
-                    <!-- Revision credits -->
-                    <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
-                        <div class="flex items-center gap-2 mb-1">
-                            <RefreshCcw class="w-4 h-4 text-[#F5A000]" />
-                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Revision Credits</span>
+                            <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</div>
+                            <div class="text-xs text-[#555555] mt-0.5">1 credit = 1 episode (generate or refine)</div>
                         </div>
-                        <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : (refineCredits ?? 0) }}</div>
-                        <div class="text-xs text-[#555555] mt-0.5">remaining</div>
+                        <Link v-if="!isAdmin" :href="route('shop.index')">
+                            <Button class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer">
+                                <ShoppingBag class="w-4 h-4 text-[#F5A000]" />
+                                Buy Credits
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
@@ -286,16 +277,16 @@ const confirmDelete = () => {
                     </div>
                 </div>
 
-                <!-- No packs notice (non-admin users only) -->
+                <!-- Out of credits notice (non-admin users only) -->
                 <div
-                    v-if="!isAdmin && totalAvailablePacks === 0 && stories.length > 0"
+                    v-if="!isAdmin && creditBalance === 0 && stories.length > 0"
                     class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start justify-between gap-4"
                 >
                     <div class="flex items-start gap-3">
                         <Zap class="w-5 h-5 text-[#F5A000] flex-shrink-0 mt-0.5" />
                         <div>
-                            <p class="text-sm font-semibold text-[#1A1A1A]">You're out of story credits</p>
-                            <p class="text-sm text-[#555555] mt-0.5">Purchase a pack to create your next story.</p>
+                            <p class="text-sm font-semibold text-[#1A1A1A]">You're out of credits</p>
+                            <p class="text-sm text-[#555555] mt-0.5">Buy credits to generate or refine more episodes.</p>
                         </div>
                     </div>
                     <Link :href="route('shop.index')" class="shrink-0">

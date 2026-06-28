@@ -5,13 +5,18 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/Components/ui/dialog';
+import {
     ArrowLeft, Copy, Check, Sparkles, Loader2, Plus,
-    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight, Pencil,
+    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight, Pencil, RefreshCcw,
 } from 'lucide-vue-next';
 
 const props = defineProps({
     story: Object,
     canCreateStory: Boolean,
+    isAdmin: Boolean,
+    credits: { type: Number, default: null },
 });
 
 const isDemo       = props.story.is_demo ?? false;
@@ -240,6 +245,23 @@ const persistRefineInstruction = (ep, value) => {
 
 const refineError = ref(null);
 
+// ─── Refine confirmation (each refine costs 1 credit) ─────────────────────────
+const confirmRefineOpen = ref(false);
+const pendingRefine     = ref(null);
+
+const requestRefine = (fn) => {
+    if (isDemo) { fn(); return; } // demo never charges
+    pendingRefine.value     = fn;
+    confirmRefineOpen.value = true;
+};
+
+const confirmRefine = () => {
+    confirmRefineOpen.value = false;
+    const fn = pendingRefine.value;
+    pendingRefine.value = null;
+    if (fn) fn();
+};
+
 const applyTone = async (ep, toneKey) => {
     refineError.value = null;
     await saveEdit(ep);
@@ -406,7 +428,7 @@ const restoreRevision = async (ep) => {
                         <ArrowLeft class="w-4 h-4" />
                         My Stories
                     </Link>
-                    <Link :href="isDemo ? route('billing.plans') : route('stories.create')">
+                    <Link :href="isDemo ? route('shop.index') : route('stories.create')">
                         <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-9 px-4 rounded-xl text-sm transition-all duration-300 cursor-pointer">
                             <Sparkles v-if="isDemo" class="w-3.5 h-3.5" />
                             <Plus v-else class="w-3.5 h-3.5" />
@@ -423,7 +445,7 @@ const restoreRevision = async (ep) => {
                         <span class="font-semibold text-[#1A1A1A]">This is a demo story.</span>
                         It shows you exactly what StoryCreator.Bot generates with a Paid Subscription Story Generation.
                     </p>
-                    <Link :href="route('billing.plans')" class="flex-shrink-0">
+                    <Link :href="route('shop.index')" class="flex-shrink-0">
                         <Button class="flex items-center gap-1.5 text-xs font-bold h-8 px-3 rounded-lg bg-[#F5A000] hover:bg-[#e09600] text-white cursor-pointer transition-colors">
                             Create yours
                             <ArrowRight class="w-3 h-3" />
@@ -563,7 +585,7 @@ const restoreRevision = async (ep) => {
                                     :disabled="restoring === ep.id"
                                     class="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50"
                                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                                    @click="restoreRevision(ep)"
+                                    @click="requestRefine(() => restoreRevision(ep))"
                                 >
                                     <Loader2 v-if="restoring === ep.id" class="w-3 h-3 animate-spin" />
                                     <RotateCcw v-else class="w-3 h-3" />
@@ -608,7 +630,7 @@ const restoreRevision = async (ep) => {
                                         :key="opt.key"
                                         type="button"
                                         :disabled="toningEpId === ep.id"
-                                        @click="applyTone(ep, opt.key)"
+                                        @click="requestRefine(() => applyTone(ep, opt.key))"
                                         class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
                                         :class="toningEpId === ep.id && toningId === opt.key
                                             ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50 opacity-100'
@@ -630,7 +652,7 @@ const restoreRevision = async (ep) => {
                                         :key="opt.key"
                                         type="button"
                                         :disabled="toningEpId === ep.id"
-                                        @click="applyTone(ep, opt.key)"
+                                        @click="requestRefine(() => applyTone(ep, opt.key))"
                                         class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
                                         :class="toningEpId === ep.id && toningId === opt.key
                                             ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50 opacity-100'
@@ -654,7 +676,7 @@ const restoreRevision = async (ep) => {
                                     <button
                                         type="button"
                                         :disabled="toningEpId === ep.id || !customInstructions[ep.id]?.trim()"
-                                        @click="applyCustomRefine(ep)"
+                                        @click="requestRefine(() => applyCustomRefine(ep))"
                                         class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed shrink-0"
                                         :class="toningEpId === ep.id && toningId === 'custom'
                                             ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50'
@@ -681,7 +703,7 @@ const restoreRevision = async (ep) => {
                         <p class="text-[#555555] mb-6 max-w-md mx-auto">
                             Pick a plan and StoryCreator.Bot will interview you, then generate a story library just like this — but yours.
                         </p>
-                        <Link :href="route('billing.plans')">
+                        <Link :href="route('shop.index')">
                             <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
                                 <Sparkles class="w-4 h-4" />
                                 Choose a Plan
@@ -702,10 +724,10 @@ const restoreRevision = async (ep) => {
                             </Link>
                         </template>
                         <template v-else>
-                            <p class="text-sm text-[#555555] mb-4">You've used all your story credits for this plan.</p>
-                            <Link :href="route('billing.plans')">
+                            <p class="text-sm text-[#555555] mb-4">You're out of credits. Top up to generate or refine more.</p>
+                            <Link :href="route('shop.index')">
                                 <Button class="inline-flex items-center gap-2 bg-white border border-[#DDDDDD] text-[#1A1A1A] font-bold h-11 px-8 rounded-xl hover:bg-[#F5F5F5] transition-all duration-300 cursor-pointer">
-                                    Upgrade Plan
+                                    Buy Credits
                                 </Button>
                             </Link>
                         </template>
@@ -714,6 +736,37 @@ const restoreRevision = async (ep) => {
 
             </div>
         </div>
+
+        <!-- Refine confirmation -->
+        <Dialog v-model:open="confirmRefineOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+                        <RefreshCcw class="w-5 h-5 text-[#F5A000]" />
+                    </div>
+                    <DialogTitle class="text-[#1A1A1A]">Refine this episode?</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        <template v-if="isAdmin">
+                            This will rewrite the episode. The current version is saved to history so you can restore it.
+                        </template>
+                        <template v-else>
+                            This will rewrite the episode and <strong class="text-[#1A1A1A]">cost 1 StoryBot credit</strong>.
+                            The current version is saved to history so you can restore it.
+                            <span class="block mt-1 text-xs text-[#888888]">You have {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining.</span>
+                        </template>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="confirmRefineOpen = false" class="cursor-pointer">Cancel</Button>
+                    <Button
+                        @click="confirmRefine"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Yes, refine it
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
 
     </AuthenticatedLayout>
 </template>

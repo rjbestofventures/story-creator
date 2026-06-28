@@ -7,13 +7,13 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class CreditPack extends Model
 {
-    protected $fillable = ['slug', 'label', 'stories_count', 'price', 'episode_limit', 'revision_credits', 'stripe_price_id', 'is_active'];
+    protected $fillable = ['slug', 'label', 'type', 'credits', 'price', 'stripe_price_id', 'is_active'];
 
     protected function casts(): array
     {
         return [
             'is_active' => 'boolean',
-            'stories_count' => 'integer',
+            'credits' => 'integer',
         ];
     }
 
@@ -23,27 +23,22 @@ class CreditPack extends Model
     }
 
     /**
-     * Grant this pack to a user: create one story credit per story the pack
-     * includes, and add the pack's revision credits to the user's wallet once.
+     * Grant this pack to a user: record a ledger entry and add its credits
+     * to the user's wallet.
      */
-    public function grantTo(User $user, ?string $stripeSessionId = null): void
+    public function grantTo(User $user, ?string $stripeSessionId = null, ?int $amountPaid = null): void
     {
-        $count = max(1, $this->stories_count);
-        $purchasedAt = now();
+        UserCredit::create([
+            'user_id' => $user->id,
+            'credit_pack_id' => $this->id,
+            'credits_granted' => $this->credits,
+            'amount_paid' => $amountPaid,
+            'source' => $stripeSessionId ? 'online' : 'grant',
+            'stripe_checkout_session_id' => $stripeSessionId,
+            'purchased_at' => now(),
+        ]);
 
-        for ($i = 0; $i < $count; $i++) {
-            UserCredit::create([
-                'user_id' => $user->id,
-                'credit_pack_id' => $this->id,
-                'episode_limit' => $this->episode_limit,
-                'revision_credits_granted' => $i === 0 ? $this->revision_credits : 0,
-                'stripe_checkout_session_id' => $i === 0 ? $stripeSessionId : null,
-                'status' => 'available',
-                'purchased_at' => $purchasedAt,
-            ]);
-        }
-
-        $user->increment('refine_credits', $this->revision_credits);
+        $user->increment('credits', $this->credits);
     }
 
     public function formattedPrice(): string
@@ -54,5 +49,20 @@ class CreditPack extends Model
     public function scopeActive($query)
     {
         return $query->where('is_active', true);
+    }
+
+    public function scopeOfType($query, string $type)
+    {
+        return $query->where('type', $type);
+    }
+
+    /**
+     * The main-pack type a given user should see in the shop.
+     * Centralized so partner pricing can be exposed publicly later by
+     * changing this single rule.
+     */
+    public static function audienceType(?User $user): string
+    {
+        return $user?->is_verified_partner ? 'partner' : 'storybot';
     }
 }

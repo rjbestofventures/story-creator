@@ -6,12 +6,16 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil } from 'lucide-vue-next';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/Components/ui/dialog';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle } from 'lucide-vue-next';
 
 const props = defineProps({
     profile:         Object,
     story:           Object,
-    available_packs: Array,
+    credits:         { type: Number, default: null },
+    episode_options: { type: Array, default: () => [12, 18, 24] },
 });
 
 // ─── Phase: 0 = basics, 1 = AI chat, 2 = generate options ───────────────────
@@ -166,28 +170,33 @@ const enrichedDisplayLog = computed(() => {
 });
 
 // ─── Generate options ─────────────────────────────────────────────────────────
-const format         = ref('social');
-const selectedCreditId = ref(null);
+const format = ref('social');
 
-// Auto-select first available credit on mount (can be overridden by user)
-const initSelectedCredit = () => {
-    const first = props.available_packs?.[0];
-    if (first?.credit_ids?.length) selectedCreditId.value = first.credit_ids[0];
+const isUnlimited   = computed(() => props.credits === null); // admins
+const creditBalance = computed(() => props.credits ?? 0);
+const episodeOptions = computed(() => props.episode_options ?? [12, 18, 24]);
+
+// Selected episode count: default to the largest the user can afford.
+const selectedEpisodes = ref(null);
+
+const affordable = (count) => isUnlimited.value || creditBalance.value >= count;
+
+const initEpisodeChoice = () => {
+    const opts = episodeOptions.value;
+    const best = [...opts].reverse().find(affordable);
+    selectedEpisodes.value = best ?? opts[0];
 };
-
-const selectedPack = computed(() => {
-    if (!selectedCreditId.value || !props.available_packs) return null;
-    return props.available_packs.find(g => g.credit_ids.includes(selectedCreditId.value)) ?? null;
-});
 
 const episodeCount = computed(() => {
     if (isDemoMode.value) return 3;
-    return selectedPack.value?.credit_pack?.episode_limit ?? props.available_packs?.[0]?.credit_pack?.episode_limit ?? 12;
+    return selectedEpisodes.value ?? episodeOptions.value[0];
 });
 
+const canAffordSelected = computed(() => isUnlimited.value || creditBalance.value >= episodeCount.value);
+
 const storeForm = useForm({
-    format:    'social',
-    credit_id: null,
+    format:        'social',
+    episode_count: null,
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -329,6 +338,19 @@ const saveProgress = async (status = null) => {
 };
 
 // ─── Start interview ──────────────────────────────────────────────────────────
+const confirmStartOpen = ref(false);
+
+const requestStartInterview = () => {
+    if (!canStartInterview.value) return;
+    if (isDemoMode.value) { startInterview(); return; }
+    confirmStartOpen.value = true;
+};
+
+const confirmStartInterview = () => {
+    confirmStartOpen.value = false;
+    startInterview();
+};
+
 const startInterview = async () => {
     if (!canStartInterview.value) return;
 
@@ -389,7 +411,7 @@ const startInterview = async () => {
 
 // ─── Restore on mount (DB only) ──────────────────────────────────────────────
 onMounted(async () => {
-    initSelectedCredit();
+    initEpisodeChoice();
     localStorage.removeItem('sc_interview_session');
     if (props.story) {
         storyId.value = props.story.id;
@@ -454,16 +476,16 @@ const submit = () => {
         return;
     }
 
-    if (!selectedCreditId.value) {
+    if (!canAffordSelected.value) {
         router.visit(route('shop.index'), {
-            data: { notice: 'Purchase a story pack to generate your story. Your interview answers are saved.' },
+            data: { notice: 'You need more credits to generate this story. Your interview answers are saved.' },
         });
         return;
     }
 
-    generateError.value   = '';
-    storeForm.format      = format.value;
-    storeForm.credit_id   = selectedCreditId.value;
+    generateError.value      = '';
+    storeForm.format         = format.value;
+    storeForm.episode_count  = episodeCount.value;
     storeForm.post(route('stories.generate', storyId.value), {
         onError: () => {
             generateError.value = 'Something went wrong generating your story. Please try again.';
@@ -588,7 +610,7 @@ const formats = [
                                 v-model="basics.business_name"
                                 placeholder="e.g. Bright Path Consulting"
                                 class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                @keyup.enter="startInterview"
+                                @keyup.enter="requestStartInterview"
                             />
                         </div>
                         <p class="text-xs text-[#555555]">Add at least one link so StoryBot can learn more about your business. <span class="text-red-500">*</span></p>
@@ -667,7 +689,7 @@ const formats = [
                         <Button
                             type="button"
                             :disabled="!canStartInterview"
-                            @click="startInterview"
+                            @click="requestStartInterview"
                             class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-12 rounded-xl transition-all duration-300 cursor-pointer disabled:opacity-40 mt-2"
                         >
                             Start My Interview
@@ -875,35 +897,37 @@ const formats = [
 
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-8">
 
-                        <!-- Credit Pack Selection (only when multiple types available) -->
-                        <div v-if="available_packs && available_packs.length > 1" class="space-y-3">
-                            <Label class="text-[#1A1A1A] font-bold text-base block">Choose Story Pack</Label>
-                            <div class="space-y-2">
+                        <!-- Episode count chooser -->
+                        <div v-if="!isDemoMode" class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <Label class="text-[#1A1A1A] font-bold text-base block">How many episodes?</Label>
+                                <span v-if="!isUnlimited" class="text-xs font-semibold text-[#555555]">
+                                    {{ creditBalance }} credit{{ creditBalance === 1 ? '' : 's' }} available
+                                </span>
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
                                 <button
-                                    v-for="group in available_packs"
-                                    :key="group.credit_pack.id"
+                                    v-for="count in episodeOptions"
+                                    :key="count"
                                     type="button"
-                                    @click="selectedCreditId = group.credit_ids[0]"
-                                    class="w-full flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all duration-200 cursor-pointer"
-                                    :class="selectedCreditId === group.credit_ids[0] || group.credit_ids.includes(selectedCreditId)
-                                        ? 'border-[#F5A000] bg-amber-50'
-                                        : 'border-[#DDDDDD] hover:border-[#F5A000]/50'"
+                                    :disabled="!affordable(count)"
+                                    @click="affordable(count) && (selectedEpisodes = count)"
+                                    class="flex flex-col items-center gap-1 p-4 rounded-xl border-2 text-center transition-all duration-200"
+                                    :class="[
+                                        selectedEpisodes === count
+                                            ? 'border-[#F5A000] bg-amber-50'
+                                            : 'border-[#DDDDDD] hover:border-[#F5A000]/50',
+                                        affordable(count) ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed',
+                                    ]"
                                 >
-                                    <div
-                                        class="w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0"
-                                        :class="group.credit_ids.includes(selectedCreditId) ? 'border-[#F5A000] bg-[#F5A000]' : 'border-[#DDDDDD]'"
-                                    >
-                                        <div v-if="group.credit_ids.includes(selectedCreditId)" class="w-2 h-2 rounded-full bg-white" />
-                                    </div>
-                                    <div class="flex-1">
-                                        <div class="font-bold text-[#1A1A1A] text-sm">{{ group.credit_pack.label }}</div>
-                                        <div class="text-xs text-[#555555] mt-0.5">
-                                            {{ group.credit_pack.episode_limit }} episodes · {{ group.credit_pack.revision_credits }} revisions
-                                            <span class="ml-2 text-[#AAAAAA]">×{{ group.count }} available</span>
-                                        </div>
-                                    </div>
+                                    <span class="text-xl font-black text-[#1A1A1A]">{{ count }}</span>
+                                    <span class="text-[11px] text-[#555555]">episodes</span>
+                                    <span v-if="!isUnlimited" class="text-[10px] text-[#AAAAAA]">{{ count }} credits</span>
                                 </button>
                             </div>
+                            <p v-if="!isUnlimited && !canAffordSelected" class="text-xs text-red-600">
+                                You don't have enough credits — you'll be taken to the shop to top up.
+                            </p>
                         </div>
 
                         <!-- Format -->
@@ -942,7 +966,7 @@ const formats = [
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
                             <p class="text-xs text-[#555555] mt-1">
-                                Uses 1 {{ selectedPack?.credit_pack?.label ?? '' }} story pack · Takes up to 1 minute
+                                <template v-if="!isUnlimited">Uses {{ episodeCount }} credits · </template>Takes up to 1 minute
                             </p>
                         </div>
 
@@ -959,5 +983,30 @@ const formats = [
             </div>
 
         </div>
+
+        <!-- Start interview confirmation -->
+        <Dialog v-model:open="confirmStartOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+                        <AlertTriangle class="w-5 h-5 text-[#F5A000]" />
+                    </div>
+                    <DialogTitle class="text-[#1A1A1A]">Are your details correct?</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        StoryBot will base your entire story on the business details and answers you provide.
+                        Double-check your business name and links — you won't be able to change these once your story is generated.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="confirmStartOpen = false" class="cursor-pointer">Go back &amp; review</Button>
+                    <Button
+                        @click="confirmStartInterview"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Yes, start my interview
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AuthenticatedLayout>
 </template>

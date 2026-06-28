@@ -133,6 +133,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::patch('/users/{user}', [AdminController::class, 'update'])->name('users.update');
     Route::patch('/users/{user}/profile', [AdminController::class, 'updateProfile'])->name('users.profile');
     Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleStatus'])->name('users.toggle-status');
+    Route::post('/users/{user}/toggle-partner', [AdminController::class, 'togglePartner'])->name('users.toggle-partner');
     Route::post('/users/{user}/password', [AdminController::class, 'resetPassword'])->name('users.password');
     Route::post('/users/{user}/grant-pack', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');

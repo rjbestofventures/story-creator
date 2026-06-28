@@ -9,13 +9,12 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
-use App\Models\UserCredit;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'is_active', 'refine_credits'])]
+#[Fillable(['name', 'email', 'password', 'is_active', 'credits', 'is_verified_partner'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -28,7 +27,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
-            'refine_credits' => 'integer',
+            'credits' => 'integer',
+            'is_verified_partner' => 'boolean',
         ];
     }
 
@@ -46,14 +46,9 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->hasMany(Story::class)->latest();
     }
 
-    public function userCredits(): HasMany
+    public function purchases(): HasMany
     {
-        return $this->hasMany(UserCredit::class)->latest();
-    }
-
-    public function availableCredits(): HasMany
-    {
-        return $this->hasMany(UserCredit::class)->where('status', 'available');
+        return $this->hasMany(UserCredit::class)->latest('purchased_at');
     }
 
     // -------------------------------------------------------------------------
@@ -67,19 +62,22 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function canCreateStory(): bool
     {
-        if ($this->isAdmin()) {
-            return true;
-        }
-
-        return $this->availableCredits()->exists();
+        return $this->isAdmin() || $this->credits > 0;
     }
 
     public function canRefine(): bool
     {
-        if ($this->isAdmin()) {
-            return true;
-        }
+        return $this->isAdmin() || $this->credits > 0;
+    }
 
-        return $this->refine_credits > 0;
+    /**
+     * True once the user has bought (or been granted) at least one main pack.
+     * Used to gate the Credit Boost add-on.
+     */
+    public function hasBoughtMainPack(): bool
+    {
+        return $this->purchases()
+            ->whereHas('creditPack', fn ($q) => $q->where('type', '!=', 'addon'))
+            ->exists();
     }
 }

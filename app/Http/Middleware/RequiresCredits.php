@@ -12,11 +12,11 @@ class RequiresCredits
     {
         $user = $request->user();
 
-        if ($user?->isAdmin() || $user?->availableCredits()->exists()) {
+        if ($user?->isAdmin() || ($user && $user->credits > 0)) {
             return $next($request);
         }
 
         return redirect()->route('shop.index')
-            ->with('notice', 'Purchase a story pack to start creating your story library.');
+            ->with('notice', 'Buy credits to start creating your story library.');
     }
 }

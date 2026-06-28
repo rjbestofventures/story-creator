@@ -8,13 +8,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class UserCredit extends Model
 {
     protected $fillable = [
-        'user_id', 'credit_pack_id', 'episode_limit', 'revision_credits_granted',
-        'stripe_checkout_session_id', 'status', 'purchased_at',
+        'user_id', 'credit_pack_id', 'credits_granted', 'amount_paid',
+        'source', 'stripe_checkout_session_id', 'purchased_at',
     ];
 
     protected function casts(): array
     {
-        return ['purchased_at' => 'datetime'];
+        return [
+            'purchased_at' => 'datetime',
+            'credits_granted' => 'integer',
+            'amount_paid' => 'integer',
+        ];
     }
 
     public function user(): BelongsTo
@@ -25,15 +29,5 @@ class UserCredit extends Model
     public function creditPack(): BelongsTo
     {
         return $this->belongsTo(CreditPack::class);
-    }
-
-    public function scopeAvailable($query)
-    {
-        return $query->where('status', 'available');
-    }
-
-    public function scopeSpent($query)
-    {
-        return $query->where('status', 'spent');
     }
 }

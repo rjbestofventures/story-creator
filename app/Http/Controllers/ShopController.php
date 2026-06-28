@@ -20,12 +20,20 @@ class ShopController extends Controller
 {
     public function index(Request $request): \Inertia\Response
     {
-        $packs = CreditPack::active()->orderBy('price')->get([
-            'id', 'slug', 'label', 'stories_count', 'price', 'episode_limit', 'revision_credits', 'stripe_price_id',
-        ]);
+        $user = $request->user();
+        $audience = CreditPack::audienceType($user); // 'partner' | 'storybot'
+
+        $packs = CreditPack::active()->ofType($audience)->orderBy('price')
+            ->get(['id', 'slug', 'label', 'type', 'credits', 'price', 'stripe_price_id']);
+
+        $addon = CreditPack::active()->ofType('addon')->orderBy('price')
+            ->first(['id', 'slug', 'label', 'type', 'credits', 'price', 'stripe_price_id']);
 
         return Inertia::render('Shop/Index', [
             'packs' => $packs,
+            'addon' => $addon,
+            'canBuyAddon' => $user->is_verified_partner || $user->hasBoughtMainPack(),
+            'credits' => $user->isAdmin() ? null : $user->credits,
             'notice' => session('notice'),
         ]);
     }
@@ -37,6 +45,22 @@ class ShopController extends Controller
         ]);
 
         $pack = CreditPack::where('id', $data['pack_id'])->active()->firstOrFail();
+        $user = $request->user();
+
+        // Add-on can only be bought once the user holds a main pack
+        // (verified partners qualify automatically).
+        abort_if(
+            $pack->type === 'addon' && ! $user->is_verified_partner && ! $user->hasBoughtMainPack(),
+            422,
+            'Buy a story pack first — the Credit Boost is a top-up add-on.'
+        );
+
+        // Partner-priced packs are only for verified partners (and vice-versa).
+        abort_if(
+            $pack->type !== 'addon' && $pack->type !== CreditPack::audienceType($user),
+            403,
+            'This pack is not available for your account.'
+        );
 
         abort_if(
             is_null($pack->stripe_price_id),
@@ -55,7 +79,7 @@ class ShopController extends Controller
             ]],
             'success_url' => route('shop.success').'?session_id={CHECKOUT_SESSION_ID}',
             'cancel_url' => route('shop.index'),
-            'client_reference_id' => (string) $request->user()->id,
+            'client_reference_id' => (string) $user->id,
             'metadata' => ['pack_id' => (string) $pack->id],
         ]);
 
@@ -79,7 +103,7 @@ class ShopController extends Controller
         }
 
         return redirect()->route('stories.index')
-            ->with('notice', 'Your story pack has been added! You\'re ready to create.');
+            ->with('notice', 'Your credits have been added! You\'re ready to create.');
     }
 
     public function webhook(Request $request): Response
@@ -119,6 +143,8 @@ class ShopController extends Controller
             return;
         }
 
-        $pack->grantTo($user, $session->id);
+        $amount = isset($session->amount_total) ? (int) $session->amount_total : $pack->price;
+
+        $pack->grantTo($user, $session->id, $amount);
     }
 }

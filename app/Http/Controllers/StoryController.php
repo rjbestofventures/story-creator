@@ -4,12 +4,10 @@ namespace App\Http\Controllers;
 
 use App\Jobs\GenerateStory;
 use App\Models\BusinessProfile;
-use App\Models\CreditPack;
 use App\Models\Episode;
 use App\Models\EpisodeVersion;
 use App\Models\SiteSetting;
 use App\Models\Story;
-use App\Models\UserCredit;
 use App\Services\InterviewService;
 use App\Services\StoryGeneratorService;
 use Illuminate\Http\Request;
@@ -18,6 +16,9 @@ use Inertia\Inertia;
 
 class StoryController extends Controller
 {
+    /** Episode-count choices offered at generation; each episode costs 1 credit. */
+    public const EPISODE_OPTIONS = [12, 18, 24];
+
     // -------------------------------------------------------------------------
     // Dashboard — user's story list
     // -------------------------------------------------------------------------
@@ -34,23 +35,12 @@ class StoryController extends Controller
 
         $profile = $user->businessProfile;
 
-        $availablePackCounts = $user->isAdmin() ? [] : $user->availableCredits()
-            ->with('creditPack:id,slug,label,episode_limit,revision_credits')
-            ->get()
-            ->groupBy('credit_pack_id')
-            ->map(fn ($credits) => [
-                'pack'  => $credits->first()->creditPack,
-                'count' => $credits->count(),
-            ])
-            ->values();
-
         return Inertia::render('Stories/Index', [
-            'stories'             => $stories,
-            'profile'             => $profile,
-            'availablePackCounts' => $availablePackCounts,
-            'refineCredits'       => $user->isAdmin() ? null : $user->refine_credits,
-            'isAdmin'             => $user->isAdmin(),
-            'adminRole'           => $user->hasRole('super_admin') ? 'super_admin' : ($user->hasRole('admin') ? 'admin' : null),
+            'stories' => $stories,
+            'profile' => $profile,
+            'credits' => $user->isAdmin() ? null : $user->credits,
+            'isAdmin' => $user->isAdmin(),
+            'adminRole' => $user->hasRole('super_admin') ? 'super_admin' : ($user->hasRole('admin') ? 'admin' : null),
         ]);
     }
 
@@ -60,10 +50,13 @@ class StoryController extends Controller
 
     public function create(Request $request)
     {
+        $user = $request->user();
+
         return Inertia::render('Stories/Create', [
-            'profile'         => null,
-            'story'           => null,
-            'available_packs' => $this->userAvailablePacks($request->user()),
+            'profile' => null,
+            'story' => null,
+            'credits' => $user->isAdmin() ? null : $user->credits,
+            'episode_options' => self::EPISODE_OPTIONS,
         ]);
     }
 
@@ -75,9 +68,12 @@ class StoryController extends Controller
 
         $story->load('businessProfile');
 
+        $user = $request->user();
+
         return Inertia::render('Stories/Create', [
-            'profile'         => $story->businessProfile,
-            'available_packs' => $story->is_demo ? [] : $this->userAvailablePacks($request->user()),
+            'profile' => $story->businessProfile,
+            'credits' => $user->isAdmin() ? null : $user->credits,
+            'episode_options' => self::EPISODE_OPTIONS,
             'story' => [
                 'id' => $story->id,
                 'status' => $story->status,
@@ -188,26 +184,20 @@ class StoryController extends Controller
         abort_unless($story->user_id === $request->user()->id, 403);
 
         $data = $request->validate([
-            'format'    => 'in:social,blog,linkedin',
-            'credit_id' => 'nullable|integer',
+            'format' => 'in:social,blog,linkedin',
+            'episode_count' => 'required|integer|in:'.implode(',', self::EPISODE_OPTIONS),
         ]);
         $format = $data['format'] ?? 'social';
+        $count = (int) $data['episode_count'];
 
         $user = $request->user();
 
         if (! $user->isAdmin()) {
-            $credit = UserCredit::where('id', $data['credit_id'] ?? 0)
-                ->where('user_id', $user->id)
-                ->where('status', 'available')
-                ->first();
-
-            abort_unless($credit, 403, 'Invalid or already-spent story credit.');
-
-            $credit->update(['status' => 'spent']);
-            $story->update(['episode_limit' => $credit->episode_limit]);
+            abort_if($user->credits < $count, 403, 'You don\'t have enough credits to generate this story.');
+            $user->decrement('credits', $count);
         }
 
-        $story->update(['status' => 'generating']);
+        $story->update(['status' => 'generating', 'episode_limit' => $count]);
         GenerateStory::dispatch($story, $format);
 
         return to_route('stories.show', $story->id);
@@ -280,17 +270,14 @@ class StoryController extends Controller
             'messages.*.role' => 'required|in:user,assistant',
             'messages.*.content' => 'required|string',
             'format' => 'in:social,blog,linkedin',
+            'episode_count' => 'required|integer|in:'.implode(',', self::EPISODE_OPTIONS),
         ]);
 
         $user = $request->user();
+        $count = (int) $data['episode_count'];
 
-        $credit = null;
         if (! $user->isAdmin()) {
-            $credit = UserCredit::where('id', $request->input('credit_id'))
-                ->where('user_id', $user->id)
-                ->where('status', 'available')
-                ->first();
-            abort_unless($credit, 403, 'Invalid or already-spent story credit.');
+            abort_if($user->credits < $count, 403, 'You don\'t have enough credits to generate this story.');
         }
 
         $profile = BusinessProfile::updateOrCreate(
@@ -310,11 +297,11 @@ class StoryController extends Controller
             'business_profile_id' => $profile->id,
             'title' => 'Generating…',
             'status' => 'generating',
+            'episode_limit' => $count,
         ]);
 
-        if ($credit) {
-            $credit->update(['status' => 'spent']);
-            $story->update(['episode_limit' => $credit->episode_limit]);
+        if (! $user->isAdmin()) {
+            $user->decrement('credits', $count);
         }
 
         GenerateStory::dispatch($story, $format);
@@ -352,6 +339,8 @@ class StoryController extends Controller
                 ]),
             ],
             'canCreateStory' => $user->canCreateStory(),
+            'isAdmin' => $user->isAdmin(),
+            'credits' => $user->isAdmin() ? null : $user->credits,
         ]);
     }
 
@@ -391,7 +380,7 @@ class StoryController extends Controller
         $user = $request->user();
 
         if (! $user->isAdmin()) {
-            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
+            abort_unless($user->canRefine(), 403, 'You have no credits remaining.');
         }
 
         $data = $request->validate([
@@ -423,7 +412,7 @@ class StoryController extends Controller
         $story->increment('tokens_output', $generated['_tokens_output'] ?? 0);
 
         if (! $user->isAdmin()) {
-            $user->decrement('refine_credits');
+            $user->decrement('credits');
         }
 
         return response()->json([
@@ -464,7 +453,7 @@ class StoryController extends Controller
         $user = $request->user();
 
         if (! $user->isAdmin()) {
-            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
+            abort_unless($user->canRefine(), 403, 'You have no credits remaining.');
         }
 
         // Save current as a version before restoring
@@ -479,7 +468,7 @@ class StoryController extends Controller
         $episode->update(['title' => $version->title, 'content' => $version->content]);
 
         if (! $user->isAdmin()) {
-            $user->decrement('refine_credits');
+            $user->decrement('credits');
         }
 
         return response()->json([
@@ -547,7 +536,7 @@ class StoryController extends Controller
         $user = $request->user();
 
         if (! $user->isAdmin()) {
-            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
+            abort_unless($user->canRefine(), 403, 'You have no credits remaining.');
         }
 
         $data = $request->validate([
@@ -572,7 +561,7 @@ class StoryController extends Controller
         $story->increment('tokens_output', $refined['_tokens_output'] ?? 0);
 
         if (! $user->isAdmin()) {
-            $user->decrement('refine_credits');
+            $user->decrement('credits');
         }
 
         return response()->json([
@@ -584,27 +573,5 @@ class StoryController extends Controller
                 'format' => $episode->format,
             ],
         ]);
-    }
-
-    // -------------------------------------------------------------------------
-
-    private function userAvailablePacks(\App\Models\User $user): array
-    {
-        if ($user->isAdmin()) {
-            return [];
-        }
-
-        return $user->availableCredits()
-            ->with('creditPack:id,slug,label,episode_limit,revision_credits')
-            ->oldest()
-            ->get()
-            ->groupBy('credit_pack_id')
-            ->map(fn ($credits) => [
-                'credit_pack' => $credits->first()->creditPack,
-                'count'       => $credits->count(),
-                'credit_ids'  => $credits->pluck('id')->all(),
-            ])
-            ->values()
-            ->all();
     }
 }

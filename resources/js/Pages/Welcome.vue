@@ -14,10 +14,11 @@ const openFaq = ref(null);
 const faqs = [
     { q: 'How does StoryCreator.Bot work?', a: 'Answer a few questions about your business, audience, and goals. Our engine turns your answers into a series of ready-to-publish content episodes.' },
     { q: 'Do I need to be a good writer?', a: 'Not at all. StoryCreator.Bot does the writing for you. You just provide the details about your business and we handle the rest.' },
-    { q: "Can I edit the episodes after they're generated?", a: 'Yes. Every episode is fully editable. You can refine the content, adjust the tone, or rewrite sections before publishing — that\'s what revision credits are for.' },
-    { q: 'Do my credits expire?', a: 'Never. Story packs are a one-time purchase — your stories and revision credits stay in your account until you use them, with no monthly fees or expiry.' },
+    { q: "Can I edit the episodes after they're generated?", a: 'Yes. Every episode is fully editable. Refining or redoing an episode costs 1 credit, so you stay in full control of the final content.' },
+    { q: 'How do credits work?', a: 'Everything runs on StoryBot credits. 1 credit generates 1 episode, and 1 credit refines or redoes an episode. You choose 12, 18, or 24 episodes per story. Credits never expire.' },
+    { q: 'Do my credits expire?', a: 'Never. Credit packs are a one-time purchase — your credits stay in your account until you use them, with no monthly fees or expiry.' },
     { q: 'Do I need all three URLs (website, LinkedIn, social)?', a: 'No. You can provide as many or as few as you have. More context helps us generate better content, but none are required.' },
-    { q: 'What if I need more stories?', a: 'Just buy another pack whenever you\'re ready. There\'s no subscription — you only pay for what you need, and credits never expire.' },
+    { q: 'What if I run low on credits?', a: 'Top up anytime with a Credit Boost add-on, or buy another pack. There\'s no subscription — you only pay for what you need.' },
 ];
 
 const priceDollars = (pack) => Math.round(pack.price / 100);
@@ -29,12 +30,11 @@ const popularSlug = computed(() => {
 });
 
 const packFeatures = (pack) => [
-    `${pack.stories_count} ${pack.stories_count === 1 ? 'story' : 'stories'}`,
-    `${pack.episode_limit} episodes per story`,
-    `${pack.revision_credits} revision credits`,
+    `${pack.credits} StoryBot credits`,
+    'Choose 12, 18 or 24 episodes per story',
+    '1 credit = generate or refine 1 episode',
     'Credits never expire',
-    pack.slug === 'basic' ? 'Basic support' : 'Priority support',
-    ...(pack.slug === 'professional' ? ['Dedicated account manager'] : []),
+    pack.credits >= 96 ? 'Priority support' : 'Standard support',
 ];
 </script>
 
@@ -237,7 +237,7 @@ const packFeatures = (pack) => [
                         v-for="pack in packs"
                         :key="pack.slug"
                         class="relative rounded-2xl bg-white p-6 flex flex-col"
-                        :style="pack.slug === popularSlug ? 'border: 2px solid #F5A000;' : 'border: 1px solid #DDDDDD;'"
+                        style="border: 2px solid #F5A000;"
                     >
                         <!-- Most Popular badge -->
                         <div v-if="pack.slug === popularSlug" class="absolute -top-3.5 left-1/2 -translate-x-1/2">
@@ -250,21 +250,19 @@ const packFeatures = (pack) => [
                             <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
                             <span class="text-sm" style="color: #555555;">one-time</span>
                         </div>
-                        <p class="text-xs mb-5" style="color: #555555;">{{ pack.stories_count }} {{ pack.stories_count === 1 ? 'story' : 'stories' }} · {{ pack.episode_limit }} episodes each</p>
+                        <p class="text-xs mb-5" style="color: #555555;">{{ pack.credits }} credits · 12, 18 or 24 episodes per story</p>
 
                         <Link
                             :href="route('register')"
                             class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:opacity-90"
-                            :style="pack.slug === popularSlug
-                                ? 'background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;'
-                                : 'background: #FFFFFF; color: #1A1A1A; border: 1px solid #DDDDDD;'"
+                            style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
                             Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </Link>
 
                         <ul class="flex flex-col gap-2.5">
                             <li v-for="f in packFeatures(pack)" :key="f" class="flex items-center gap-2 text-sm" style="color: #555555;">
-                                <Check class="w-4 h-4 shrink-0" :style="pack.slug === popularSlug ? 'color: #F5A000;' : 'color: #555555;'" :stroke-width="2.5" />
+                                <Check class="w-4 h-4 shrink-0" style="color: #F5A000;" :stroke-width="2.5" />
                                 {{ f }}
                             </li>
                         </ul>

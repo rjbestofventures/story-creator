@@ -24,15 +24,15 @@ import { CheckCircle } from '@lucide/vue';
 
                 <h1 class="text-xl font-black mb-2" style="color: #1A1A1A;">Email verified!</h1>
                 <p class="text-sm leading-relaxed mb-6" style="color: #555555;">
-                    Your email address has been confirmed. You're all set to choose a plan and start creating your story library.
+                    Your email address has been confirmed. You're all set to grab some credits and start creating your story library.
                 </p>
 
                 <Link
-                    :href="route('billing.plans')"
+                    :href="route('shop.index')"
                     class="block w-full py-2.5 rounded-lg font-bold text-sm transition"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
-                    Continue to Choose a Plan →
+                    Continue to Buy Credits →
                 </Link>
 
             </div>

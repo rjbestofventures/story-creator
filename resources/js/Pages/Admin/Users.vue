@@ -2,9 +2,9 @@
 import { ref, computed, watch } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import {
-    Users, BookOpen, Activity, Package,
+    Users, BookOpen, Activity, Package, Coins,
     Search, UserPlus, CircleUser, KeyRound, Trash2, Mail,
-    ChevronDown, RefreshCcw, Check, LogIn, Gift,
+    ChevronDown, Check, LogIn, Gift,
     Receipt, ExternalLink,
 } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
@@ -84,13 +84,11 @@ const filtered = computed(() =>
     )
 );
 
-const packsHeld = (user) => (user.available_packs ?? []).reduce((sum, g) => sum + g.count, 0);
-
 const kpis = computed(() => [
-    { label: 'Total Users', value: props.stats.users,                                  icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Total registered accounts'                 },
-    { label: 'Active',      value: props.users.filter(u => u.is_active).length,         icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are currently enabled'       },
-    { label: 'Packs Held',  value: props.users.reduce((s, u) => s + packsHeld(u), 0),   icon: Package,  color: '#6366F1', bg: 'bg-indigo-50', text: 'text-indigo-600', tooltip: 'Unspent story packs across all users'      },
-    { label: 'Stories',     value: props.stats.stories,                                 icon: BookOpen, color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-600', tooltip: 'Total stories generated across all users'  },
+    { label: 'Total Users', value: props.stats.users,                                   icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Total registered accounts'                     },
+    { label: 'Active',      value: props.users.filter(u => u.is_active).length,          icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are currently enabled'           },
+    { label: 'Partners',    value: props.users.filter(u => u.is_verified_partner).length, icon: Package, color: '#6366F1', bg: 'bg-indigo-50', text: 'text-indigo-600', tooltip: 'Verified business partners'                    },
+    { label: 'Credits',     value: props.users.reduce((s, u) => s + (u.credits ?? 0), 0), icon: BookOpen, color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-600', tooltip: 'Total unspent credits across all users'        },
 ]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -103,6 +101,10 @@ const tierMeta = (tier) => ({
 
 const toggleStatus = (user) => {
     router.post(route('admin.users.toggle-status', user.id), {}, { preserveScroll: true });
+};
+
+const togglePartner = (user) => {
+    router.post(route('admin.users.toggle-partner', user.id), {}, { preserveScroll: true });
 };
 
 const initials    = (name) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -285,11 +287,11 @@ const impersonate = (userId) => {
                                 {{ tierMeta(user.tier).label }}
                             </Badge>
                             <Badge
-                                v-if="packsHeld(user) > 0"
+                                v-if="user.is_verified_partner"
                                 variant="outline"
                                 class="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0"
                             >
-                                {{ packsHeld(user) }} pack{{ packsHeld(user) === 1 ? '' : 's' }}
+                                Verified Partner
                             </Badge>
                         </div>
                         <div class="flex items-center gap-1 mt-1">
@@ -304,11 +306,11 @@ const impersonate = (userId) => {
                         <Tooltip v-if="user.tier === 'user'">
                             <TooltipTrigger as-child>
                                 <div class="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F8F8F8] text-xs font-semibold text-[#555555] cursor-default">
-                                    <RefreshCcw class="w-3 h-3 shrink-0" />
-                                    <span>{{ user.refine_credits }}</span>
+                                    <Coins class="w-3 h-3 shrink-0" />
+                                    <span>{{ user.credits }}</span>
                                 </div>
                             </TooltipTrigger>
-                            <TooltipContent>Revision credits remaining</TooltipContent>
+                            <TooltipContent>Credits remaining</TooltipContent>
                         </Tooltip>
 
                         <Tooltip>
@@ -432,10 +434,10 @@ const impersonate = (userId) => {
                             </div>
                         </div>
 
-                        <!-- Grant pack -->
-                        <div class="flex items-end gap-3 pt-1">
-                            <div class="space-y-1.5 flex-1 max-w-xs">
-                                <Label class="text-xs text-[#555555]">Grant a Story Pack</Label>
+                        <!-- Grant credits + partner toggle -->
+                        <div class="flex flex-wrap items-end gap-3 pt-1">
+                            <div class="space-y-1.5 flex-1 min-w-[16rem] max-w-xs">
+                                <Label class="text-xs text-[#555555]">Grant Credits (pick a pack)</Label>
                                 <Select
                                     :model-value="getGrantForm(user).pack_id"
                                     @update:model-value="val => getGrantForm(user).pack_id = val"
@@ -448,7 +450,7 @@ const impersonate = (userId) => {
                                             v-for="pack in creditPacks"
                                             :key="pack.id"
                                             :value="String(pack.id)"
-                                        >{{ pack.label }} — {{ pack.episode_limit }} ep / {{ pack.revision_credits }} rev</SelectItem>
+                                        >{{ pack.label }} — {{ pack.credits }} credits ({{ pack.type }})</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -460,55 +462,39 @@ const impersonate = (userId) => {
                             >
                                 <Gift class="w-3.5 h-3.5" /> Grant
                             </Button>
+
+                            <button
+                                type="button"
+                                class="h-9 inline-flex items-center gap-2 text-xs font-semibold px-3 rounded-lg border transition-all cursor-pointer"
+                                :class="user.is_verified_partner
+                                    ? 'text-amber-700 border-amber-200 bg-amber-50 hover:bg-gray-50'
+                                    : 'text-[#555555] border-[#DDDDDD] bg-white hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'"
+                                @click.stop="togglePartner(user)"
+                            >
+                                <Package class="w-3.5 h-3.5" />
+                                {{ user.is_verified_partner ? 'Verified Partner ✓' : 'Mark as Partner' }}
+                            </button>
                         </div>
-                        <p class="text-[10px] text-muted-foreground">Granting adds a free pack to the user's wallet and tops up their revision credits.</p>
+                        <p class="text-[10px] text-muted-foreground">Granting adds the pack's credits to the user's wallet (free). Partner status unlocks discounted partner pricing in the shop.</p>
                     </div>
 
                     <!-- Credits / usage section -->
                     <div class="border-t border-[#EBEBEB] px-5 py-4 space-y-3">
                         <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Wallet</p>
 
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                            <!-- Available packs -->
-                            <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB]">
-                                <div class="flex items-center gap-1.5 mb-2">
-                                    <Package class="w-3.5 h-3.5 text-muted-foreground" />
-                                    <span class="text-xs font-semibold text-[#555555]">Available Packs</span>
-                                </div>
-                                <template v-if="user.tier !== 'user'">
-                                    <p class="text-lg font-black text-purple-600 leading-tight">∞</p>
-                                    <p class="text-[10px] text-muted-foreground">admin — unlimited</p>
-                                </template>
-                                <template v-else-if="packsHeld(user) === 0">
-                                    <p class="text-lg font-black text-[#1A1A1A] leading-tight">0</p>
-                                    <p class="text-[10px] text-muted-foreground">none available</p>
-                                </template>
-                                <template v-else>
-                                    <div class="space-y-0.5">
-                                        <div
-                                            v-for="group in user.available_packs"
-                                            :key="group.pack.id"
-                                            class="flex items-center justify-between text-xs"
-                                        >
-                                            <span class="font-semibold text-[#1A1A1A]">{{ group.pack.label }}</span>
-                                            <span class="font-black text-[#F5A000]">×{{ group.count }}</span>
-                                        </div>
-                                    </div>
-                                </template>
-                            </div>
-
-                            <!-- Revision credits -->
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <!-- Credits -->
                             <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-                                    <RefreshCcw class="w-4 h-4 text-indigo-500" />
+                                <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                                    <Coins class="w-4 h-4 text-[#F5A000]" />
                                 </div>
                                 <div>
-                                    <p class="text-xs text-[#555555] font-semibold">Revision Credits</p>
+                                    <p class="text-xs text-[#555555] font-semibold">StoryBot Credits</p>
                                     <p class="text-lg font-black text-[#1A1A1A] leading-tight">
                                         <span v-if="user.tier !== 'user'" class="text-purple-600">∞</span>
-                                        <span v-else>{{ user.refine_credits }}</span>
+                                        <span v-else>{{ user.credits }}</span>
                                     </p>
-                                    <p class="text-[10px] text-muted-foreground">remaining</p>
+                                    <p class="text-[10px] text-muted-foreground">1 credit = 1 episode (generate or refine)</p>
                                 </div>
                             </div>
 
@@ -560,7 +546,7 @@ const impersonate = (userId) => {
                                             <div>
                                                 <p class="text-xs font-semibold text-[#1A1A1A]">
                                                     {{ p.pack_label }}
-                                                    <span class="text-muted-foreground font-normal">· {{ p.stories }} {{ p.stories === 1 ? 'story' : 'stories' }}</span>
+                                                    <span class="text-muted-foreground font-normal">· {{ p.credits }} credits</span>
                                                 </p>
                                                 <p class="text-[10px] text-muted-foreground">{{ p.date }}</p>
                                             </div>

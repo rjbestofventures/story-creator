@@ -28,9 +28,9 @@ class AdminController extends Controller
     public function usersIndex(): Response
     {
         $creditPacks = CreditPack::active()->orderBy('price')
-            ->get(['id', 'slug', 'label', 'price', 'episode_limit', 'revision_credits']);
+            ->get(['id', 'slug', 'label', 'type', 'credits', 'price']);
 
-        $users = User::with(['roles', 'availableCredits.creditPack'])
+        $users = User::with('roles')
             ->withCount('stories')
             ->orderByDesc('created_at')
             ->get()
@@ -40,14 +40,8 @@ class AdminController extends Controller
                 'email' => $user->email,
                 'tier' => $user->roles->first()?->name ?? 'user',
                 'is_active' => $user->is_active,
-                'refine_credits' => $user->refine_credits,
-                'available_packs' => $user->availableCredits
-                    ->groupBy('credit_pack_id')
-                    ->map(fn ($credits) => [
-                        'pack' => $credits->first()->creditPack?->only('id', 'slug', 'label', 'episode_limit', 'revision_credits'),
-                        'count' => $credits->count(),
-                    ])
-                    ->values(),
+                'is_verified_partner' => $user->is_verified_partner,
+                'credits' => $user->credits,
                 'stories_total' => $user->stories_count,
                 'created_at' => $user->created_at->format('n/j/Y'),
             ]);
@@ -64,16 +58,15 @@ class AdminController extends Controller
 
     public function packsIndex(): Response
     {
-        $packs = CreditPack::orderBy('price')
-            ->get(['id', 'slug', 'label', 'stories_count', 'price', 'episode_limit', 'revision_credits', 'stripe_price_id', 'is_active'])
+        $packs = CreditPack::orderBy('type')->orderBy('price')
+            ->get(['id', 'slug', 'label', 'type', 'credits', 'price', 'stripe_price_id', 'is_active'])
             ->map(fn (CreditPack $pack) => [
                 'id' => $pack->id,
                 'slug' => $pack->slug,
                 'label' => $pack->label,
-                'stories_count' => $pack->stories_count,
+                'type' => $pack->type,
+                'credits' => $pack->credits,
                 'price_dollars' => $pack->price / 100,
-                'episode_limit' => $pack->episode_limit,
-                'revision_credits' => $pack->revision_credits,
                 'stripe_price_id' => $pack->stripe_price_id,
                 'is_active' => $pack->is_active,
             ]);
@@ -431,31 +424,29 @@ class AdminController extends Controller
 
     public function userInvoices(User $user)
     {
-        $credits = $user->userCredits()
-            ->with('creditPack:id,slug,label,price')
+        $purchases = $user->purchases()
+            ->with('creditPack:id,slug,label,type')
             ->orderByDesc('purchased_at')
-            ->get();
-
-        $purchases = $credits
-            ->groupBy(fn ($c) => $c->stripe_checkout_session_id
-                ?: 'grant-'.$c->credit_pack_id.'-'.optional($c->purchased_at)->timestamp)
-            ->map(function ($group) {
-                $first = $group->first();
-                $online = ! is_null($first->stripe_checkout_session_id);
-                $pack = $first->creditPack;
-
-                return [
-                    'id' => $first->id,
-                    'pack_label' => $pack?->label ?? 'Story Pack',
-                    'stories' => $group->count(),
-                    'date' => optional($first->purchased_at)->format('M j, Y'),
-                    'source' => $online ? 'online' : 'grant',
-                    'amount' => $online && $pack ? '$'.number_format($pack->price / 100, 0) : null,
-                ];
-            })
-            ->values();
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'pack_label' => $p->creditPack?->label ?? 'Credits',
+                'credits' => $p->credits_granted,
+                'date' => optional($p->purchased_at)->format('M j, Y'),
+                'source' => $p->source,
+                'amount' => $p->source === 'online'
+                    ? '$'.number_format((int) ($p->amount_paid ?? optional($p->creditPack)->price ?? 0) / 100, 0)
+                    : null,
+            ]);
 
         return response()->json(['purchases' => $purchases]);
+    }
+
+    public function togglePartner(User $user)
+    {
+        $user->update(['is_verified_partner' => ! $user->is_verified_partner]);
+
+        return back();
     }
 
     public function impersonate(User $user)
@@ -488,14 +479,13 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
-            'stories_count' => 'required|integer|min:1',
-            'episode_limit' => 'required|integer|min:1',
-            'revision_credits' => 'required|integer|min:0',
+            'type' => 'required|in:partner,storybot,addon',
+            'credits' => 'required|integer|min:1',
             'price_dollars' => 'required|numeric|min:0',
             'stripe_price_id' => 'nullable|string|max:255',
         ]);
 
-        $slug = Str::slug($validated['label']);
+        $slug = Str::slug($validated['type'].'-'.$validated['label']);
         $base = $slug;
         $suffix = 2;
         while (CreditPack::where('slug', $slug)->exists()) {
@@ -505,10 +495,9 @@ class AdminController extends Controller
         CreditPack::create([
             'slug' => $slug,
             'label' => $validated['label'],
-            'stories_count' => $validated['stories_count'],
+            'type' => $validated['type'],
+            'credits' => $validated['credits'],
             'price' => (int) round($validated['price_dollars'] * 100),
-            'episode_limit' => $validated['episode_limit'],
-            'revision_credits' => $validated['revision_credits'],
             'stripe_price_id' => $validated['stripe_price_id'] ?: null,
             'is_active' => true,
         ]);
@@ -520,9 +509,8 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
-            'stories_count' => 'required|integer|min:1',
-            'episode_limit' => 'required|integer|min:1',
-            'revision_credits' => 'required|integer|min:0',
+            'type' => 'required|in:partner,storybot,addon',
+            'credits' => 'required|integer|min:1',
             'price_dollars' => 'required|numeric|min:0',
             'stripe_price_id' => 'nullable|string|max:255',
             'is_active' => 'required|boolean',
@@ -530,10 +518,9 @@ class AdminController extends Controller
 
         $pack->update([
             'label' => $validated['label'],
-            'stories_count' => $validated['stories_count'],
+            'type' => $validated['type'],
+            'credits' => $validated['credits'],
             'price' => (int) round($validated['price_dollars'] * 100),
-            'episode_limit' => $validated['episode_limit'],
-            'revision_credits' => $validated['revision_credits'],
             'stripe_price_id' => $validated['stripe_price_id'] ?: null,
             'is_active' => $validated['is_active'],
         ]);
