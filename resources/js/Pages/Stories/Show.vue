@@ -174,6 +174,7 @@ const handleCardFocusIn = (epId) => {
 
 const handleCardFocusOut = async (ep, event) => {
     if (event.currentTarget.contains(event.relatedTarget)) return;
+    if (confirmRefineOpen.value) return; // keep edit mode while the refine confirmation is open
     focusedId.value = null;
     if (editingId.value === ep.id) editingId.value = null;
     if (!isDemo && isAtCurrent(ep)) await saveEdit(ep);
