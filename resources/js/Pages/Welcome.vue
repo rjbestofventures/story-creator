@@ -274,13 +274,13 @@ const orderedPacks = computed(() =>
                             <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Most Popular</span>
                         </div>
 
-                        <h3 class="text-base font-bold mb-3" style="color: #1A1A1A;">{{ pack.label }}</h3>
+                        <h3 class="text-base font-bold mb-3 min-h-[3rem]" style="color: #1A1A1A;">{{ pack.label }}</h3>
 
                         <div class="flex items-baseline gap-1 mb-1">
                             <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
                             <span class="text-sm" style="color: #555555;">one-time</span>
                         </div>
-                        <p class="text-xs italic mb-5" style="color: #555555;">{{ packBlurb(pack) }}</p>
+                        <p class="text-xs italic mb-5 min-h-[2.5rem]" style="color: #555555;">{{ packBlurb(pack) }}</p>
 
                         <Link
                             v-if="pack.type !== 'partner'"
