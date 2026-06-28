@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, useForm, router } from '@inertiajs/vue3';
-import { Plus, Pencil, Coins, Trash2, AlertTriangle } from '@lucide/vue';
+import { Plus, Pencil, Coins, Trash2, AlertTriangle, BookOpen } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -23,6 +23,8 @@ const props = defineProps({ packs: Array });
 
 const savedId = ref(null);
 const flash   = (id) => { savedId.value = id; setTimeout(() => savedId.value = null, 1800); };
+
+const episodeOptionsLabel = (max) => [12, 18, 24].filter(n => n <= (max ?? 24)).join(', ');
 
 const typeMeta = {
     partner:  { label: 'Verified Partner', class: 'bg-amber-50 text-amber-700 border-amber-200' },
@@ -177,12 +179,21 @@ const editDialogOpen = computed({
                         <p class="text-[11px] leading-tight font-medium text-amber-700">No Stripe price — purchases will fail.</p>
                     </div>
 
-                    <!-- Credits stat -->
-                    <div class="flex items-center gap-3 rounded-xl py-3 px-4" style="background: #F8F8F8;">
-                        <Coins class="w-5 h-5 text-[#F5A000]" />
-                        <div>
-                            <p class="text-xl font-black leading-none" style="color: #1A1A1A;">{{ pack.credits }}</p>
-                            <p class="text-[10px] font-medium text-muted-foreground mt-0.5">StoryBot credits</p>
+                    <!-- Credits + episodes stats -->
+                    <div class="grid gap-3" :class="pack.type === 'addon' ? 'grid-cols-1' : 'grid-cols-2'">
+                        <div class="flex items-center gap-3 rounded-xl py-3 px-4" style="background: #F8F8F8;">
+                            <Coins class="w-5 h-5 text-[#F5A000] shrink-0" />
+                            <div>
+                                <p class="text-xl font-black leading-none" style="color: #1A1A1A;">{{ pack.credits }}</p>
+                                <p class="text-[10px] font-medium text-muted-foreground mt-0.5">StoryBot credits</p>
+                            </div>
+                        </div>
+                        <div v-if="pack.type !== 'addon'" class="flex items-center gap-3 rounded-xl py-3 px-4" style="background: #F8F8F8;">
+                            <BookOpen class="w-5 h-5 text-[#F5A000] shrink-0" />
+                            <div>
+                                <p class="text-sm font-black leading-tight" style="color: #1A1A1A;">{{ episodeOptionsLabel(pack.max_episodes) }}</p>
+                                <p class="text-[10px] font-medium text-muted-foreground mt-0.5">episodes / story</p>
+                            </div>
                         </div>
                     </div>
                 </div>

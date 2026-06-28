@@ -29,13 +29,43 @@ const popularSlug = computed(() => {
     return sorted[Math.floor(sorted.length / 2)]?.slug ?? null;
 });
 
-const packFeatures = (pack) => [
-    `${pack.credits} StoryBot credits`,
-    'Choose 12, 18 or 24 episodes per story',
-    '1 credit = generate or refine 1 episode',
-    'Credits never expire',
-    pack.credits >= 96 ? 'Priority support' : 'Standard support',
-];
+const isAddon = (pack) => pack.type === 'addon';
+
+const tierOf = (pack) => {
+    const label = pack.label.toLowerCase();
+    if (label.includes('professional')) return 'professional';
+    if (label.includes('premium')) return 'premium';
+    return 'basic';
+};
+
+const tierContent = {
+    basic: {
+        blurb: 'A solid starting point for businesses ready to tell their story.',
+        episodes: '12 episodes per story',
+        posts: '12 posts, about 6 months of content at 2 posts/month',
+    },
+    premium: {
+        blurb: 'More flexibility for businesses building a consistent content presence.',
+        episodes: '12 or 18 episodes per story, you choose',
+        posts: 'Up to 18 posts, up to 9 months of content at 2 posts/month',
+    },
+    professional: {
+        blurb: 'Full creative range for businesses running multiple stories at once.',
+        episodes: '12, 18, or 24 episodes per story, you choose',
+        posts: 'Up to 24 posts, up to 12 months of content at 2 posts/month',
+    },
+};
+
+const packBlurb = (pack) =>
+    isAddon(pack) ? 'Running low? Top up your credits anytime.' : tierContent[tierOf(pack)].blurb;
+
+// Group by audience (partner, then public, then add-on) so each type fills its own row.
+const typeOrder = { partner: 0, storybot: 1, addon: 2 };
+const orderedPacks = computed(() =>
+    [...(props.packs ?? [])].sort(
+        (a, b) => (typeOrder[a.type] ?? 9) - (typeOrder[b.type] ?? 9) || a.price - b.price,
+    )
+);
 </script>
 
 <template>
@@ -234,7 +264,7 @@ const packFeatures = (pack) => [
                 <!-- Packs -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div
-                        v-for="pack in packs"
+                        v-for="pack in orderedPacks"
                         :key="pack.slug"
                         class="relative rounded-2xl bg-white p-6 flex flex-col"
                         style="border: 2px solid #F5A000;"
@@ -250,7 +280,7 @@ const packFeatures = (pack) => [
                             <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
                             <span class="text-sm" style="color: #555555;">one-time</span>
                         </div>
-                        <p class="text-xs mb-5" style="color: #555555;">{{ pack.credits }} credits · 12, 18 or 24 episodes per story</p>
+                        <p class="text-xs italic mb-5" style="color: #555555;">{{ packBlurb(pack) }}</p>
 
                         <Link
                             v-if="pack.type !== 'partner'"
@@ -269,12 +299,51 @@ const packFeatures = (pack) => [
                             For verified partners <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </Link>
 
-                        <ul class="flex flex-col gap-2.5">
-                            <li v-for="f in packFeatures(pack)" :key="f" class="flex items-center gap-2 text-sm" style="color: #555555;">
-                                <Check class="w-4 h-4 shrink-0" style="color: #F5A000;" :stroke-width="2.5" />
-                                {{ f }}
-                            </li>
-                        </ul>
+                        <!-- Standard pack details -->
+                        <div v-if="!isAddon(pack)" class="flex flex-col gap-5">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
+                                <p class="text-sm font-bold" style="color: #1A1A1A;">{{ tierContent[tierOf(pack)].episodes }}</p>
+                                <p class="text-xs italic mt-0.5" style="color: #555555;">Each episode = 1 ready-to-post piece of content</p>
+                                <p class="text-xs mt-1" style="color: #888888;">{{ tierContent[tierOf(pack)].posts }}</p>
+                            </div>
+
+                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Your credit balance</p>
+                                <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Total StoryBot Credits:</span> {{ pack.credits }}</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to generate 1 episode:</span> 1 credit</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to manually edit or redo 1 episode:</span> 1 credit</li>
+                                </ul>
+                            </div>
+
+                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
+                                <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Manual edit or redo any episode for 1 credit. No extra fees.</li>
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Unused credits never expire. They carry forward.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Add-on details -->
+                        <div v-else class="flex flex-col gap-5">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
+                                <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Credits added to your account:</span> {{ pack.credits }} StoryBot Credits</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Enough to generate or refine:</span> up to {{ pack.credits }} episodes</li>
+                                </ul>
+                            </div>
+
+                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
+                                <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Add-on only. Must have an active pack to purchase.</li>
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Credits never expire. Use them whenever you need.</li>
+                                </ul>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
