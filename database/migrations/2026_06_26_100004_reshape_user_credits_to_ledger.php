@@ -32,14 +32,23 @@ return new class extends Migration
         }
 
         if (Schema::hasColumn('user_credits', 'status')) {
+            // Add a replacement index covering user_id BEFORE dropping the old
+            // (user_id, status) index — on MySQL that index serves the user_id
+            // foreign key, so it can't be dropped until another covering index exists.
+            // Wrapped so re-running after a partial failure (index already added) is safe.
+            try {
+                Schema::table('user_credits', function (Blueprint $table) {
+                    $table->index(['user_id', 'source']);
+                });
+            } catch (\Throwable $e) {
+                // index already exists from a previous partial run — ignore
+            }
+
             Schema::table('user_credits', function (Blueprint $table) {
                 $table->dropIndex('user_credits_user_id_status_index');
             });
             Schema::table('user_credits', function (Blueprint $table) {
                 $table->dropColumn(['status', 'episode_limit', 'revision_credits_granted']);
-            });
-            Schema::table('user_credits', function (Blueprint $table) {
-                $table->index(['user_id', 'source']);
             });
         }
     }
