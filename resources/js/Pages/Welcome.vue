@@ -12,22 +12,27 @@ const props = defineProps({
 const openFaq = ref(null);
 
 const faqs = [
-    { q: 'How does StoryCreator.Bot work?', a: 'Answer a few questions about your business, audience, and goals. Our engine turns your answers into a series of ready-to-publish content episodes.' },
-    { q: 'Do I need to be a good writer?', a: 'Not at all. StoryCreator.Bot does the writing for you. You just provide the details about your business and we handle the rest.' },
-    { q: "Can I edit the episodes after they're generated?", a: 'Yes. Every episode is fully editable. Refining or redoing an episode costs 1 credit, so you stay in full control of the final content.' },
-    { q: 'How do credits work?', a: 'Everything runs on StoryBot credits. 1 credit generates 1 episode, and 1 credit refines or redoes an episode. You choose 12, 18, or 24 episodes per story. Credits never expire.' },
-    { q: 'Do my credits expire?', a: 'Never. Credit packs are a one-time purchase — your credits stay in your account until you use them, with no monthly fees or expiry.' },
-    { q: 'Do I need all three URLs (website, LinkedIn, social)?', a: 'No. You can provide as many or as few as you have. More context helps us generate better content, but none are required.' },
-    { q: 'What if I run low on credits?', a: 'Top up anytime with a Credit Boost add-on, or buy another pack. There\'s no subscription — you only pay for what you need.' },
+    { q: 'How does StoryCreator.Bot work?', a: 'Answer a series of simple questions about your business, how you got started, and your goals. StoryCreator.Bot transforms your answers into a series of ready-to-publish posts and content ideas, all based on your unique story.' },
+    { q: 'How long does it take?', a: "Most businesses complete their StoryCreator.Bot conversation in under 30 minutes. You can answer the questions by typing or simply dictating your responses using your phone or computer's microphone. From that one conversation, you'll have months of authentic, ready-to-publish content." },
+    { q: "What if I don't think I have a story to tell?", a: "Every business owner has a story. Whether it's why you started, the people you serve, the lessons you've learned, or the values that guide your work, StoryCreator.Bot helps uncover the moments customers connect with and remember. Your candor is more important than your performance." },
+    { q: 'Do I need to be a good writer?', a: 'Not at all. StoryCreator.Bot does the writing for you. You simply share your professional background, your business, and anything you think might be meaningful to potential customers. StoryCreator.Bot does the rest.' },
+    { q: 'Will my content sound like AI?', a: 'No. StoryCreator.Bot is designed to write from your story, your experiences, and your voice, creating content that sounds authentic to your business, not generic AI.' },
+    { q: 'Do I need to provide websites or social media links?', a: 'No. But you\'ll get the best results by providing as much information as you have. Websites, social media profiles, published articles, news stories, biographies, videos, and other online content help StoryCreator.Bot better understand your business and create richer, more authentic content. None of it is required, but every bit of context helps.' },
+    { q: "Can I edit the content after it's generated?", a: 'Yes. Every post is fully editable. You can refine the content, adjust the tone, or even update your original answers before or after publishing. Revision credits are always available whenever you need to make changes.' },
+    { q: 'Do my credits expire?', a: 'Never. Credits for rewrites, refinements, and special promotions remain in your account until you use them. There are no monthly fees and no expiration dates.' },
+    { q: "What if I want to create more content after I've used my credits?", a: 'You can purchase additional content credits at any time. There are no subscriptions. You simply pay for what you need, and your credits never expire.' },
+    { q: 'Why use StoryCreator.Bot instead of asking AI to write my posts?', a: 'You certainly can. But general-purpose AI only knows what you tell it in the moment. StoryCreator.Bot begins with your story, your experience, your values, and what makes your business unique. It then creates authentic, ready-to-publish content designed to help customers get to know your business, build familiarity, and earn trust, without having to reinvent every prompt.' },
+    { q: 'Is my information kept private?', a: 'Yes. The information you share is used only to create content for your business. It is never published without your approval.' },
+    { q: 'Do I still need a Social Media Manager?', a: "That's entirely up to you. StoryCreator.Bot is designed to solve one of the hardest parts of social media marketing: consistently creating authentic content. A good Social Media Manager can still add tremendous value by selecting visuals, scheduling posts, managing campaigns, and analyzing results. StoryCreator.Bot simply gives them better content to work with." },
 ];
 
 const priceDollars = (pack) => Math.round(pack.price / 100);
 
-const popularSlug = computed(() => {
-    if (!props.packs?.length) return null;
-    const sorted = [...props.packs].sort((a, b) => a.price - b.price);
+const popularSlugIn = (list) => {
+    if (!list?.length) return null;
+    const sorted = [...list].sort((a, b) => a.price - b.price);
     return sorted[Math.floor(sorted.length / 2)]?.slug ?? null;
-});
+};
 
 const isAddon = (pack) => pack.type === 'addon';
 
@@ -56,20 +61,55 @@ const tierContent = {
     },
 };
 
-const packBlurb = (pack) =>
-    isAddon(pack) ? 'Running low? Top up your credits anytime.' : tierContent[tierOf(pack)].blurb;
+// Verified Business Partner renewal plans use different framing than the
+// public pay-to-play packs, even though episode counts/credits line up 1:1.
+const partnerTierContent = {
+    basic: {
+        blurb: 'THE BASIC PLAN is what you receive free when you sign up or resubscribe as a Verified Business Partner. Basic Plan StoryBot credits can also be purchased to enhance story and episodic customization.',
+        episodes: '12 episodes per story',
+        posts: '12 posts, about 6 months of content at 2 posts/month',
+    },
+    premium: {
+        blurb: 'THE PREMIUM PLAN provides 50% more episodes and expanded opportunity for customization. Premium Plan StoryBot credits can be applied to existing episodes or to create new, additional episodes.',
+        episodes: '12 or 18 episodes per story, you choose',
+        posts: 'Up to 18 posts, up to 9 months of content at 2 posts/month',
+    },
+    professional: {
+        blurb: "THE PROFESSIONAL PLAN is the most flexible option. You get a year's worth of authentic content with ample opportunity to customize your story either all at once or editing individual episodes.",
+        episodes: '12, 18, or 24 episodes per story, you choose',
+        posts: 'Up to 24 posts, up to 12 months of content at 2 posts/month',
+    },
+};
 
-// Group by audience (partner, then public, then add-on) so each type fills its own row.
-const typeOrder = { partner: 0, storybot: 1, addon: 2 };
-const orderedPacks = computed(() =>
-    [...(props.packs ?? [])].sort(
-        (a, b) => (typeOrder[a.type] ?? 9) - (typeOrder[b.type] ?? 9) || a.price - b.price,
-    )
+const packBlurb = (pack) => {
+    if (isAddon(pack)) return 'Wanna make changes but out of credits? Top up your credits anytime.';
+    return pack.type === 'partner' ? partnerTierContent[tierOf(pack)].blurb : tierContent[tierOf(pack)].blurb;
+};
+
+const packEpisodes = (pack) =>
+    pack.type === 'partner' ? partnerTierContent[tierOf(pack)].episodes : tierContent[tierOf(pack)].episodes;
+
+const packPosts = (pack) =>
+    pack.type === 'partner' ? partnerTierContent[tierOf(pack)].posts : tierContent[tierOf(pack)].posts;
+
+// Verified Business Partner renewal plans and public Pay to Play packs are
+// presented as two distinct pricing programs, each with its own cards.
+const partnerPacks = computed(() =>
+    [...(props.packs ?? [])].filter((p) => p.type === 'partner').sort((a, b) => a.price - b.price)
 );
+const payToPlayPacks = computed(() =>
+    [...(props.packs ?? [])]
+        .filter((p) => p.type !== 'partner')
+        .sort((a, b) => (isAddon(a) === isAddon(b) ? a.price - b.price : isAddon(a) ? 1 : -1))
+);
+const payToPlayPopularSlug = computed(() => popularSlugIn(payToPlayPacks.value.filter((p) => !isAddon(p))));
+
+const partnerFeatures = ['12 complimentary episodes', 'Saves time and lowers costs', 'Story credits never expire', 'Verified partner badge', 'Priority guidance', 'Episodes for every story'];
+const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customizable output', 'Limited commitment', 'Tech support', 'Episodes for every story'];
 </script>
 
 <template>
-    <Head title="StoryCreator.Bot — Turn Your Business Into a Story Worth Sharing" />
+    <Head title="StoryCreator.Bot — Your Story is Your Business" />
 
     <div class="min-h-screen flex flex-col" style="background: radial-gradient(ellipse at 50% 40%, #FEF9EC 0%, #F5F5F0 60%, #EFEFEA 100%);">
 
@@ -131,23 +171,39 @@ const orderedPacks = computed(() =>
                 style="background-color: #F5F5F5; color: #555555; border: 1px solid #DDDDDD;"
             >
                 <Zap class="w-4 h-4" />
-                Your story. Powered by our intelligence.
+                Social Media Powered by Our Intelligence.
             </div>
 
             <!-- Headline -->
-            <h1 class="text-5xl md:text-6xl font-black leading-tight max-w-3xl mb-6" style="color: #1A1A1A;">
-                Turn Your Business Into a<br />
-                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Story Worth Sharing</span>
+            <h1 class="text-5xl md:text-6xl font-black leading-tight max-w-3xl mb-4" style="color: #1A1A1A;">
+                Your Story is Your<br />
+                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Business</span>
             </h1>
 
+            <!-- Tagline -->
+            <p class="text-lg font-bold max-w-xl mb-6" style="color: #1A1A1A;">
+                Technology Changes. Human Nature Doesn't.
+            </p>
+
             <!-- Subheading -->
-            <p class="max-w-xl text-lg leading-relaxed mb-10" style="color: #555555;">
-                Answer a few questions about your business and watch our story engine
-                generate a series of ready-to-publish content episodes including social posts,
-                blog ideas, and more, all tailored to your brand.
+            <p class="max-w-xl text-lg leading-relaxed mb-4" style="color: #555555;">
+                Word of mouth has gone digital, but the way customers connect with businesses
+                hasn't changed. Your unique story creates familiarity. Customers choose
+                businesses they get to know and trust.
+            </p>
+            <p class="max-w-xl text-lg leading-relaxed mb-6" style="color: #555555;">
+                From one simple conversation about your business,
+                <strong style="color: #1A1A1A;">StoryCreator.Bot</strong> creates months of
+                authentic, ready-to-publish content, including social posts, blog ideas, and
+                more, all designed to help potential customers get to know you, trust your
+                business, and choose to work with you.
+            </p>
+            <p class="max-w-xl text-lg leading-relaxed font-bold mb-10" style="color: #1A1A1A;">
+                Your story keeps working, so you can keep working on your business.
             </p>
 
             <!-- CTAs -->
+            <p class="text-xs font-bold tracking-widest uppercase mb-4" style="color: #555555;">Use StoryCreator.Bot</p>
             <div class="flex flex-wrap items-center justify-center gap-4">
                 <Link
                     :href="canRegister ? route('register') : route('login')"
@@ -178,7 +234,7 @@ const orderedPacks = computed(() =>
 
                 <h2 class="text-4xl md:text-5xl font-black mb-16" style="color: #1A1A1A;">
                     Three Steps to Create Content That
-                    <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Converts</span>
+                    <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Delivers</span>
                 </h2>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -190,7 +246,7 @@ const orderedPacks = computed(() =>
                         </div>
                         <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #555555;">Step 1</p>
                         <h3 class="text-lg font-bold mb-3" style="color: #1A1A1A;">Answer a Few Questions</h3>
-                        <p class="text-sm leading-relaxed" style="color: #555555;">Tell us about your business, your audience, and what makes you unique.</p>
+                        <p class="text-sm leading-relaxed" style="color: #555555;">Share insights about how you got here, what gets you up in the morning and what you're proud of.</p>
                     </div>
 
                     <!-- Step 2 -->
@@ -200,7 +256,7 @@ const orderedPacks = computed(() =>
                         </div>
                         <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #555555;">Step 2</p>
                         <h3 class="text-lg font-bold mb-3" style="color: #1A1A1A;">StoryCreator Works its Magic</h3>
-                        <p class="text-sm leading-relaxed" style="color: #555555;">Our engine turns your answers into a series of compelling content episodes.</p>
+                        <p class="text-sm leading-relaxed" style="color: #555555;">Our engineered story engine turns your simple answers into authentic sounding episodic content.</p>
                     </div>
 
                     <!-- Step 3 -->
@@ -210,7 +266,7 @@ const orderedPacks = computed(() =>
                         </div>
                         <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #555555;">Step 3</p>
                         <h3 class="text-lg font-bold mb-3" style="color: #1A1A1A;">Get Your Episodes</h3>
-                        <p class="text-sm leading-relaxed" style="color: #555555;">Review, refine, and use your episodes across social media, blogs, and more.</p>
+                        <p class="text-sm leading-relaxed" style="color: #555555;">Review, refine, and use your episodes on the Best of Local network and across all social media, blogs, and more.</p>
                     </div>
 
                 </div>
@@ -218,7 +274,7 @@ const orderedPacks = computed(() =>
         </section>
 
         <!-- Pricing -->
-        <section class="min-h-screen flex flex-col justify-center px-6 py-20" style="background-color: #FAFAF8;">
+        <section class="flex flex-col justify-center px-6 py-20" style="background-color: #FAFAF8;">
             <div class="max-w-5xl mx-auto w-full">
 
                 <!-- Header -->
@@ -228,8 +284,10 @@ const orderedPacks = computed(() =>
                     <p class="text-sm" style="color: #555555;">Buy a story pack when you need one. No subscription — credits never expire.</p>
                 </div>
 
+                <!-- ═══ Verified Business Partners Pricing Plans ═══ -->
+
                 <!-- Partner Banner -->
-                <div class="rounded-2xl p-6 mb-8 flex flex-col md:flex-row md:items-center gap-6" style="background-color: #1A1A1A;">
+                <div class="rounded-2xl p-6 mb-6 flex flex-col md:flex-row md:items-center gap-6" style="background-color: #1A1A1A;">
                     <!-- Left: logo + info -->
                     <div class="flex items-start gap-4 flex-1">
                         <div class="relative shrink-0">
@@ -238,13 +296,14 @@ const orderedPacks = computed(() =>
                             </div>
                         </div>
                         <div>
-                            <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Partner Program</span>
-                            <h3 class="text-2xl font-black text-white">Verified Business Partner</h3>
-                            <p class="text-sm mb-1" style="color: #888888;">Complimentary StoryBot credits for
-                                <span class="font-bold text-2xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Verified Local Businesses</span>
+                            <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">StoryCreator.Bot Partnership Program</span>
+                            <h3 class="text-2xl font-black text-white">Verified Business Partners Pricing Plans</h3>
+                            <p class="text-sm mb-1" style="color: #888888;">Six months
+                                <span class="font-bold" style="color: #F5A000;">free content</span> for
+                                <span class="font-bold text-xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Verified Local Businesses</span>
                             </p>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1 mt-3">
-                                <span v-for="f in ['Complimentary story packs', 'Credits never expire', 'Priority support', 'Hands-on onboarding', 'Verified partner badge', 'Episodes for every story']"
+                                <span v-for="f in partnerFeatures"
                                     :key="f" class="flex items-center gap-1.5 text-xs" style="color: #AAAAAA;">
                                     <Check class="w-3 h-3 shrink-0" style="color: #F5A000;" :stroke-width="3" />
                                     {{ f }}
@@ -261,16 +320,90 @@ const orderedPacks = computed(() =>
                     </div>
                 </div>
 
-                <!-- Packs -->
+                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #6D28D9;">Renew, Refresh or Get More From Your Plan</p>
+
+                <!-- Partner Packs -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
+                    <div
+                        v-for="pack in partnerPacks"
+                        :key="pack.slug"
+                        class="relative rounded-2xl bg-white p-6 flex flex-col"
+                        style="border: 2px solid #F5A000;"
+                    >
+                        <h3 class="text-base font-bold mb-3 min-h-[3rem]" style="color: #1A1A1A;">{{ pack.label }}</h3>
+
+                        <div class="flex items-baseline gap-1 mb-1">
+                            <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
+                            <span class="text-sm" style="color: #555555;">one-time</span>
+                        </div>
+                        <p class="text-xs italic mb-5" style="color: #555555;">{{ packBlurb(pack) }}</p>
+
+                        <Link
+                            :href="route('partner')"
+                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:bg-amber-50"
+                            style="border: 2px solid #F5A000; color: #1A1A1A;"
+                        >
+                            For verified partners <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                        </Link>
+
+                        <div class="flex flex-col gap-5">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
+                                <p class="text-sm font-bold" style="color: #1A1A1A;">{{ packEpisodes(pack) }}</p>
+                                <p class="text-xs italic mt-0.5" style="color: #555555;">Each episode = 1 ready-to-post piece of content</p>
+                                <p class="text-xs mt-1" style="color: #888888;">{{ packPosts(pack) }}</p>
+                            </div>
+
+                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Your credit balance</p>
+                                <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Total StoryBot Credits:</span> {{ pack.credits }}</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to generate 1 episode:</span> 1 credit</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to manually edit or redo 1 episode:</span> 1 credit</li>
+                                </ul>
+                            </div>
+
+                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
+                                <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Manual edit or redo any episode for 1 credit. No extra fees.</li>
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Unused credits never expire. They carry forward.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══ Pay to Play StoryCreator.Bot Pricing Options ═══ -->
+
+                <!-- Pay to Play Banner -->
+                <div class="rounded-2xl p-6 mb-6" style="background-color: #1A1A1A;">
+                    <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Ala Carte Payment Programs</span>
+                    <h3 class="text-2xl font-black text-white">Pay to Play StoryCreator.Bot Pricing Options</h3>
+                    <p class="text-sm mb-1" style="color: #888888;">Flexible
+                        <span class="font-bold" style="color: #F5A000;">content plans</span> for general social media use
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1 mt-3">
+                        <span v-for="f in payToPlayFeatures"
+                            :key="f" class="flex items-center gap-1.5 text-xs" style="color: #AAAAAA;">
+                            <Check class="w-3 h-3 shrink-0" style="color: #F5A000;" :stroke-width="3" />
+                            {{ f }}
+                        </span>
+                    </div>
+                </div>
+
+                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #6D28D9;">Pay to Play Pricing Plans</p>
+
+                <!-- Pay to Play Packs -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <div
-                        v-for="pack in orderedPacks"
+                        v-for="pack in payToPlayPacks"
                         :key="pack.slug"
                         class="relative rounded-2xl bg-white p-6 flex flex-col"
                         style="border: 2px solid #F5A000;"
                     >
                         <!-- Most Popular badge -->
-                        <div v-if="pack.slug === popularSlug" class="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                        <div v-if="pack.slug === payToPlayPopularSlug" class="absolute -top-3.5 left-1/2 -translate-x-1/2">
                             <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Most Popular</span>
                         </div>
 
@@ -283,29 +416,20 @@ const orderedPacks = computed(() =>
                         <p class="text-xs italic mb-5 min-h-[2.5rem]" style="color: #555555;">{{ packBlurb(pack) }}</p>
 
                         <Link
-                            v-if="pack.type !== 'partner'"
                             :href="route('register')"
                             class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:opacity-90"
                             style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
                             Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </Link>
-                        <Link
-                            v-else
-                            :href="route('partner')"
-                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:bg-amber-50"
-                            style="border: 2px solid #F5A000; color: #1A1A1A;"
-                        >
-                            For verified partners <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                        </Link>
 
                         <!-- Standard pack details -->
                         <div v-if="!isAddon(pack)" class="flex flex-col gap-5">
                             <div>
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
-                                <p class="text-sm font-bold" style="color: #1A1A1A;">{{ tierContent[tierOf(pack)].episodes }}</p>
+                                <p class="text-sm font-bold" style="color: #1A1A1A;">{{ packEpisodes(pack) }}</p>
                                 <p class="text-xs italic mt-0.5" style="color: #555555;">Each episode = 1 ready-to-post piece of content</p>
-                                <p class="text-xs mt-1" style="color: #888888;">{{ tierContent[tierOf(pack)].posts }}</p>
+                                <p class="text-xs mt-1" style="color: #888888;">{{ packPosts(pack) }}</p>
                             </div>
 
                             <div class="border-t pt-4" style="border-color: #EEEEEE;">
@@ -339,7 +463,7 @@ const orderedPacks = computed(() =>
                             <div class="border-t pt-4" style="border-color: #EEEEEE;">
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
                                 <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Add-on only. Must have an active pack to purchase.</li>
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Add-on only. Must have an active plan to purchase.</li>
                                     <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Credits never expire. Use them whenever you need.</li>
                                 </ul>
                             </div>
@@ -388,6 +512,19 @@ const orderedPacks = computed(() =>
                 </div>
 
             </div>
+        </section>
+
+        <!-- Closing CTA -->
+        <section class="bg-white flex flex-col items-center justify-center text-center px-6 py-16" style="border-top: 1px solid #DDDDDD;">
+            <h2 class="text-3xl md:text-4xl font-black mb-6" style="color: #1A1A1A;">Ready? Let's Get Your Story.</h2>
+            <Link
+                :href="canRegister ? route('register') : route('login')"
+                class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
+                style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+            >
+                Get Started
+                <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+            </Link>
         </section>
 
         <!-- Footer -->

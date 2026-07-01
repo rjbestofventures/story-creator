@@ -52,7 +52,7 @@ const submit = () => {
                 </h2>
 
                 <p class="text-base leading-relaxed mb-10" style="color: #555555;">
-                    Join thousands of businesses that create professional content in minutes.
+                    Join our other Verified Business Partners that create professional content in minutes.
                 </p>
 
                 <div class="rounded-2xl p-5" style="background-color: #FFFFFF; border: 1px solid #DDDDDD;">

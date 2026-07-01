@@ -1,9 +1,9 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\ShopController;
 use App\Http\Controllers\LandingLockController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StoryController;
 use App\Http\Middleware\CheckLandingLock;
 use App\Models\CreditPack;
@@ -16,9 +16,9 @@ Route::get('/', function () {
         ->get(['slug', 'label', 'type', 'credits', 'price']);
 
     return Inertia::render('Welcome', [
-        'canLogin'    => Route::has('login'),
+        'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
-        'packs'       => $packs,
+        'packs' => $packs,
     ]);
 })->middleware(CheckLandingLock::class)->name('welcome');
 

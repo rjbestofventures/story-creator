@@ -55,13 +55,13 @@ const submit = () => {
                 </h2>
 
                 <p class="text-base leading-relaxed mb-10" style="color: #555555;">
-                    Your episodes, your audience, your brand — all in one place.
+                    No hassle, time and cost saving engagement engineered to attract customers on social media.
                 </p>
 
                 <!-- Testimonial card -->
                 <div class="rounded-2xl p-5" style="background-color: #FFFFFF; border: 1px solid #DDDDDD;">
                     <p class="text-sm leading-relaxed mb-4" style="color: #1A1A1A;">
-                        "StoryCreator.Bot saved us 10+ hours a week. We went from struggling to post once a month to publishing weekly across every channel."
+                        "StoryCreator.Bot saved me and my team 10+ hours a month. We struggled to post twice a month to easily publishing across all local channels."
                     </p>
                     <div class="flex items-center gap-3">
                         <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">

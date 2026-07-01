@@ -40,7 +40,7 @@ return new class extends Migration
                 Schema::table('user_credits', function (Blueprint $table) {
                     $table->index(['user_id', 'source']);
                 });
-            } catch (\Throwable $e) {
+            } catch (Throwable $e) {
                 // index already exists from a previous partial run — ignore
             }
 
