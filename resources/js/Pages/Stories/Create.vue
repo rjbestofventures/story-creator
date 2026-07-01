@@ -9,13 +9,20 @@ import { Textarea } from '@/Components/ui/textarea';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@/Components/ui/dialog';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle } from 'lucide-vue-next';
+import {
+    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/Components/ui/tooltip';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock } from 'lucide-vue-next';
 
 const props = defineProps({
     profile:         Object,
     story:           Object,
     credits:         { type: Number, default: null },
-    episode_options: { type: Array, default: () => [12, 18, 24] },
+    max_episodes:    { type: Number, default: null },
+    episode_options: {
+        type: Array,
+        default: () => [12, 18, 24].map((count) => ({ count, locked: false, unlock_label: null })),
+    },
 });
 
 // ─── Phase: 0 = basics, 1 = AI chat, 2 = generate options ───────────────────
@@ -174,22 +181,32 @@ const format = ref('social');
 
 const isUnlimited   = computed(() => props.credits === null); // admins
 const creditBalance = computed(() => props.credits ?? 0);
-const episodeOptions = computed(() => props.episode_options ?? [12, 18, 24]);
+const episodeOptions = computed(() => props.episode_options ?? []);
 
-// Selected episode count: default to the largest the user can afford.
+// Selected episode count: default to the largest option the user can both
+// unlock (pack tier) and afford (credits).
 const selectedEpisodes = ref(null);
 
 const affordable = (count) => isUnlimited.value || creditBalance.value >= count;
+const unlocked = (opt) => isUnlimited.value || !opt.locked;
+const selectable = (opt) => unlocked(opt) && affordable(opt.count);
+
+const selectOption = (opt) => {
+    if (!selectable(opt)) return;
+    selectedEpisodes.value = opt.count;
+};
 
 const initEpisodeChoice = () => {
     const opts = episodeOptions.value;
-    const best = [...opts].reverse().find(affordable);
-    selectedEpisodes.value = best ?? opts[0];
+    const best = [...opts].reverse().find(selectable)
+        ?? opts.find(unlocked)
+        ?? opts[0];
+    selectedEpisodes.value = best?.count ?? 12;
 };
 
 const episodeCount = computed(() => {
     if (isDemoMode.value) return 3;
-    return selectedEpisodes.value ?? episodeOptions.value[0];
+    return selectedEpisodes.value ?? episodeOptions.value[0]?.count ?? 12;
 });
 
 const canAffordSelected = computed(() => isUnlimited.value || creditBalance.value >= episodeCount.value);
@@ -916,26 +933,45 @@ const formats = [
                                     {{ creditBalance }} credit{{ creditBalance === 1 ? '' : 's' }} available
                                 </span>
                             </div>
-                            <div class="grid grid-cols-3 gap-2">
-                                <button
-                                    v-for="count in episodeOptions"
-                                    :key="count"
-                                    type="button"
-                                    :disabled="!affordable(count)"
-                                    @click="affordable(count) && (selectedEpisodes = count)"
-                                    class="flex flex-col items-center gap-1 p-4 rounded-xl border-2 text-center transition-all duration-200"
-                                    :class="[
-                                        selectedEpisodes === count
-                                            ? 'border-[#F5A000] bg-amber-50'
-                                            : 'border-[#DDDDDD] hover:border-[#F5A000]/50',
-                                        affordable(count) ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed',
-                                    ]"
-                                >
-                                    <span class="text-xl font-black text-[#1A1A1A]">{{ count }}</span>
-                                    <span class="text-[11px] text-[#555555]">episodes</span>
-                                    <span v-if="!isUnlimited" class="text-[10px] text-[#AAAAAA]">{{ count }} credits</span>
-                                </button>
-                            </div>
+                            <TooltipProvider>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <Tooltip v-for="opt in episodeOptions" :key="opt.count" :delay-duration="100">
+                                        <TooltipTrigger as-child>
+                                            <button
+                                                type="button"
+                                                :disabled="unlocked(opt) && !affordable(opt.count)"
+                                                @click="selectOption(opt)"
+                                                class="relative flex flex-col items-center gap-1 p-4 rounded-xl border-2 text-center transition-all duration-200"
+                                                :class="[
+                                                    selectedEpisodes === opt.count
+                                                        ? 'border-[#F5A000] bg-amber-50'
+                                                        : 'border-[#DDDDDD] hover:border-[#F5A000]/50',
+                                                    selectable(opt) ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed',
+                                                ]"
+                                            >
+                                                <Lock v-if="!unlocked(opt)" class="absolute top-2 right-2 w-3 h-3 text-[#AAAAAA]" />
+                                                <span class="text-xl font-black text-[#1A1A1A]">{{ opt.count }}</span>
+                                                <span class="text-[11px] text-[#555555]">episodes</span>
+                                                <span v-if="!isUnlimited" class="text-[10px] text-[#AAAAAA]">{{ opt.count }} credits</span>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent v-if="!unlocked(opt)" side="bottom" class="max-w-xs p-3">
+                                            <p class="text-xs leading-relaxed text-[#1A1A1A]">
+                                                <template v-if="opt.unlock_label">
+                                                    Unlock {{ opt.count }}-episode stories with the
+                                                    <strong>{{ opt.unlock_label }}</strong>.
+                                                </template>
+                                                <template v-else>
+                                                    This episode count requires a higher pack.
+                                                </template>
+                                            </p>
+                                            <Link :href="route('shop.index')" class="block mt-1 text-xs font-semibold text-[#F5A000] hover:underline">
+                                                View packs →
+                                            </Link>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
+                            </TooltipProvider>
                             <p v-if="!isUnlimited && !canAffordSelected" class="text-xs text-red-600">
                                 You don't have enough credits — you'll be taken to the shop to top up.
                             </p>

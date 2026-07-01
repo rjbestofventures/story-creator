@@ -753,7 +753,7 @@ const restoreRevision = async (ep) => {
                         <template v-else>
                             This will rewrite the episode and <strong class="text-[#1A1A1A]">cost 1 StoryBot credit</strong>.
                             The current version is saved to history so you can restore it.
-                            <span class="block mt-1 text-xs text-[#888888]">You have {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining.</span>
+                            <span class="block mt-1 text-xs font-semibold text-[#F5A000]">You have {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining.</span>
                         </template>
                     </DialogDescription>
                 </DialogHeader>

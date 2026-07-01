@@ -80,4 +80,25 @@ class User extends Authenticatable implements MustVerifyEmail
             ->whereHas('creditPack', fn ($q) => $q->where('type', '!=', 'addon'))
             ->exists();
     }
+
+    /**
+     * The highest episode count this user may generate, unlocked permanently by
+     * the best main pack (partner/storybot) they have ever purchased. Add-ons do
+     * not unlock tiers. Falls back to the Basic tier (12); null means unlimited
+     * (admins).
+     */
+    public function maxEpisodes(): ?int
+    {
+        if ($this->isAdmin()) {
+            return null;
+        }
+
+        $best = $this->purchases()
+            ->whereHas('creditPack', fn ($q) => $q->whereIn('type', ['partner', 'storybot']))
+            ->with('creditPack:id,max_episodes')
+            ->get()
+            ->max(fn ($purchase) => $purchase->creditPack?->max_episodes ?? 0);
+
+        return max(12, (int) $best);
+    }
 }

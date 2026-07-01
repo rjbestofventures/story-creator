@@ -80,7 +80,7 @@ const confirmDelete = () => {
                     <Link v-if="canCreateStory" :href="route('stories.create')">
                         <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
                             <Plus class="w-4 h-4" />
-                            + New Story
+                            New Story
                         </Button>
                     </Link>
 
@@ -120,7 +120,8 @@ const confirmDelete = () => {
                                 </TooltipProvider>
                             </div>
                             <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</div>
-                            <div class="text-xs text-[#555555] mt-0.5">1 credit = 1 episode (generate or refine)</div>
+                            <div class="text-xs text-[#555555] mt-0.5">1 AI Refine = 1 StoryBot Credit</div>
+                            <div class="text-xs text-[#555555]">1 Episode Generation = 1 StoryBot Credit (ex: 12 episode story = 12 StoryBot Credits)</div>
                         </div>
                         <Link v-if="!isAdmin" :href="route('shop.index')">
                             <Button class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer">

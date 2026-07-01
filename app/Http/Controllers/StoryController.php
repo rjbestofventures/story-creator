@@ -4,20 +4,80 @@ namespace App\Http\Controllers;
 
 use App\Jobs\GenerateStory;
 use App\Models\BusinessProfile;
+use App\Models\CreditPack;
 use App\Models\Episode;
 use App\Models\EpisodeVersion;
 use App\Models\SiteSetting;
 use App\Models\Story;
+use App\Models\User;
 use App\Services\InterviewService;
 use App\Services\StoryGeneratorService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class StoryController extends Controller
 {
     /** Episode-count choices offered at generation; each episode costs 1 credit. */
     public const EPISODE_OPTIONS = [12, 18, 24];
+
+    /**
+     * Build the episode-count choices for a user, marking any above their pack
+     * tier as locked and naming the pack that unlocks them.
+     *
+     * @return list<array{count:int,locked:bool,unlock_label:?string}>
+     */
+    private function episodeOptionsFor(User $user): array
+    {
+        $max = $user->maxEpisodes(); // null = unlimited (admins)
+
+        $packs = CreditPack::query()
+            ->active()
+            ->ofType(CreditPack::audienceType($user))
+            ->orderBy('max_episodes')
+            ->get(['label', 'max_episodes']);
+
+        return array_map(function (int $count) use ($max, $packs) {
+            $locked = $max !== null && $count > $max;
+
+            $unlock = $locked
+                ? $packs->firstWhere('max_episodes', '>=', $count)?->label
+                : null;
+
+            return [
+                'count' => $count,
+                'locked' => $locked,
+                'unlock_label' => $unlock,
+            ];
+        }, self::EPISODE_OPTIONS);
+    }
+
+    /**
+     * Reject an episode count above the user's pack tier with a 422 naming the
+     * pack that would unlock it.
+     */
+    private function assertWithinTier(User $user, int $count): void
+    {
+        $max = $user->maxEpisodes();
+
+        if ($max === null || $count <= $max) {
+            return;
+        }
+
+        $unlock = CreditPack::query()
+            ->active()
+            ->ofType(CreditPack::audienceType($user))
+            ->where('max_episodes', '>=', $count)
+            ->orderBy('max_episodes')
+            ->value('label');
+
+        throw ValidationException::withMessages([
+            'episode_count' => $unlock
+                ? "{$count}-episode stories require the {$unlock}."
+                : "Your current pack does not allow {$count}-episode stories.",
+        ]);
+    }
 
     // -------------------------------------------------------------------------
     // Dashboard — user's story list
@@ -56,7 +116,8 @@ class StoryController extends Controller
             'profile' => null,
             'story' => null,
             'credits' => $user->isAdmin() ? null : $user->credits,
-            'episode_options' => self::EPISODE_OPTIONS,
+            'episode_options' => $this->episodeOptionsFor($user),
+            'max_episodes' => $user->maxEpisodes(),
         ]);
     }
 
@@ -73,7 +134,8 @@ class StoryController extends Controller
         return Inertia::render('Stories/Create', [
             'profile' => $story->businessProfile,
             'credits' => $user->isAdmin() ? null : $user->credits,
-            'episode_options' => self::EPISODE_OPTIONS,
+            'episode_options' => $this->episodeOptionsFor($user),
+            'max_episodes' => $user->maxEpisodes(),
             'story' => [
                 'id' => $story->id,
                 'status' => $story->status,
@@ -191,6 +253,7 @@ class StoryController extends Controller
         $count = (int) $data['episode_count'];
 
         $user = $request->user();
+        $this->assertWithinTier($user, $count);
 
         if (! $user->isAdmin()) {
             abort_if($user->credits < $count, 403, 'You don\'t have enough credits to generate this story.');
@@ -275,6 +338,7 @@ class StoryController extends Controller
 
         $user = $request->user();
         $count = (int) $data['episode_count'];
+        $this->assertWithinTier($user, $count);
 
         if (! $user->isAdmin()) {
             abort_if($user->credits < $count, 403, 'You don\'t have enough credits to generate this story.');

@@ -183,15 +183,23 @@ PROMPT;
 
         $model = SiteSetting::get('generation_model', 'claude-sonnet-4-6');
 
+        $perEpisodeTokens = match ($format) {
+            'blog' => 900,
+            'linkedin' => 650,
+            default => 500,
+        };
+        $maxTokens = min(32000, 2048 + $episodeCount * $perEpisodeTokens);
+
         Log::channel('anthropic')->debug('Generation → request', [
             'model' => $model,
             'episode_count' => $episodeCount,
             'format' => $format,
+            'max_tokens' => $maxTokens,
             'user_prompt' => $userPrompt,
         ]);
 
         $response = $this->client()->messages->create(
-            maxTokens: 8192,
+            maxTokens: $maxTokens,
             messages: [['role' => 'user', 'content' => $userPrompt]],
             model: $model,
             system: [

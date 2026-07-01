@@ -17,6 +17,7 @@ class Story extends Model
         'title',
         'status',
         'is_demo',
+        'episode_limit',
         'refines_used',
         'tokens_input',
         'tokens_output',
