@@ -24,7 +24,7 @@ class ShopController extends Controller
         $audience = CreditPack::audienceType($user); // 'partner' | 'storybot'
 
         $packs = CreditPack::active()->ofType($audience)->orderBy('price')
-            ->get(['id', 'slug', 'label', 'type', 'credits', 'price', 'stripe_price_id']);
+            ->get(['id', 'slug', 'label', 'type', 'credits', 'max_episodes', 'price', 'stripe_price_id']);
 
         $addon = CreditPack::active()->ofType('addon')->orderBy('price')
             ->first(['id', 'slug', 'label', 'type', 'credits', 'price', 'stripe_price_id']);

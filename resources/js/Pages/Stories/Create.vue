@@ -900,7 +900,7 @@ const formats = [
                         <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
                     </div>
 
-                    <p class="text-xs text-[#AAAAAA]">This takes up to 1 minute. Please don't close this page.</p>
+                    <p class="text-xs text-[#AAAAAA]">This takes 1-3 minutes. Please don't close this page.</p>
                 </div>
             </div>
 
@@ -942,7 +942,7 @@ const formats = [
                                                 type="button"
                                                 :disabled="unlocked(opt) && !affordable(opt.count)"
                                                 @click="selectOption(opt)"
-                                                class="relative flex flex-col items-center gap-1 p-4 rounded-xl border-2 text-center transition-all duration-200"
+                                                class="relative flex flex-col items-center gap-1 p-4 pt-5 rounded-xl border-2 text-center transition-all duration-200 overflow-hidden"
                                                 :class="[
                                                     selectedEpisodes === opt.count
                                                         ? 'border-[#F5A000] bg-amber-50'
@@ -950,7 +950,13 @@ const formats = [
                                                     selectable(opt) ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed',
                                                 ]"
                                             >
-                                                <Lock v-if="!unlocked(opt)" class="absolute top-2 right-2 w-3 h-3 text-[#AAAAAA]" />
+                                                <span
+                                                    v-if="!unlocked(opt)"
+                                                    class="absolute top-0 inset-x-0 bg-[#1A1A1A] text-white text-[8px] font-bold uppercase tracking-wide py-0.5 truncate px-1"
+                                                >
+                                                    Buy {{ opt.unlock_label || 'Pro' }} to unlock
+                                                </span>
+                                                <Lock v-if="!unlocked(opt)" class="absolute top-6 right-2 w-3 h-3 text-[#AAAAAA]" />
                                                 <span class="text-xl font-black text-[#1A1A1A]">{{ opt.count }}</span>
                                                 <span class="text-[11px] text-[#555555]">episodes</span>
                                                 <span v-if="!isUnlimited" class="text-[10px] text-[#AAAAAA]">{{ opt.count }} credits</span>
@@ -1014,7 +1020,7 @@ const formats = [
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
                             <p class="text-xs text-[#555555] mt-1">
-                                <template v-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes up to 1 minute
+                                <template v-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes 1-3 minutes
                             </p>
                         </div>
 
@@ -1065,14 +1071,21 @@ const formats = [
                         <Sparkles class="w-5 h-5 text-[#F5A000]" />
                     </div>
                     <DialogTitle class="text-[#1A1A1A]">Generate your story?</DialogTitle>
-                    <DialogDescription class="text-[#555555]">
-                        StoryBot will generate
-                        <strong class="text-[#1A1A1A]">{{ episodeCount }} episodes</strong>
-                        for <strong class="text-[#1A1A1A]">{{ basics.business_name }}</strong>.
-                        <template v-if="!isUnlimited">
-                            This costs <strong class="text-[#1A1A1A]">{{ episodeCount }} StoryBot credit{{ episodeCount === 1 ? '' : 's' }}</strong>
-                            (1 per episode), leaving you {{ creditBalance - episodeCount }}.
-                        </template>
+                    <DialogDescription as="div" class="text-[#555555]">
+                        <p>
+                            StoryBot will generate
+                            <strong class="text-[#1A1A1A]">{{ episodeCount }} episodes</strong>
+                            for <strong class="text-[#1A1A1A]">{{ basics.business_name }}</strong>.
+                        </p>
+                        <ul v-if="!isUnlimited" class="mt-2 space-y-1 list-disc list-inside">
+                            <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditBalance }}</strong></li>
+                            <li>Cost: <strong class="text-[#1A1A1A]">{{ episodeCount }} credit{{ episodeCount === 1 ? '' : 's' }}</strong> (1 credit per episode)</li>
+                            <li>Remaining Balance After Generation: <strong class="text-[#1A1A1A]">{{ creditBalance - episodeCount }} credits</strong></li>
+                        </ul>
+                        <p class="mt-2 text-xs">
+                            Once confirmed, StoryBot will immediately begin generating your episodes.
+                            <template v-if="!isUnlimited"> Credits used are non-refundable.</template>
+                        </p>
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">

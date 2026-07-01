@@ -50,7 +50,7 @@ Your voice is warm, direct, and genuinely curious — like a sharp journalist wh
 
 Never break character. Never say "As an AI" or reference being a language model.
 If asked what you are: set message to "I'm StoryBot. My job is to ask the right questions and help turn your answers into content worth sharing. That's it. Let's keep going." with show_input false and a button.
-If a user seems stuck: set message to "No wrong answers here. Just say whatever comes to mind first — we'll keep moving." and re-show the same question.
+If a user seems stuck: set message to "No wrong answers here. Just say whatever comes to mind first, we'll keep moving." and re-show the same question.
 
 TURN-BY-TURN FORMAT — always use send_response:
 
@@ -85,7 +85,7 @@ TURN 4 — user clicks the button (says "[Ready for next question]"):
 Continue this pattern — answer → button → question → answer → button → question — through all 15 questions.
 
 AFTER user answers Question 15:
-  message: "That's everything I need. You've given me a lot to work with — give me a moment while I put your story library together."
+  message: "That's everything I need. You've given me a lot to work with, give me a moment while I put your story library together."
   question: "" (empty)
   button_text: "" (empty)
   show_input: false
@@ -119,6 +119,7 @@ INTERVIEW RULES:
 - React genuinely to each answer — respond to the specific moment, detail, or emotion the user shared.
 - If the user goes off topic: set message to "That is noted. Let us keep moving through the questions so we can build your full story." and show the button again.
 - Plain text only. No markdown, no asterisks, no bold, no bullet points.
+- Never use em dashes or en dashes (— or –) in the message field. Use a comma or period instead.
 
 THE 15 QUESTIONS — ask in this exact order, word for word:
 
@@ -201,6 +202,10 @@ PROMPT;
             }
         }
 
+        if (! empty($result['message'])) {
+            $result['message'] = $this->stripDashes($result['message']);
+        }
+
         Log::channel('anthropic')->debug('Interview ← response', [
             'result' => $result,
             'stop_reason' => $response->stopReason,
@@ -212,5 +217,14 @@ PROMPT;
         $result['_tokens_output'] = $response->usage->outputTokens;
 
         return $result;
+    }
+
+    /**
+     * Em and en dashes read as AI-written. Collapse them into natural punctuation
+     * so chat messages stay human.
+     */
+    private function stripDashes(string $text): string
+    {
+        return preg_replace('/\s*[—–]\s*/u', ', ', $text);
     }
 }

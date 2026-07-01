@@ -24,6 +24,11 @@ const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
 const storyTitle   = computed(() => props.story.title ?? `The Story of ${businessName}`);
 
+// Local, mutable copy of the credit balance so it updates immediately after a
+// refine, without waiting for a full page reload.
+const creditsBalance = ref(props.credits);
+watch(() => props.credits, (val) => { creditsBalance.value = val; });
+
 // ─── Generating / failed state + polling ─────────────────────────────────────
 const isGenerating = computed(() => props.story.status === 'generating');
 const isFailed     = computed(() => props.story.status === 'failed');
@@ -246,13 +251,15 @@ const persistRefineInstruction = (ep, value) => {
 
 const refineError = ref(null);
 
-// ─── Refine confirmation (each refine costs 1 credit) ─────────────────────────
+// ─── Refine confirmation (each refine costs 1 credit; restoring a version is free) ─
 const confirmRefineOpen = ref(false);
 const pendingRefine     = ref(null);
+const pendingRefineKind = ref('refine'); // 'refine' | 'restore'
 
-const requestRefine = (fn) => {
+const requestRefine = (fn, kind = 'refine') => {
     if (isDemo) { fn(); return; } // demo never charges
     pendingRefine.value     = fn;
+    pendingRefineKind.value = kind;
     confirmRefineOpen.value = true;
 };
 
@@ -297,6 +304,7 @@ const applyTone = async (ep, toneKey) => {
             syncEditState(ep.id);
             revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
         }
+        if (typeof data.credits === 'number') creditsBalance.value = data.credits;
     } finally {
         toningEpId.value = null;
         toningId.value   = null;
@@ -340,6 +348,7 @@ const applyCustomRefine = async (ep) => {
             syncEditState(ep.id);
             revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
         }
+        if (typeof data.credits === 'number') creditsBalance.value = data.credits;
     } finally {
         toningEpId.value = null;
         toningId.value   = null;
@@ -391,7 +400,7 @@ const restoreRevision = async (ep) => {
                 <Loader2 class="w-12 h-12 animate-spin" style="color: #F5A000;" />
                 <div>
                     <p class="text-xl font-black mb-1" style="color: #1A1A1A;">Generating your story…</p>
-                    <p class="text-sm" style="color: #555555;">This takes up to 1 minute. You can wait here or come back later.</p>
+                    <p class="text-sm" style="color: #555555;">This takes 1-3 minutes. You can wait here or come back later.</p>
                 </div>
                 <Link :href="route('stories.index')" class="text-sm underline mt-2" style="color: #555555;">Go to My Stories</Link>
             </div>
@@ -586,7 +595,7 @@ const restoreRevision = async (ep) => {
                                     :disabled="restoring === ep.id"
                                     class="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50"
                                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                                    @click="requestRefine(() => restoreRevision(ep))"
+                                    @click="requestRefine(() => restoreRevision(ep), 'restore')"
                                 >
                                     <Loader2 v-if="restoring === ep.id" class="w-3 h-3 animate-spin" />
                                     <RotateCcw v-else class="w-3 h-3" />
@@ -745,15 +754,26 @@ const restoreRevision = async (ep) => {
                     <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
                         <RefreshCcw class="w-5 h-5 text-[#F5A000]" />
                     </div>
-                    <DialogTitle class="text-[#1A1A1A]">Refine this episode?</DialogTitle>
-                    <DialogDescription class="text-[#555555]">
-                        <template v-if="isAdmin">
-                            This will rewrite the episode. The current version is saved to history so you can restore it.
+                    <DialogTitle class="text-[#1A1A1A]">
+                        {{ pendingRefineKind === 'restore' ? 'Restore this version?' : 'Refine this episode?' }}
+                    </DialogTitle>
+                    <DialogDescription as="div" class="text-[#555555]">
+                        <template v-if="pendingRefineKind === 'restore'">
+                            <p>
+                                Are you sure you want to restore this version? This won't cost any credits.
+                                The current version is saved to history so you can come back to it.
+                            </p>
+                        </template>
+                        <template v-else-if="isAdmin">
+                            <p>This will rewrite the episode. The current version is saved to history so you can restore it.</p>
                         </template>
                         <template v-else>
-                            This will rewrite the episode and <strong class="text-[#1A1A1A]">cost 1 StoryBot credit</strong>.
-                            The current version is saved to history so you can restore it.
-                            <span class="block mt-1 text-xs font-semibold text-[#F5A000]">You have {{ credits }} credit{{ credits === 1 ? '' : 's' }} remaining.</span>
+                            <p>This will rewrite the episode. The current version is saved to history so you can restore it.</p>
+                            <ul class="mt-2 space-y-1 list-disc list-inside">
+                                <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditsBalance }}</strong></li>
+                                <li>Cost: <strong class="text-[#1A1A1A]">1 credit</strong></li>
+                                <li>Remaining Balance After Refine: <strong class="text-[#1A1A1A]">{{ creditsBalance - 1 }} credit{{ (creditsBalance - 1) === 1 ? '' : 's' }}</strong></li>
+                            </ul>
                         </template>
                     </DialogDescription>
                 </DialogHeader>
@@ -763,7 +783,7 @@ const restoreRevision = async (ep) => {
                         @click="confirmRefine"
                         class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
                     >
-                        Yes, refine it
+                        {{ pendingRefineKind === 'restore' ? 'Yes, restore it' : 'Yes, refine it' }}
                     </Button>
                 </DialogFooter>
             </DialogContent>

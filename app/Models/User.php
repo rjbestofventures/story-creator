@@ -82,10 +82,11 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * The highest episode count this user may generate, unlocked permanently by
-     * the best main pack (partner/storybot) they have ever purchased. Add-ons do
-     * not unlock tiers. Falls back to the Basic tier (12); null means unlimited
-     * (admins).
+     * The highest episode count this user may generate, unlocked by the most
+     * recently purchased main pack (partner/storybot). Add-ons do not affect
+     * tier. Downgrading (e.g. buying Basic after Premium) drops the limit back
+     * down, since it always follows the most recent purchase. Falls back to
+     * the Basic tier (12); null means unlimited (admins).
      */
     public function maxEpisodes(): ?int
     {
@@ -93,12 +94,25 @@ class User extends Authenticatable implements MustVerifyEmail
             return null;
         }
 
-        $best = $this->purchases()
+        $latest = $this->purchases()
             ->whereHas('creditPack', fn ($q) => $q->whereIn('type', ['partner', 'storybot']))
             ->with('creditPack:id,max_episodes')
-            ->get()
-            ->max(fn ($purchase) => $purchase->creditPack?->max_episodes ?? 0);
+            ->first();
 
-        return max(12, (int) $best);
+        return max(12, (int) ($latest?->creditPack?->max_episodes ?? 0));
+    }
+
+    /**
+     * Label of the most recently purchased main pack (partner/storybot), or
+     * null if the user has never bought/been granted one.
+     */
+    public function currentPackLabel(): ?string
+    {
+        $latest = $this->purchases()
+            ->whereHas('creditPack', fn ($q) => $q->whereIn('type', ['partner', 'storybot']))
+            ->with('creditPack:id,label')
+            ->first();
+
+        return $latest?->creditPack?->label;
     }
 }

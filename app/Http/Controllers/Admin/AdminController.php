@@ -31,7 +31,7 @@ class AdminController extends Controller
         $creditPacks = CreditPack::active()->orderBy('price')
             ->get(['id', 'slug', 'label', 'type', 'credits', 'price']);
 
-        $users = User::with('roles')
+        $users = User::with(['roles', 'purchases.creditPack:id,label,type'])
             ->withCount('stories')
             ->orderByDesc('created_at')
             ->get()
@@ -45,6 +45,9 @@ class AdminController extends Controller
                 'credits' => $user->credits,
                 'stories_total' => $user->stories_count,
                 'created_at' => $user->created_at->format('n/j/Y'),
+                'current_pack' => $user->purchases
+                    ->first(fn ($p) => in_array($p->creditPack?->type, ['partner', 'storybot']))
+                    ?->creditPack?->label,
             ]);
 
         return Inertia::render('Admin/Users', [

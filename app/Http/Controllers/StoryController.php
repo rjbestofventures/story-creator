@@ -514,12 +514,6 @@ class StoryController extends Controller
         abort_unless($episode->story_id === $story->id, 404);
         abort_unless($version->episode_id === $episode->id, 404);
 
-        $user = $request->user();
-
-        if (! $user->isAdmin()) {
-            abort_unless($user->canRefine(), 403, 'You have no credits remaining.');
-        }
-
         // Save current as a version before restoring
         $nextVersion = $episode->versions()->max('version') ?? 0;
         EpisodeVersion::create([
@@ -530,10 +524,6 @@ class StoryController extends Controller
         ]);
 
         $episode->update(['title' => $version->title, 'content' => $version->content]);
-
-        if (! $user->isAdmin()) {
-            $user->decrement('credits');
-        }
 
         return response()->json([
             'episode' => [
@@ -637,6 +627,7 @@ class StoryController extends Controller
                 'content' => $episode->content,
                 'format' => $episode->format,
             ],
+            'credits' => $user->isAdmin() ? null : $user->fresh()->credits,
         ]);
     }
 }

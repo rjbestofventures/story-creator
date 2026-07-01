@@ -53,6 +53,13 @@ const buy = async (pack) => {
 };
 
 const formatPrice = (cents) => '$' + (cents / 100).toFixed(0);
+
+const episodeOptionsLabel = (pack) => {
+    const options = [12, 18, 24].filter((n) => n <= (pack.max_episodes ?? 12));
+    if (options.length <= 1) return `Choose ${options[0] ?? 12} episodes per story`;
+    if (options.length === 2) return `Choose ${options[0]} or ${options[1]} episodes per story`;
+    return `Choose ${options[0]}, ${options[1]}, or ${options[2]} episodes per story`;
+};
 </script>
 
 <template>
@@ -137,7 +144,7 @@ const formatPrice = (cents) => '$' + (cents / 100).toFixed(0);
                                     <div class="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                                         <Check class="w-2.5 h-2.5 text-[#F5A000]" />
                                     </div>
-                                    <span>Choose 12, 18 or 24 episodes per story</span>
+                                    <span>{{ episodeOptionsLabel(pack) }}</span>
                                 </li>
                                 <li class="flex items-center gap-2.5 text-sm text-[#555555]">
                                     <div class="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">

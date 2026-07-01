@@ -86,8 +86,8 @@ const filtered = computed(() =>
 );
 
 const kpis = computed(() => [
-    { label: 'Verified Users',     value: props.users.filter(u => u.is_verified_partner).length,  icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Verified business partners'                       },
-    { label: 'Non-Verified Users', value: props.users.filter(u => !u.is_verified_partner).length, icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are not verified partners'           },
+    { label: 'Verified Business Partners',     value: props.users.filter(u => u.is_verified_partner).length,  icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Verified business partners'                       },
+    { label: 'Non-Verified Business Partners', value: props.users.filter(u => !u.is_verified_partner).length, icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are not verified partners'           },
     { label: 'Total Sold Packs',   value: props.stats.sold_packs,                                 icon: Package,  color: '#6366F1', bg: 'bg-indigo-50', text: 'text-indigo-600', tooltip: 'Packs purchased across all users'                 },
     { label: 'Stories',            value: props.stats.stories,                                    icon: BookOpen, color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-600', tooltip: 'Total stories generated across the platform'      },
 ]);
@@ -294,6 +294,13 @@ const impersonate = (userId) => {
                             >
                                 Verified Partner
                             </Badge>
+                            <Badge
+                                v-if="user.current_pack"
+                                variant="outline"
+                                class="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0"
+                            >
+                                Current Pack: {{ user.current_pack }}
+                            </Badge>
                         </div>
                         <div class="flex items-center gap-1 mt-1">
                             <Mail class="w-3 h-3 shrink-0 text-muted-foreground" />
@@ -495,7 +502,7 @@ const impersonate = (userId) => {
                                         <span v-if="user.tier !== 'user'" class="text-purple-600">∞</span>
                                         <span v-else>{{ user.credits }}</span>
                                     </p>
-                                    <p class="text-[10px] text-muted-foreground">1 credit = 1 episode (generate or refine)</p>
+                                    <p v-if="user.tier === 'user'" class="text-[10px] text-muted-foreground">1 credit = 1 episode (generate or refine)</p>
                                 </div>
                             </div>
 
