@@ -645,6 +645,7 @@ const formats = [
                             />
                         </div>
                         <p class="text-xs text-[#555555]">Add at least one link so StoryBot can learn more about your business. <span class="text-red-500">*</span></p>
+                        <p class="text-xs text-[#AAAAAA]">When adding a link, please make sure it is set to public access so the system can properly fetch and process it.</p>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label for="business_url" class="text-[#1A1A1A] font-semibold">
@@ -704,7 +705,7 @@ const formats = [
                             <Textarea
                                 id="biography"
                                 v-model="basics.biography"
-                                placeholder="Tell us about yourself — your background, what drives you, your journey into this business..."
+                                placeholder="Tell us about yourself, your background, what drives you, your journey into this business..."
                                 rows="3"
                                 class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
                             />
@@ -955,17 +956,17 @@ const formats = [
                                                 <span v-if="!isUnlimited" class="text-[10px] text-[#AAAAAA]">{{ opt.count }} credits</span>
                                             </button>
                                         </TooltipTrigger>
-                                        <TooltipContent v-if="!unlocked(opt)" side="bottom" class="max-w-xs p-3">
-                                            <p class="text-xs leading-relaxed text-[#1A1A1A]">
+                                        <TooltipContent v-if="!unlocked(opt)" side="bottom" class="max-w-xs p-3 flex-col items-start gap-1">
+                                            <p class="text-xs leading-relaxed text-white">
                                                 <template v-if="opt.unlock_label">
                                                     Unlock {{ opt.count }}-episode stories with the
-                                                    <strong>{{ opt.unlock_label }}</strong>.
+                                                    <strong class="font-semibold text-white">{{ opt.unlock_label }}</strong>.
                                                 </template>
                                                 <template v-else>
                                                     This episode count requires a higher pack.
                                                 </template>
                                             </p>
-                                            <Link :href="route('shop.index')" class="block mt-1 text-xs font-semibold text-[#F5A000] hover:underline">
+                                            <Link :href="route('shop.index')" class="text-xs font-semibold text-[#F5A000] hover:underline">
                                                 View packs →
                                             </Link>
                                         </TooltipContent>
