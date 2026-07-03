@@ -148,6 +148,7 @@ const editDialogOpen = computed({
                     <div class="flex items-start justify-between gap-2 mb-3">
                         <div>
                             <p class="text-base font-black leading-tight" style="color: #1A1A1A;">{{ getEditForm(pack).label }}</p>
+                            <p class="text-[11px] font-mono text-muted-foreground leading-tight">{{ pack.slug }}</p>
                             <Badge variant="outline" :class="typeMeta[pack.type]?.class" class="mt-1 text-[10px]">
                                 {{ typeMeta[pack.type]?.label ?? pack.type }}
                             </Badge>
