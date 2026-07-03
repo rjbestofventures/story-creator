@@ -48,6 +48,8 @@ Generate episodic story-based social media posts from the interview responses. T
 
 Every human is as unique as a snowflake or a thumbprint. The best episodes are standalone, anecdotal, authentic, unpretentious, and revealing of character and trustworthiness. StoryBot must capture the makeup of the people who do the work — their history, what drives them, what makes them different or attractive. The ingredients of a business may be similar across people, but no two humans are exactly alike. Celebrate that uniqueness and the emotional trust it engenders.
 
+The goal of every episode is to connect with the people who will actually read it, not to recite a resume, and to gently move them toward reaching out to the narrator. Favor the metaphorical over the autobiographical: reach for an image, comparison, or moment that lets the reader feel the point, rather than simply listing what happened and when. A well-chosen metaphor that captures a feeling beats a strictly factual recap every time.
+
 EPISODE ARCHITECTURE — four invisible layers in every episode:
 The reader should never feel the structure. It must feel like a completely natural story. But all four layers must be present underneath.
 
@@ -63,6 +65,7 @@ Bring the story into the present. Connect the past experience directly to what t
 
 Layer 4 — The Invisible Invitation:
 End every episode with a call to action, without exception. Keep it subtle and indirect. It does not need to be obvious or direct, and it never reads as a pitch. Draw the invitation from the central thought of that specific episode so it feels earned rather than bolted on. Do not include specific calls to buy, book, or sign up. The closing line should feel like the narrator is reflecting quietly to themselves while still gently moving the reader toward a response or a next step. It should never sound like it is addressed to the reader directly.
+Keep this closing invitation short: one to three sentences at most. Vary the phrasing and angle across episodes in the same story so consecutive episodes never close the same way — draw a different closing thought from that specific episode's content each time. The invitation is always about the narrator's own business and work, never about StoryCreator.Bot or any tool used to write it.
 
 Wrong closing: "If you are struggling with your brand story, reach out and let us talk."
 Wrong closing: "DM me if any of this resonates."
@@ -157,6 +160,9 @@ PROMPT;
         $extra = '';
         if (! empty($profile->biography)) {
             $extra .= "\nOwner biography: {$profile->biography}";
+        }
+        if (! empty($profile->services)) {
+            $extra .= "\nServices offered: {$profile->services}";
         }
         if (! empty($profile->linkedin_url)) {
             $extra .= "\nLinkedIn: {$profile->linkedin_url}";
@@ -255,17 +261,23 @@ PROMPT;
                 'humor' => 'Weave light, natural wit into this episode. Keep the story structure intact. The humor should feel organic — a subtle turn of phrase or a self-aware aside, not jokes.',
                 'professional' => 'Polish this episode to a more composed, business-appropriate tone. Keep the story authentic but make the language more precise and measured.',
                 'longer' => 'Expand this episode with more depth, detail, and texture. Keep the same story structure and voice. Add substance — not filler or repetition.',
-                'more_cta' => 'Strengthen and add calls to action throughout this episode. Make them feel natural and motivated by the story — not bolted on. Keep the voice consistent.',
+                'more_cta' => "Strengthen the closing invitation of this episode. It should be a short, natural call to action, one to three sentences at most, that invites the reader to engage, share their own thoughts, or connect with the narrator's business. Keep it subtle and conversational, never salesy or forced, and never a direct pitch to buy, book, or sign up. It should feel like a natural extension of this specific episode's story, not a generic tack-on. Keep the voice consistent throughout.",
                 'less_cta' => 'Soften or reduce the calls to action in this episode. Let the story do more of the work. Keep any remaining CTAs subtle and earned.',
                 'promotional' => 'Rewrite this episode with a more promotional tone. Highlight the value, outcome, or offer more confidently. Keep it authentic — persuasive but not pushy.',
             };
+
+        $customNote = $tone === 'custom' ? <<<'NOTE'
+
+The user's request above may be phrased as a direct instruction ("make this shorter", "add more humor") or as an observation or comment about the episode ("this doesn't sound like me", "it's more robotic", "I don't see any engaging sentences"). Treat both forms the same way: figure out what is actually bothering the user or what they want changed, and rewrite the episode to address it. Do not require the request to be an action sentence — interpret comments and complaints as implicit instructions to fix the thing being described.
+NOTE
+            : '';
 
         $userPrompt = <<<PROMPT
 Original episode:
 
 {$content}
 
-Task: {$instruction}
+Task: {$instruction}{$customNote}
 
 Return only the rewritten episode text. Preserve the first-person present tense voice throughout. Do not use em dashes or en dashes anywhere in the output; use commas, periods, or new sentences instead, so the writing reads as naturally human. No labels, no commentary, no title. Just the episode body.
 PROMPT;

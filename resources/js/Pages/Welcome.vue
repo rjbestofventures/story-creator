@@ -2,6 +2,9 @@
 import { ref, computed } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, CircleHelp, ChevronDown } from '@lucide/vue';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/Components/ui/dialog';
 
 const props = defineProps({
     canLogin: Boolean,
@@ -10,6 +13,7 @@ const props = defineProps({
 });
 
 const openFaq = ref(null);
+const learnMorePack = ref(null);
 
 const faqs = [
     { q: 'How does StoryCreator.Bot work?', a: 'Answer a series of simple questions about your business, how you got started, and your goals. StoryCreator.Bot transforms your answers into a series of ready-to-publish posts and content ideas, all based on your unique story.' },
@@ -330,34 +334,53 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         class="relative rounded-2xl bg-white p-6 flex flex-col"
                         style="border: 2px solid #F5A000;"
                     >
-                        <h3 class="text-base font-bold mb-3 min-h-[3rem]" style="color: #1A1A1A;">{{ pack.label }}</h3>
+                        <h3 class="text-base font-bold mb-3 min-h-[3rem]" style="color: #1A1A1A;">{{ pack.label }} (Verified Business Partner)</h3>
 
                         <div class="flex items-baseline gap-1 mb-1">
                             <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
                             <span class="text-sm" style="color: #555555;">one-time</span>
                         </div>
-                        <p class="text-xs italic mb-5" style="color: #555555;">{{ packBlurb(pack) }}</p>
+                        <p class="text-xs italic mb-5 min-h-[2.5rem]" style="color: #555555;">{{ packBlurb(pack) }}</p>
+
+                        <button
+                            type="button"
+                            @click="learnMorePack = pack"
+                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-3 transition hover:bg-amber-50 cursor-pointer"
+                            style="border: 2px solid #F5A000; color: #1A1A1A;"
+                        >
+                            Learn more
+                        </button>
 
                         <Link
                             :href="route('partner')"
-                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:bg-amber-50"
-                            style="border: 2px solid #F5A000; color: #1A1A1A;"
+                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90"
+                            style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
-                            For verified partners <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                            Become a Verified Business Partner <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </Link>
+                    </div>
+                </div>
+
+                <!-- Learn more popup — shared by all partner cards -->
+                <Dialog :open="learnMorePack !== null" @update:open="val => { if (!val) learnMorePack = null; }">
+                    <DialogContent v-if="learnMorePack" class="max-w-md">
+                        <DialogHeader>
+                            <DialogTitle>{{ learnMorePack.label }} (Verified Business Partner) — ${{ priceDollars(learnMorePack) }} one-time</DialogTitle>
+                            <DialogDescription as="div" class="text-[#555555]">{{ packBlurb(learnMorePack) }}</DialogDescription>
+                        </DialogHeader>
 
                         <div class="flex flex-col gap-5">
                             <div>
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
-                                <p class="text-sm font-bold" style="color: #1A1A1A;">{{ packEpisodes(pack) }}</p>
+                                <p class="text-sm font-bold" style="color: #1A1A1A;">{{ packEpisodes(learnMorePack) }}</p>
                                 <p class="text-xs italic mt-0.5" style="color: #555555;">Each episode = 1 ready-to-post piece of content</p>
-                                <p class="text-xs mt-1" style="color: #888888;">{{ packPosts(pack) }}</p>
+                                <p class="text-xs mt-1" style="color: #888888;">{{ packPosts(learnMorePack) }}</p>
                             </div>
 
                             <div class="border-t pt-4" style="border-color: #EEEEEE;">
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Your credit balance</p>
                                 <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Total StoryBot Credits:</span> {{ pack.credits }}</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Total StoryBot Credits:</span> {{ learnMorePack.credits }}</li>
                                     <li><span class="font-semibold" style="color: #1A1A1A;">Cost to generate 1 episode:</span> 1 credit</li>
                                     <li><span class="font-semibold" style="color: #1A1A1A;">Cost to manually edit or redo 1 episode:</span> 1 credit</li>
                                 </ul>
@@ -371,8 +394,8 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                                 </ul>
                             </div>
                         </div>
-                    </div>
-                </div>
+                    </DialogContent>
+                </Dialog>
 
                 <!-- ═══ Pay to Play StoryCreator.Bot Pricing Options ═══ -->
 

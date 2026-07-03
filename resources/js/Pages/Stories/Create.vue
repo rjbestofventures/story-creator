@@ -12,7 +12,7 @@ import {
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic } from 'lucide-vue-next';
 
 const props = defineProps({
     profile:         Object,
@@ -122,6 +122,7 @@ const basics = ref({
     business_url:  props.profile?.business_url  ?? '',
     industry:      props.profile?.industry       ?? '',
     biography:     props.profile?.biography      ?? '',
+    services:      props.profile?.services       ?? '',
     linkedin_url:  props.profile?.linkedin_url   ?? '',
     social_url:    props.profile?.social_url     ?? '',
 });
@@ -151,6 +152,7 @@ const chatError    = ref('');
 const chatBottom   = ref(null);
 const inputRef     = ref(null);
 const answerCount  = ref(0); // actual text answers submitted (excludes button clicks)
+const voiceGuideOpen = ref(false);
 
 // Structured response from Claude — drives button vs input mode
 const currentTurn = ref({
@@ -170,7 +172,10 @@ const enrichedDisplayLog = computed(() => {
     let qNum = 0;
     return displayLog.value.map(msg => {
         if (msg.role === 'assistant' && msg._question) {
-            return { ...msg, _questionNumber: ++qNum };
+            // A retry re-asks the same question after an invalid answer — it
+            // reuses the current number instead of advancing the count.
+            if (!msg._retry) qNum++;
+            return { ...msg, _questionNumber: qNum };
         }
         return msg;
     });
@@ -342,7 +347,9 @@ const handleButtonClick = async () => {
 const saveProgress = async (status = null) => {
     if (!storyId.value || isDemoMode.value) return; // demo: no backend calls
     try {
-        const messages = chatLog.value.map(({ _invalid, _retry, _question, ...m }) => m);
+        // Keep _invalid/_retry/_question so question numbering and history
+        // filtering still work correctly after the interview is resumed.
+        const messages = chatLog.value;
         await fetch(route('stories.progress', storyId.value), {
             method: 'PATCH',
             headers: {
@@ -404,6 +411,7 @@ const startInterview = async () => {
                     business_url:  basics.value.business_url,
                     industry:      basics.value.industry,
                     biography:     basics.value.biography,
+                    services:      basics.value.services,
                     linkedin_url:  basics.value.linkedin_url,
                     social_url:    basics.value.social_url,
                 }),
@@ -711,6 +719,20 @@ const formats = [
                             />
                         </div>
 
+                        <div class="space-y-2">
+                            <Label for="services" class="text-[#1A1A1A] font-semibold">
+                                Services that you offer
+                                <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                            </Label>
+                            <Textarea
+                                id="services"
+                                v-model="basics.services"
+                                placeholder="e.g. Espresso drinks, in-house roasting, catering for local events..."
+                                rows="3"
+                                class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
+                            />
+                        </div>
+
                         <div v-if="formErrors.length > 0 && basics.business_name.trim()" class="space-y-1">
                             <p v-for="err in formErrors" :key="err" class="text-xs text-red-500">{{ err }}</p>
                         </div>
@@ -837,37 +859,50 @@ const formats = [
                     </div>
 
                     <!-- Normal interview input -->
-                    <div v-else class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end"
-                         :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : ''"
-                    >
-                        <Textarea
-                            ref="inputRef"
-                            v-model="currentInput"
-                            :disabled="isLoading || !currentTurn.show_input"
-                            :readonly="isDemoMode && currentTurn.show_input"
-                            :placeholder="currentTurn.show_input ? (isDemoMode ? '' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
-                            rows="2"
-                            class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0 transition-opacity duration-300"
-                            :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : (isDemoMode ? 'cursor-default select-none' : '')"
-                            @keydown="onKeydown"
-                        />
-
-                        <!-- Morphing button: text label → send icon -->
+                    <div v-else>
                         <button
+                            v-if="currentTurn.show_input && !isDemoMode"
                             type="button"
-                            :disabled="isLoading || (currentTurn.show_input && !canSubmit)"
-                            @click="currentTurn.show_input ? submitAnswer() : handleButtonClick()"
-                            class="flex-shrink-0 flex items-center justify-center font-bold text-sm transition-all duration-300 cursor-pointer disabled:opacity-40"
-                            :class="currentTurn.show_input
-                                ? 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-white hover:shadow-md'
-                                : 'h-9 px-4 gap-2 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A]'"
+                            @click="voiceGuideOpen = true"
+                            class="flex items-center gap-2 mb-2 px-3 h-9 rounded-full border border-[#DDDDDD] bg-white hover:border-[#F5A000]/50 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
                         >
-                            <Send v-if="currentTurn.show_input" class="w-4 h-4" />
-                            <template v-else>
-                                <span>{{ currentTurn.button_text || '…' }}</span>
-                                <ArrowRight class="w-3.5 h-3.5" />
-                            </template>
+                            <Mic class="w-3.5 h-3.5 text-[#F5A000]" />
+                            <span class="text-sm font-bold text-[#1A1A1A]">Speak Instead of Type</span>
+                            <span class="text-xs text-[#888888]">For longer answers</span>
                         </button>
+
+                        <div class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end"
+                             :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : ''"
+                        >
+                            <Textarea
+                                ref="inputRef"
+                                v-model="currentInput"
+                                :disabled="isLoading || !currentTurn.show_input"
+                                :readonly="isDemoMode && currentTurn.show_input"
+                                :placeholder="currentTurn.show_input ? (isDemoMode ? '' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
+                                rows="2"
+                                class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0 transition-opacity duration-300"
+                                :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : (isDemoMode ? 'cursor-default select-none' : '')"
+                                @keydown="onKeydown"
+                            />
+
+                            <!-- Morphing button: text label → send icon -->
+                            <button
+                                type="button"
+                                :disabled="isLoading || (currentTurn.show_input && !canSubmit)"
+                                @click="currentTurn.show_input ? submitAnswer() : handleButtonClick()"
+                                class="flex-shrink-0 flex items-center justify-center font-bold text-sm transition-all duration-300 cursor-pointer disabled:opacity-40"
+                                :class="currentTurn.show_input
+                                    ? 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-white hover:shadow-md'
+                                    : 'h-9 px-4 gap-2 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A]'"
+                            >
+                                <Send v-if="currentTurn.show_input" class="w-4 h-4" />
+                                <template v-else>
+                                    <span>{{ currentTurn.button_text || '…' }}</span>
+                                    <ArrowRight class="w-3.5 h-3.5" />
+                                </template>
+                            </button>
+                        </div>
                     </div>
 
                 </div>
@@ -1039,6 +1074,18 @@ const formats = [
         </div>
 
         <!-- Start interview confirmation -->
+        <!-- Speak instead of type: voice typing guide -->
+        <Dialog v-model:open="voiceGuideOpen">
+            <DialogContent class="max-w-2xl p-0 gap-0 overflow-hidden">
+                <DialogTitle class="sr-only">Voice Typing Guide</DialogTitle>
+                <iframe
+                    src="/guides/voice-typing-guide.html"
+                    title="Voice Typing Guide"
+                    class="w-full h-[80vh] border-0"
+                />
+            </DialogContent>
+        </Dialog>
+
         <Dialog v-model:open="confirmStartOpen">
             <DialogContent class="max-w-md">
                 <DialogHeader>

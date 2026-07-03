@@ -28,7 +28,7 @@ const menuOpen = ref(false);
                             <Sparkles class="w-4 h-4 text-white" />
                         </div>
                         <span class="font-black text-[#1A1A1A] text-base tracking-tight">
-                            Story<span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Creator</span>
+                            Story<span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Creator</span>.Bot
                         </span>
                     </Link>
 

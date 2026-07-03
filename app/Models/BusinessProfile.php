@@ -17,6 +17,7 @@ class BusinessProfile extends Model
         'business_url',
         'industry',
         'biography',
+        'services',
         'linkedin_url',
         'social_url',
         'website_content',

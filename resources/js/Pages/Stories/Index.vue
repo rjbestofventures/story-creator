@@ -24,6 +24,10 @@ const props = defineProps({
 });
 
 const creditBalance  = computed(() => props.credits ?? 0);
+// "Generated" excludes stories still in the interview phase (no episodes yet).
+const generatedCount = computed(() =>
+    props.stories.filter(s => s.status !== 'interviewing' && s.status !== 'interview_complete').length
+);
 // Smallest story is 12 episodes (1 credit each), so below 12 a new story can't be afforded.
 const MIN_STORY_CREDITS = 12;
 const canCreateStory = computed(() => props.isAdmin || creditBalance.value >= MIN_STORY_CREDITS);
@@ -71,8 +75,8 @@ const confirmDelete = () => {
                             <Sparkles class="w-5 h-5 text-[#F5A000]" />
                         </div>
                         <div>
-                            <h1 class="text-lg font-black text-[#1A1A1A]">My Stories</h1>
-                            <p class="text-xs text-[#555555]">{{ stories.length }} {{ stories.length === 1 ? 'story' : 'stories' }} generated</p>
+                            <h1 class="font-black text-[#1A1A1A]" style="font-size: 2.15em;">MY STORYBOT LIBRARY</h1>
+                            <p class="text-xs text-[#555555]">{{ generatedCount }} {{ generatedCount === 1 ? 'story' : 'stories' }} generated</p>
                         </div>
                     </div>
 

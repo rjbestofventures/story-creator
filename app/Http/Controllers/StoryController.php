@@ -156,6 +156,7 @@ class StoryController extends Controller
             'business_url' => 'nullable|string|max:255',
             'industry' => 'nullable|string|max:80',
             'biography' => 'nullable|string|max:1000',
+            'services' => 'nullable|string|max:1000',
             'linkedin_url' => 'nullable|string|max:255',
             'social_url' => 'nullable|string|max:255',
         ]);
@@ -186,6 +187,7 @@ class StoryController extends Controller
             'business_url' => $data['business_url'] ?? null,
             'industry' => $data['industry'] ?? null,
             'biography' => $data['biography'] ?? null,
+            'services' => $data['services'] ?? null,
             'linkedin_url' => $data['linkedin_url'] ?? null,
             'social_url' => $data['social_url'] ?? null,
             'website_content' => $websiteContent,
@@ -298,6 +300,7 @@ class StoryController extends Controller
                 'business_url' => $data['business_url'] ?? '',
                 'industry' => $data['industry'] ?? '',
                 'biography' => $profile?->biography ?? '',
+                'services' => $profile?->services ?? '',
                 'linkedin_url' => $profile?->linkedin_url ?? '',
                 'social_url' => $profile?->social_url ?? '',
                 'website_content' => $profile?->website_content ?? '',
