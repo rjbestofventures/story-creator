@@ -1091,7 +1091,7 @@ const formats = [
 
         <!-- Speak instead of type: voice typing guide -->
         <Dialog v-model:open="voiceGuideOpen">
-            <DialogContent class="max-w-4xl w-[92vw] p-0 gap-0 overflow-hidden">
+            <DialogContent class="max-w-4xl sm:max-w-4xl w-[92vw] p-0 gap-0 overflow-hidden">
                 <DialogTitle class="sr-only">Voice Typing Guide</DialogTitle>
                 <iframe
                     src="/guides/voice-typing-guide.html"
