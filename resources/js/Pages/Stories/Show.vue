@@ -557,12 +557,12 @@ const restoreRevision = async (ep) => {
 
                             <!-- Row 2: badges (leave room on right for copy button) -->
                             <div class="flex items-center gap-2 pr-10">
-                                <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
-                                    Episode {{ ep.episode_number }}
-                                </span>
                                 <Badge :class="formatColor[ep.format]" class="text-xs font-semibold border shrink-0">
                                     {{ formatLabel[ep.format] ?? ep.format }}
                                 </Badge>
+                                <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
+                                    Episode {{ ep.episode_number }}
+                                </span>
                                 <span v-if="!isDemo" class="text-xs font-bold text-[#F5A000] border border-[#F5A000]/40 bg-amber-50 px-2 py-0.5 rounded-md shrink-0">
                                     Viewing Version {{ position(ep) }}
                                 </span>
