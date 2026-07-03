@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -528,16 +529,20 @@ class AdminController extends Controller
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
+            'slug' => ['required', 'string', 'max:100', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/', Rule::unique('credit_packs', 'slug')->ignore($pack->id)],
             'type' => 'required|in:partner,storybot,addon',
             'credits' => 'required|integer|min:1',
             'max_episodes' => 'required|integer|in:12,18,24',
             'price_dollars' => 'required|numeric|min:0',
             'stripe_price_id' => 'nullable|string|max:255',
             'is_active' => 'required|boolean',
+        ], [
+            'slug.regex' => 'Slug may only contain lowercase letters, numbers, and hyphens.',
         ]);
 
         $pack->update([
             'label' => $validated['label'],
+            'slug' => $validated['slug'],
             'type' => $validated['type'],
             'credits' => $validated['credits'],
             'max_episodes' => $validated['max_episodes'],

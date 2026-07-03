@@ -41,6 +41,7 @@ const getEditForm = (pack) => {
     if (!editForms.value[pack.id]) {
         editForms.value[pack.id] = useForm({
             label:           pack.label,
+            slug:            pack.slug,
             type:            pack.type,
             credits:         pack.credits,
             max_episodes:    pack.max_episodes,
@@ -276,6 +277,13 @@ const editDialogOpen = computed({
                                 </SelectContent>
                             </Select>
                         </div>
+                    </div>
+
+                    <div class="space-y-1.5">
+                        <Label>Slug</Label>
+                        <Input v-model="getEditForm(editingPack).slug" placeholder="e.g. partner-basic" class="font-mono text-xs" />
+                        <p v-if="getEditForm(editingPack).errors.slug" class="text-xs text-destructive">{{ getEditForm(editingPack).errors.slug }}</p>
+                        <p class="text-xs text-muted-foreground">Used by the Provision API to reference this pack. Renaming it breaks any integration still using the old slug.</p>
                     </div>
 
                     <Separator />
