@@ -261,7 +261,7 @@ const editDialogOpen = computed({
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-1.5">
                             <Label>Pack Name</Label>
-                            <Input v-model="getEditForm(editingPack).label" placeholder="e.g. Basic Pack" />
+                            <Input v-model="getEditForm(editingPack).label" placeholder="e.g. Basic" />
                             <p v-if="getEditForm(editingPack).errors.label" class="text-xs text-destructive">{{ getEditForm(editingPack).errors.label }}</p>
                         </div>
                         <div class="space-y-1.5">
@@ -350,7 +350,7 @@ const editDialogOpen = computed({
                     <div class="grid grid-cols-2 gap-3">
                         <div class="space-y-1.5">
                             <Label>Pack Name</Label>
-                            <Input v-model="newForm.label" placeholder="e.g. Basic Pack" />
+                            <Input v-model="newForm.label" placeholder="e.g. Basic" />
                             <p v-if="newForm.errors.label" class="text-xs text-destructive">{{ newForm.errors.label }}</p>
                         </div>
                         <div class="space-y-1.5">
