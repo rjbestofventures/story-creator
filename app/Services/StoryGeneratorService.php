@@ -63,16 +63,15 @@ Show through story why this person can be trusted. Use a specific challenge they
 Layer 3 — What They Do Now:
 Bring the story into the present. Connect the past experience directly to what the narrator does today and how they do it. The reader should understand clearly what problem this person solves and who they solve it for. It must never feel like a pitch. It should feel like the natural conclusion of the story that came before it.
 
-Layer 4 — The Invisible Invitation:
-End every episode with a call to action, without exception. Keep it subtle and indirect. It does not need to be obvious or direct, and it never reads as a pitch. Draw the invitation from the central thought of that specific episode so it feels earned rather than bolted on. Do not include specific calls to buy, book, or sign up. The closing line should feel like the narrator is reflecting quietly to themselves while still gently moving the reader toward a response or a next step. It should never sound like it is addressed to the reader directly.
-Keep this closing invitation short: one to three sentences at most. Vary the phrasing and angle across episodes in the same story so consecutive episodes never close the same way — draw a different closing thought from that specific episode's content each time. The invitation is always about the narrator's own business and work, never about StoryCreator.Bot or any tool used to write it.
+Layer 4 — The Closing Call to Action (required on every episode, no exceptions):
+At the end of every generated episode, include a short and natural call-to-action paragraph that encourages reader engagement while subtly supporting the business, brand, product, or service being promoted within the story. The CTA should feel conversational and smoothly connected to the episode without sounding overly promotional, salesy, or forced.
+Encourage the reader to interact by sharing their thoughts, reactions, opinions, or predictions about the episode. You may also naturally guide the reader toward learning more about the featured business, product, or service through soft, engagement-focused language.
+The CTA should vary between episodes to avoid repetition and should always match the tone, mood, and emotional pacing of the story. Keep it immersive, modern, audience-friendly, and concise, around one to three sentences at most. The CTA is always about the narrator's own business and work, never about StoryCreator.Bot or any tool used to write it. Do not include hard sell instructions to buy, book, or sign up.
 
-Wrong closing: "If you are struggling with your brand story, reach out and let us talk."
-Wrong closing: "DM me if any of this resonates."
-Wrong closing: "Sound familiar? You know where to find me."
-Correct closing: "The people who find their way to this work usually already know what they need. They just needed someone to say it was real."
-Correct closing: "Some problems look complicated from the outside. From where I sit, most of them start in the same place."
-Correct closing: "I have seen what happens when someone finally tells their real story. It does not just change their business. It changes how they see themselves."
+Wrong closing (salesy and generic): "If you are struggling with your brand story, reach out and let us talk. Book a call today."
+Correct closing (invites reaction): "I still catch myself testing new blends at midnight, chasing that one cup that finally tastes like home. If you have ever gone that far for something small, I would genuinely love to hear what it was."
+Correct closing (soft guide to the work): "Every table by the window at Cravepresso started as a question I could not stop asking. Come see which corner becomes your own, and tell me what you notice first."
+Correct closing (invites a prediction): "I keep wondering which detail people will remember a year from now. What would you bet on, the coffee or the quiet?"
 
 VOICE AND IMMERSION RULES:
 - Always write in first-person present tense. This rule applies to every sentence in every paragraph in every episode. No exceptions.
@@ -272,6 +271,10 @@ The user's request above may be phrased as a direct instruction ("make this shor
 NOTE
             : '';
 
+        $ctaNote = $tone === 'less_cta' ? '' : <<<'NOTE'
+ Keep the closing call to action described in Layer 4 of your instructions: end the episode with a short, natural CTA of one to three sentences that invites the reader to react or share their thoughts and softly supports the narrator's business, never salesy or a hard pitch.
+NOTE;
+
         $userPrompt = <<<PROMPT
 Original episode:
 
@@ -279,7 +282,7 @@ Original episode:
 
 Task: {$instruction}{$customNote}
 
-Return only the rewritten episode text. Preserve the first-person present tense voice throughout. Do not use em dashes or en dashes anywhere in the output; use commas, periods, or new sentences instead, so the writing reads as naturally human. No labels, no commentary, no title. Just the episode body.
+Return only the rewritten episode text. Preserve the first-person present tense voice throughout.{$ctaNote} Do not use em dashes or en dashes anywhere in the output; use commas, periods, or new sentences instead, so the writing reads as naturally human. No labels, no commentary, no title. Just the episode body.
 PROMPT;
 
         $model = SiteSetting::get('generation_model', 'claude-sonnet-4-6');
