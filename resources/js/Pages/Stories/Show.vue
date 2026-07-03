@@ -401,7 +401,7 @@ const restoreRevision = async (ep) => {
                 <div>
                     <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color: #AAAAAA;">Processing your provided information…</p>
                     <p class="text-xl font-black mb-1" style="color: #1A1A1A;">Generating your story…</p>
-                    <p class="text-sm" style="color: #555555;">This takes 1-3 minutes. You can wait here or come back later.</p>
+                    <p class="text-sm" style="color: #555555;">This takes up to 3 minutes. You can wait here or come back later.</p>
                 </div>
                 <Link :href="route('stories.index')" class="text-sm underline mt-2" style="color: #555555;">Go to My Stories</Link>
             </div>

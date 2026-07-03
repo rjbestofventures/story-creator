@@ -361,15 +361,16 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     </div>
                 </div>
 
-                <!-- Learn more popup — shared by all partner cards -->
+                <!-- Learn more popup — shared by all pricing cards -->
                 <Dialog :open="learnMorePack !== null" @update:open="val => { if (!val) learnMorePack = null; }">
                     <DialogContent v-if="learnMorePack" class="max-w-md">
                         <DialogHeader>
-                            <DialogTitle>{{ learnMorePack.label }} (Verified Business Partner) — ${{ priceDollars(learnMorePack) }} one-time</DialogTitle>
+                            <DialogTitle>{{ learnMorePack.label }}{{ learnMorePack.type === 'partner' ? ' (Verified Business Partner)' : '' }} — ${{ priceDollars(learnMorePack) }} one-time</DialogTitle>
                             <DialogDescription as="div" class="text-[#555555]">{{ packBlurb(learnMorePack) }}</DialogDescription>
                         </DialogHeader>
 
-                        <div class="flex flex-col gap-5">
+                        <!-- Standard pack details -->
+                        <div v-if="!isAddon(learnMorePack)" class="flex flex-col gap-5">
                             <div>
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
                                 <p class="text-sm font-bold" style="color: #1A1A1A;">{{ packEpisodes(learnMorePack) }}</p>
@@ -391,6 +392,25 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                                 <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
                                     <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Manual edit or redo any episode for 1 credit. No extra fees.</li>
                                     <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Unused credits never expire. They carry forward.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Add-on details -->
+                        <div v-else class="flex flex-col gap-5">
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
+                                <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Credits added to your account:</span> {{ learnMorePack.credits }} StoryBot Credits</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Enough to generate or refine:</span> up to {{ learnMorePack.credits }} episodes</li>
+                                </ul>
+                            </div>
+
+                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
+                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
+                                <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Add-on only. Must have an active plan to purchase.</li>
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Credits never expire. Use them whenever you need.</li>
                                 </ul>
                             </div>
                         </div>
@@ -438,59 +458,22 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         </div>
                         <p class="text-xs italic mb-5 min-h-[2.5rem]" style="color: #555555;">{{ packBlurb(pack) }}</p>
 
+                        <button
+                            type="button"
+                            @click="learnMorePack = pack"
+                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-3 transition hover:bg-amber-50 cursor-pointer"
+                            style="border: 2px solid #F5A000; color: #1A1A1A;"
+                        >
+                            Learn more
+                        </button>
+
                         <Link
                             :href="route('register')"
-                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-6 transition hover:opacity-90"
+                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90"
                             style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
                             Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </Link>
-
-                        <!-- Standard pack details -->
-                        <div v-if="!isAddon(pack)" class="flex flex-col gap-5">
-                            <div>
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
-                                <p class="text-sm font-bold" style="color: #1A1A1A;">{{ packEpisodes(pack) }}</p>
-                                <p class="text-xs italic mt-0.5" style="color: #555555;">Each episode = 1 ready-to-post piece of content</p>
-                                <p class="text-xs mt-1" style="color: #888888;">{{ packPosts(pack) }}</p>
-                            </div>
-
-                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Your credit balance</p>
-                                <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Total StoryBot Credits:</span> {{ pack.credits }}</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to generate 1 episode:</span> 1 credit</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to manually edit or redo 1 episode:</span> 1 credit</li>
-                                </ul>
-                            </div>
-
-                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
-                                <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Manual edit or redo any episode for 1 credit. No extra fees.</li>
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Unused credits never expire. They carry forward.</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <!-- Add-on details -->
-                        <div v-else class="flex flex-col gap-5">
-                            <div>
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
-                                <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Credits added to your account:</span> {{ pack.credits }} StoryBot Credits</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Enough to generate or refine:</span> up to {{ pack.credits }} episodes</li>
-                                </ul>
-                            </div>
-
-                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
-                                <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Add-on only. Must have an active plan to purchase.</li>
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Credits never expire. Use them whenever you need.</li>
-                                </ul>
-                            </div>
-                        </div>
                     </div>
                 </div>
 

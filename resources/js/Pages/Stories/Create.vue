@@ -168,16 +168,32 @@ const displayLog = computed(() =>
     chatLog.value.filter(m => !(m.role === 'user' && m.content.startsWith('[')))
 );
 
+// Older saved sessions may be missing the _question/_retry flags (added
+// after this session was created), which would otherwise leave the whole
+// question unstyled and unnumbered on resume. Fall back to structure: a
+// question turn is always immediately followed by a typed answer (not a
+// "[...]" button marker); a retry re-asks the same trailing question text
+// as last time.
 const enrichedDisplayLog = computed(() => {
     let qNum = 0;
+    let lastQuestionText = null;
+    const raw = chatLog.value;
     return displayLog.value.map(msg => {
-        if (msg.role === 'assistant' && msg._question) {
-            // A retry re-asks the same question after an invalid answer — it
-            // reuses the current number instead of advancing the count.
-            if (!msg._retry) qNum++;
-            return { ...msg, _questionNumber: qNum };
-        }
-        return msg;
+        if (msg.role !== 'assistant') return msg;
+
+        const next = raw[raw.indexOf(msg) + 1];
+        const questionText = msg._question || (
+            (next && next.role === 'user' && !next.content.startsWith('['))
+                ? msg.content.split('\n\n').pop()
+                : null
+        );
+        if (!questionText) return msg;
+
+        const isRetry = msg._retry || (lastQuestionText !== null && questionText === lastQuestionText);
+        if (!isRetry) qNum++;
+        lastQuestionText = questionText;
+
+        return { ...msg, _question: questionText, _questionNumber: qNum };
     });
 });
 
@@ -935,7 +951,7 @@ const formats = [
                         <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
                     </div>
 
-                    <p class="text-xs text-[#AAAAAA]">This takes 1-3 minutes. Please don't close this page.</p>
+                    <p class="text-xs text-[#AAAAAA]">This takes up to 3 minutes. Please don't close this page.</p>
                 </div>
             </div>
 
@@ -1055,7 +1071,7 @@ const formats = [
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
                             <p class="text-xs text-[#555555] mt-1">
-                                <template v-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes 1-3 minutes
+                                <template v-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes up to 3 minutes
                             </p>
                         </div>
 
@@ -1073,15 +1089,14 @@ const formats = [
 
         </div>
 
-        <!-- Start interview confirmation -->
         <!-- Speak instead of type: voice typing guide -->
         <Dialog v-model:open="voiceGuideOpen">
-            <DialogContent class="max-w-2xl p-0 gap-0 overflow-hidden">
+            <DialogContent class="max-w-4xl w-[92vw] p-0 gap-0 overflow-hidden">
                 <DialogTitle class="sr-only">Voice Typing Guide</DialogTitle>
                 <iframe
                     src="/guides/voice-typing-guide.html"
                     title="Voice Typing Guide"
-                    class="w-full h-[80vh] border-0"
+                    class="w-full h-[90vh] border-0"
                 />
             </DialogContent>
         </Dialog>
