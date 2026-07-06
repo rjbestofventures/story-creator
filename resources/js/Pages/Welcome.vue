@@ -85,6 +85,13 @@ const partnerTierContent = {
     },
 };
 
+// Partner packs carry the "(Verified Business Partner)" designation, but some
+// labels already include it. Strip any existing occurrence so it appears once.
+const partnerPlanTitle = (pack) => {
+    const base = pack.label.replace(/\s*\(Verified Business Partner\)/gi, '').trim();
+    return pack.type === 'partner' ? `${base} (Verified Business Partner)` : base;
+};
+
 const packBlurb = (pack) => {
     if (isAddon(pack)) return 'Wanna make changes but out of credits? Top up your credits anytime.';
     return pack.type === 'partner' ? partnerTierContent[tierOf(pack)].blurb : tierContent[tierOf(pack)].blurb;
@@ -125,17 +132,6 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
             </a>
 
             <nav class="flex items-center gap-3">
-                <!-- Desktop only -->
-                <Link
-                    v-if="!$page.props.auth.user"
-                    :href="route('demo')"
-                    class="hidden md:flex items-center gap-2 px-4 py-2 rounded-lg border font-semibold text-sm transition hover:bg-gray-50"
-                    style="border-color: #DDDDDD; color: #1A1A1A;"
-                >
-                    <Play class="w-4 h-4" :stroke-width="2" fill="currentColor" />
-                    Test Drive the Bot
-                </Link>
-
                 <template v-if="canLogin">
                     <Link
                         v-if="$page.props.auth.user"
@@ -147,19 +143,19 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     </Link>
                     <template v-else>
                         <Link
-                            :href="route('login')"
+                            v-if="canRegister"
+                            :href="route('register')"
                             class="px-4 py-2 text-sm font-semibold transition hover:opacity-70"
                             style="color: #1A1A1A;"
                         >
-                            Log In
+                            Sign Up
                         </Link>
                         <Link
-                            v-if="canRegister"
-                            :href="route('register')"
+                            :href="route('login')"
                             class="px-5 py-2 rounded-lg text-sm font-bold transition hover:opacity-90"
                             style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
-                            Get Started
+                            Log In
                         </Link>
                     </template>
                 </template>
@@ -191,6 +187,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
 
             <!-- Subheading -->
             <p class="max-w-xl text-lg leading-relaxed mb-4" style="color: #555555;">
+                <strong style="color: #1A1A1A;">Welcome to StoryCreator.Bot.</strong>
                 Word of mouth has gone digital, but the way customers connect with businesses
                 hasn't changed. Your unique story creates familiarity. Customers choose
                 businesses they get to know and trust.
@@ -214,7 +211,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
-                    Get Started
+                    Sign Up
                     <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                 </Link>
 
@@ -334,7 +331,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         class="relative rounded-2xl bg-white p-6 flex flex-col"
                         style="border: 2px solid #F5A000;"
                     >
-                        <h3 class="text-base font-bold mb-3 min-h-[3rem]" style="color: #1A1A1A;">{{ pack.label }} (Verified Business Partner)</h3>
+                        <h3 class="text-base font-bold mb-3 min-h-[3rem]" style="color: #1A1A1A;">{{ partnerPlanTitle(pack) }}</h3>
 
                         <div class="flex items-baseline gap-1 mb-1">
                             <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
@@ -365,7 +362,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 <Dialog :open="learnMorePack !== null" @update:open="val => { if (!val) learnMorePack = null; }">
                     <DialogContent v-if="learnMorePack" class="max-w-md">
                         <DialogHeader>
-                            <DialogTitle>{{ learnMorePack.label }}{{ learnMorePack.type === 'partner' ? ' (Verified Business Partner)' : '' }} — ${{ priceDollars(learnMorePack) }} one-time</DialogTitle>
+                            <DialogTitle>{{ partnerPlanTitle(learnMorePack) }} — ${{ priceDollars(learnMorePack) }} one-time</DialogTitle>
                             <DialogDescription as="div" class="text-[#555555]">{{ packBlurb(learnMorePack) }}</DialogDescription>
                         </DialogHeader>
 
@@ -472,7 +469,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                             class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90"
                             style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
-                            Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                            Sign Up <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </Link>
                     </div>
                 </div>
@@ -528,7 +525,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
                 style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
             >
-                Get Started
+                Sign Up
                 <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
             </Link>
         </section>

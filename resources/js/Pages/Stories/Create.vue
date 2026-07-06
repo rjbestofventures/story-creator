@@ -723,7 +723,7 @@ const formats = [
 
                         <div class="space-y-2">
                             <Label for="biography" class="text-[#1A1A1A] font-semibold">
-                                About You / Biography
+                                About you and your business
                                 <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
                             </Label>
                             <Textarea
@@ -737,7 +737,7 @@ const formats = [
 
                         <div class="space-y-2">
                             <Label for="services" class="text-[#1A1A1A] font-semibold">
-                                Services that you offer
+                                Your Business Services
                                 <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
                             </Label>
                             <Textarea
@@ -883,8 +883,7 @@ const formats = [
                             class="flex items-center gap-2 mb-2 px-3 h-9 rounded-full border border-[#DDDDDD] bg-white hover:border-[#F5A000]/50 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
                         >
                             <Mic class="w-3.5 h-3.5 text-[#F5A000]" />
-                            <span class="text-sm font-bold text-[#1A1A1A]">Speak Instead of Type</span>
-                            <span class="text-xs text-[#888888]">For longer answers</span>
+                            <span class="text-sm font-bold text-[#1A1A1A]">For Voice Capture Click Here</span>
                         </button>
 
                         <div class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end"
