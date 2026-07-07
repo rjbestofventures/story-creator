@@ -117,34 +117,56 @@ const partnerBenefits = [
             </nav>
         </header>
 
-        <!-- Hero -->
-        <section class="px-6 md:px-10 py-20 md:py-28 text-center max-w-3xl mx-auto">
+        <!-- Hero — Choose Your Marketing Approach -->
+        <section class="px-6 md:px-10 py-20 md:py-28 text-center max-w-5xl mx-auto">
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest mb-6" style="background-color: #FEF3D0; color: #B87800;">
                 Partner Program
             </div>
-            <h1 class="text-4xl md:text-5xl font-black leading-tight mb-4" style="color: #1A1A1A;">
-                Your Story is Your<br />
-                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Business</span>
+            <h1 class="text-4xl md:text-5xl font-black leading-tight mb-10" style="color: #1A1A1A;">
+                Choose Your <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Marketing Approach</span>
             </h1>
-            <p class="text-lg font-bold mb-6" style="color: #1A1A1A;">Technology Changes. Human Nature Doesn't.</p>
-            <p class="text-base leading-relaxed mb-4" style="color: #555555;">
-                Word of mouth has gone digital, but the way customers connect with businesses hasn't changed. Your unique story creates familiarity. Customers choose businesses they get to know and trust.
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-left mb-8">
+                <!-- Verified Business Partner (recommended) -->
+                <div class="relative rounded-2xl bg-white p-8 flex flex-col" style="border: 2px solid #F5A000;">
+                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2">
+                        <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
+                            <Star class="w-3 h-3" fill="currentColor" :stroke-width="0" /> Recommended
+                        </span>
+                    </div>
+                    <h2 class="text-xl font-black mb-3" style="color: #1A1A1A;">Verified Business Partner</h2>
+                    <p class="text-base leading-relaxed mb-6 flex-1" style="color: #555555;">
+                        We suggest becoming a Verified Business Partner so you can take advantage of all the exclusive marketing benefits inside our ecosystem, including <strong style="color: #1A1A1A;">StoryCreator.Bot</strong>.
+                    </p>
+                    <Link
+                        :href="route('register')"
+                        class="inline-flex items-center justify-center gap-2 w-full px-6 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
+                        style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                    >
+                        Become a Verified Business Partner <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                    </Link>
+                    <p class="text-xs text-center mt-3" style="color: #888888;">Free for 6 months · no credit card · 2–3 day review.</p>
+                </div>
+
+                <!-- StoryCreator.Bot only -->
+                <div class="relative rounded-2xl bg-white p-8 flex flex-col" style="border: 1px solid #DDDDDD;">
+                    <h2 class="text-xl font-black mb-3" style="color: #1A1A1A;">StoryCreator.Bot Only</h2>
+                    <p class="text-base leading-relaxed mb-6 flex-1" style="color: #555555;">
+                        You can also get a <strong style="color: #1A1A1A;">StoryCreator.Bot</strong> plan on its own, creating content you can promote anywhere other than Best of Delray Beach or other Best of locations.
+                    </p>
+                    <a
+                        :href="route('welcome') + '#pay-to-play'"
+                        class="inline-flex items-center justify-center gap-2 w-full px-6 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
+                        style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
+                    >
+                        Get a StoryCreator.Bot Plan <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                    </a>
+                </div>
+            </div>
+
+            <p class="text-base font-bold leading-relaxed max-w-2xl mx-auto" style="color: #1A1A1A;">
+                Either way, your story does the marketing work, while you actually work for your business.
             </p>
-            <p class="text-base leading-relaxed mb-6" style="color: #555555;">
-                Forget about the hours it takes to keep social posts fresh or even just the distraction of approval. At a fraction of the price and from one simple 30 minutes or less conversation about your business, <strong style="color: #1A1A1A;">StoryCreator.Bot</strong> creates months of authentic, ready-to-publish content, including social posts, blog ideas, and more, all designed to help potential customers get to know you, trust your business, and choose to work with you.
-            </p>
-            <p class="text-base font-bold leading-relaxed mb-8" style="color: #1A1A1A;">
-                Your story keeps working, so you can keep working on your business.
-            </p>
-            <p class="text-sm font-bold mb-6" style="color: #F5A000;">Free for 6 months with Verified Business Partnership. Optional after.</p>
-            <Link
-                :href="route('register')"
-                class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90"
-                style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-            >
-                Apply Now <ArrowRight class="w-5 h-5" :stroke-width="2.5" />
-            </Link>
-            <p class="text-xs mt-4" style="color: #888888;">No credit card required. 2–3 business day review.</p>
         </section>
 
         <!-- Perks -->

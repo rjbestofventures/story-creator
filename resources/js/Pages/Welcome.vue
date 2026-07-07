@@ -187,20 +187,30 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
 
             <!-- Subheading -->
             <p class="max-w-xl text-lg leading-relaxed mb-4" style="color: #555555;">
-                <strong style="color: #1A1A1A;">Welcome to StoryCreator.Bot.</strong>
-                Word of mouth has gone digital, but the way customers connect with businesses
-                hasn't changed. Your unique story creates familiarity. Customers choose
-                businesses they get to know and trust.
+                Word of mouth, always counted on by local service businesses to sustain and
+                grow, now moves at the speed of digital on social media. A recommendation that
+                once traveled one conversation at a time now reaches thousands of neighbors in
+                real time, not over time. At the same time, stars, reviews, and rankings are now
+                bought and sold, so they can't be trusted.
             </p>
-            <p class="max-w-xl text-lg leading-relaxed mb-6" style="color: #555555;">
-                From one simple conversation about your business,
-                <strong style="color: #1A1A1A;">StoryCreator.Bot</strong> creates months of
-                authentic, ready-to-publish content, including social posts, blog ideas, and
-                more, all designed to help potential customers get to know you, trust your
-                business, and choose to work with you.
+            <p class="max-w-xl text-lg leading-relaxed mb-4" style="color: #555555;">
+                In this new environment customers still choose the professionals they get to know
+                and trust. That's why your own story has become the most important distinction. No
+                two companies, even in the same trade, are built on the same values and principles.
+                Yours are as unique as your thumbprint, and sharing authenticity is what engages
+                customers in the social sphere.
+            </p>
+            <p class="max-w-xl text-lg leading-relaxed mb-4" style="color: #555555;">
+                Most owners have come to understand this, but the problem is now a practical one.
+                Approved content, effective or not, is a huge monthly expense, or requires time and
+                attention you don't have.
             </p>
             <p class="max-w-xl text-lg leading-relaxed font-bold mb-10" style="color: #1A1A1A;">
-                Your story keeps working, so you can keep working on your business.
+                We've built <strong>StoryCreator.Bot</strong> to fix both with one 30-minute
+                conversation. You dictate honest answers to simple business questions and
+                immediately receive ready-to-publish content in your voice, whether you're new and
+                building trust or established and protecting the great reputation you spent years
+                earning.
             </p>
 
             <!-- CTAs -->
@@ -417,7 +427,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 <!-- ═══ Pay to Play StoryCreator.Bot Pricing Options ═══ -->
 
                 <!-- Pay to Play Banner -->
-                <div class="rounded-2xl p-6 mb-6" style="background-color: #1A1A1A;">
+                <div id="pay-to-play" class="rounded-2xl p-6 mb-6 scroll-mt-24" style="background-color: #1A1A1A;">
                     <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Ala Carte Payment Programs</span>
                     <h3 class="text-2xl font-black text-white">Pay to Play StoryCreator.Bot Pricing Options</h3>
                     <p class="text-sm mb-1" style="color: #888888;">Flexible
