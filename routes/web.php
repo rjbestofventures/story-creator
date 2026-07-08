@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
+use App\Http\Controllers\Admin\GrillController;
 use App\Http\Controllers\LandingLockController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShopController;
@@ -107,6 +108,12 @@ Route::middleware('auth')->group(function () {
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// Interview review — admin-only Q&A viewer
+Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
+    Route::get('/grill-me', [GrillController::class, 'index'])->name('grill.index');
+    Route::get('/grill-me/{story}', [GrillController::class, 'show'])->name('grill.show');
 });
 
 Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('admin.')->group(function () {

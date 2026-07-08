@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings, FileText } from '@lucide/vue';
+import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings, FileText, ClipboardList } from '@lucide/vue';
 import { TooltipProvider } from '@/Components/ui/tooltip';
 
 const page = usePage();
@@ -11,6 +11,7 @@ const allNav = [
     { label: 'Users & Plans',   name: 'admin.users.index',    icon: Users,      match: 'admin.users.*',    superOnly: false },
     { label: 'Credit Packs',    name: 'admin.packs.index',    icon: Layers,     match: 'admin.packs.*',    superOnly: true  },
     { label: 'All Stories',     name: 'admin.stories.index',  icon: BookOpen,   match: 'admin.stories.*',  superOnly: false },
+    { label: 'Interviews',      name: 'grill.index',          icon: ClipboardList, match: 'grill.*',       superOnly: false },
     { label: 'Usage & Billing', name: 'admin.billing.index',  icon: TrendingUp, match: 'admin.billing.*',  superOnly: true  },
     { label: 'Settings',        name: 'admin.settings.index', icon: Settings,   match: 'admin.settings.*', superOnly: true  },
 ];
