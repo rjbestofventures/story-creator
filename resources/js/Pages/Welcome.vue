@@ -226,7 +226,6 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 </Link>
 
                 <Link
-                    v-if="!$page.props.auth.user"
                     :href="route('demo')"
                     class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
                     style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"

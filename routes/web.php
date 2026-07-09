@@ -8,7 +8,6 @@ use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StoryController;
 use App\Http\Middleware\CheckLandingLock;
 use App\Models\CreditPack;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -40,22 +39,12 @@ Route::get('/email/verified-success', function () {
     return Inertia::render('Auth/EmailVerified');
 })->middleware('auth')->name('verification.success');
 
-Route::get('/demo', function (Request $request) {
-    if (! $request->user()) {
-        session()->put('post_register_intent', 'demo');
-
-        return redirect()->route('register');
-    }
-
-    $story = $request->user()->stories()
-        ->where('is_demo', true)
-        ->whereIn('status', ['interviewing', 'interview_complete'])
-        ->first();
-
-    return $story
-        ? redirect()->route('stories.resume', $story->id)
-        : redirect()->route('stories.index');
-})->name('demo');
+// Public demo — no signup required. A single shared, fully templated walkthrough
+// (Tammy Spa). Runs entirely client-side; no AI tokens, no database writes.
+Route::get('/demo', fn () => Inertia::render('Demo', [
+    'canLogin' => Route::has('login'),
+    'canRegister' => Route::has('register'),
+]))->name('demo');
 
 Route::get('/dashboard', function () {
     return to_route('stories.index');
