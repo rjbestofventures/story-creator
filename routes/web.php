@@ -35,10 +35,6 @@ Route::get('/verified-partner', function () {
 Route::get('/unlock', [LandingLockController::class, 'show'])->name('landing.unlock');
 Route::post('/unlock', [LandingLockController::class, 'unlock'])->name('landing.unlock.submit');
 
-Route::get('/email/verified-success', function () {
-    return Inertia::render('Auth/EmailVerified');
-})->middleware('auth')->name('verification.success');
-
 // Public demo — no signup required. A single shared, fully templated walkthrough
 // (Tammy Spa). Runs entirely client-side; no AI tokens, no database writes.
 Route::get('/demo', fn () => Inertia::render('Demo', [
