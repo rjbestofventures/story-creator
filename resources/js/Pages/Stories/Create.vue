@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useForm, router, Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
@@ -156,8 +156,58 @@ const answerCount  = ref(0); // actual text answers submitted (excludes button c
 // ─── Voice capture — record answer, transcribe via OpenAI Whisper ────────────
 const isRecording    = ref(false);
 const isTranscribing = ref(false);
+const audioLevel     = ref(0); // 0–1, drives the listening animation
 const mediaRecorder  = ref(null);
 const audioChunks    = ref([]);
+
+const SILENCE_RMS_THRESHOLD = 0.02;
+const SILENCE_STOP_MS       = 2000;
+
+let activeStream    = null;
+let audioContext    = null;
+let analyser        = null;
+let monitorFrame     = null;
+let silenceSince     = null;
+
+const stopAudioMonitor = () => {
+    if (monitorFrame) cancelAnimationFrame(monitorFrame);
+    monitorFrame = null;
+    audioLevel.value = 0;
+    audioContext?.close();
+    audioContext = null;
+    analyser = null;
+};
+
+const startAudioMonitor = (stream) => {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    audioContext.createMediaStreamSource(stream).connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    silenceSince = performance.now();
+
+    const tick = () => {
+        analyser.getByteTimeDomainData(data);
+        let sumSquares = 0;
+        for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            sumSquares += v * v;
+        }
+        const rms = Math.sqrt(sumSquares / data.length);
+        audioLevel.value = Math.min(1, rms * 6);
+
+        const now = performance.now();
+        if (rms > SILENCE_RMS_THRESHOLD) {
+            silenceSince = now;
+        } else if (now - silenceSince > SILENCE_STOP_MS) {
+            mediaRecorder.value?.stop();
+            return;
+        }
+        monitorFrame = requestAnimationFrame(tick);
+    };
+    monitorFrame = requestAnimationFrame(tick);
+};
 
 const toggleRecording = async () => {
     if (isRecording.value) {
@@ -166,21 +216,30 @@ const toggleRecording = async () => {
     }
     try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        activeStream = stream;
         const recorder = new MediaRecorder(stream);
         audioChunks.value = [];
         recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.value.push(e.data); };
         recorder.onstop = async () => {
+            stopAudioMonitor();
             stream.getTracks().forEach(t => t.stop());
+            activeStream = null;
             isRecording.value = false;
             await transcribeRecording();
         };
         mediaRecorder.value = recorder;
         recorder.start();
         isRecording.value = true;
+        startAudioMonitor(stream);
     } catch {
         chatError.value = 'Could not access your microphone. Check browser permissions and try again.';
     }
 };
+
+onUnmounted(() => {
+    stopAudioMonitor();
+    activeStream?.getTracks().forEach(t => t.stop());
+});
 
 const transcribeRecording = async () => {
     if (audioChunks.value.length === 0) return;
@@ -930,42 +989,73 @@ const formats = [
 
                     <!-- Normal interview input -->
                     <div v-else>
-                        <div class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-2 items-end"
-                             :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : isRecording ? 'border-red-300' : ''"
+                        <!-- Listening: ChatGPT-style pulsing orb, reacts to live mic volume -->
+                        <div
+                            v-if="isRecording"
+                            class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex items-center justify-between gap-3"
+                        >
+                            <div class="flex items-center gap-3">
+                                <div class="relative w-10 h-10 shrink-0 flex items-center justify-center">
+                                    <span
+                                        class="absolute inset-0 rounded-full bg-[#F5A000]/15"
+                                        :style="{ transform: `scale(${1.2 + audioLevel * 1.8})`, transition: 'transform 80ms ease-out' }"
+                                    />
+                                    <span
+                                        class="absolute inset-0 rounded-full bg-[#F5A000]/25"
+                                        :style="{ transform: `scale(${1 + audioLevel * 1.1})`, transition: 'transform 80ms ease-out' }"
+                                    />
+                                    <span
+                                        class="absolute w-6 h-6 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000]"
+                                        :style="{ transform: `scale(${1 + audioLevel * 0.5})`, transition: 'transform 80ms ease-out' }"
+                                    />
+                                </div>
+                                <span class="text-sm font-semibold text-[#1A1A1A]">Listening…</span>
+                            </div>
+                            <button
+                                type="button"
+                                title="Stop recording"
+                                @click="toggleRecording"
+                                class="flex-shrink-0 w-9 h-9 rounded-xl bg-[#1A1A1A] flex items-center justify-center text-white cursor-pointer hover:opacity-80 transition-opacity"
+                            >
+                                <Square class="w-3.5 h-3.5 fill-white" />
+                            </button>
+                        </div>
+
+                        <!-- Type / speak-to-transcribe input bar -->
+                        <div
+                            v-else
+                            class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-2 items-end"
+                            :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : ''"
                         >
                             <Textarea
                                 ref="inputRef"
                                 v-model="currentInput"
-                                :disabled="isLoading || !currentTurn.show_input || isRecording"
+                                :disabled="isLoading || !currentTurn.show_input"
                                 :readonly="isDemoMode && currentTurn.show_input"
-                                :placeholder="currentTurn.show_input ? (isDemoMode ? '' : isRecording ? 'Recording… tap the mic to stop' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
+                                :placeholder="currentTurn.show_input ? (isDemoMode ? '' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
                                 rows="2"
                                 class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0 transition-opacity duration-300"
                                 :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : (isDemoMode ? 'cursor-default select-none' : '')"
                                 @keydown="onKeydown"
                             />
 
-                            <!-- Mic button: record + transcribe answer -->
+                            <!-- Mic button: start recording -->
                             <button
                                 v-if="currentTurn.show_input && !isDemoMode"
                                 type="button"
                                 :disabled="isLoading || isTranscribing"
-                                :title="isRecording ? 'Stop recording' : 'Speak your answer'"
+                                title="Speak your answer"
                                 @click="toggleRecording"
-                                class="flex-shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                                :class="isRecording
-                                    ? 'border-red-300 bg-red-50 animate-pulse'
-                                    : 'border-[#DDDDDD] bg-white hover:border-[#F5A000]/50 hover:bg-amber-50'"
+                                class="flex-shrink-0 w-9 h-9 rounded-xl border border-[#DDDDDD] bg-white hover:border-[#F5A000]/50 hover:bg-amber-50 flex items-center justify-center transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
                             >
                                 <Loader2 v-if="isTranscribing" class="w-4 h-4 animate-spin text-[#F5A000]" />
-                                <Square v-else-if="isRecording" class="w-3.5 h-3.5 text-red-500 fill-red-500" />
                                 <Mic v-else class="w-4 h-4 text-[#F5A000]" />
                             </button>
 
                             <!-- Morphing button: text label → send icon -->
                             <button
                                 type="button"
-                                :disabled="isLoading || isRecording || isTranscribing || (currentTurn.show_input && !canSubmit)"
+                                :disabled="isLoading || isTranscribing || (currentTurn.show_input && !canSubmit)"
                                 @click="currentTurn.show_input ? submitAnswer() : handleButtonClick()"
                                 class="flex-shrink-0 flex items-center justify-center font-bold text-sm transition-all duration-300 cursor-pointer disabled:opacity-40"
                                 :class="currentTurn.show_input
