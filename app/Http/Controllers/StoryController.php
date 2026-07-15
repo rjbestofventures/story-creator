@@ -75,8 +75,8 @@ class StoryController extends Controller
 
         throw ValidationException::withMessages([
             'episode_count' => $unlock
-                ? "{$count}-episode stories require the {$unlock}."
-                : "Your current pack does not allow {$count}-episode stories.",
+                ? "{$count}-chapter stories require the {$unlock}."
+                : "Your current pack does not allow {$count}-chapter stories.",
         ]);
     }
 

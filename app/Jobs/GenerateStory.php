@@ -4,6 +4,7 @@ namespace App\Jobs;
 
 use App\Models\SiteSetting;
 use App\Models\Story;
+use App\Notifications\StoryGeneratedNotification;
 use App\Services\StoryGeneratorService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -48,6 +49,8 @@ class GenerateStory implements ShouldQueue
                     'status' => 'draft',
                 ]);
             }
+
+            StoryGeneratedNotification::sendFor($story);
         } catch (\Throwable $e) {
             $story->update(['status' => 'failed']);
             throw $e;

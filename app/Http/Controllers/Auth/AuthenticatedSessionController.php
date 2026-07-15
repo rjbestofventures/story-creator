@@ -34,6 +34,8 @@ class AuthenticatedSessionController extends Controller
 
         $request->session()->regenerate();
 
+        Auth::user()->recordLogin();
+
         if ($request->boolean('remember')) {
             $user = Auth::user();
             $recallerValue = $user->getAuthIdentifier().'|'.$user->getRememberToken().'|'.$user->getAuthPassword();

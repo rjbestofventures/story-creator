@@ -38,6 +38,26 @@ class ShopController extends Controller
         ]);
     }
 
+    public function history(Request $request): \Inertia\Response
+    {
+        $purchases = $request->user()->purchases()
+            ->with('creditPack:id,label,type')
+            ->get()
+            ->map(fn (UserCredit $purchase) => [
+                'id' => $purchase->id,
+                'pack_label' => $purchase->creditPack?->label ?? 'Unknown pack',
+                'pack_type' => $purchase->creditPack?->type,
+                'credits_granted' => $purchase->credits_granted,
+                'amount_paid' => $purchase->amount_paid,
+                'source' => $purchase->source,
+                'purchased_at' => $purchase->purchased_at?->format('M j, Y'),
+            ]);
+
+        return Inertia::render('Billing/History', [
+            'purchases' => $purchases,
+        ]);
+    }
+
     public function checkout(Request $request): JsonResponse
     {
         $data = $request->validate([

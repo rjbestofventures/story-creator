@@ -51,6 +51,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
     Route::post('/shop/checkout', [ShopController::class, 'checkout'])->name('shop.checkout');
     Route::get('/shop/success', [ShopController::class, 'success'])->name('shop.success');
+    Route::get('/billing/history', [ShopController::class, 'history'])->name('billing.history');
 });
 
 // Stripe webhook — no auth, no CSRF

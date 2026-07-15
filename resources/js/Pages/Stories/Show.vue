@@ -476,7 +476,7 @@ const restoreRevision = async (ep) => {
                     <h1 class="text-2xl md:text-4xl font-black text-[#1A1A1A] mb-3">{{ storyTitle }}</h1>
                     <p class="text-[#555555] text-base md:text-lg">
                         Here's what StoryCreator generated from your interview.
-                        <span class="text-[#F5A000] font-semibold">{{ episodes.length }} episode{{ episodes.length === 1 ? '' : 's' }}</span> ready to publish.
+                        <span class="text-[#F5A000] font-semibold">{{ episodes.length }} chapter{{ episodes.length === 1 ? '' : 's' }}</span> ready to publish.
                     </p>
                 </div>
 
@@ -500,7 +500,7 @@ const restoreRevision = async (ep) => {
                                 <button
                                     v-if="isAtCurrent(ep) && !isEditing(ep)"
                                     type="button"
-                                    aria-label="Edit episode"
+                                    aria-label="Edit chapter"
                                     @mousedown.prevent
                                     @click.stop="editEpisode(ep)"
                                     class="flex items-center gap-1.5 text-xs font-semibold px-2.5 h-8 rounded-lg border border-[#DDDDDD] text-[#555555] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
@@ -510,7 +510,7 @@ const restoreRevision = async (ep) => {
                                 </button>
                                 <button
                                     type="button"
-                                    aria-label="Copy episode"
+                                    aria-label="Copy chapter"
                                     @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
                                     class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
                                     :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
@@ -561,7 +561,7 @@ const restoreRevision = async (ep) => {
                                     {{ formatLabel[ep.format] ?? ep.format }}
                                 </Badge>
                                 <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
-                                    Episode {{ ep.episode_number }}
+                                    Chapter {{ ep.episode_number }}
                                 </span>
                                 <span v-if="!isDemo" class="text-xs font-bold text-[#F5A000] border border-[#F5A000]/40 bg-amber-50 px-2 py-0.5 rounded-md shrink-0">
                                     Viewing Version {{ position(ep) }}
@@ -610,7 +610,7 @@ const restoreRevision = async (ep) => {
                                 :value="editState[ep.id].title"
                                 @input="editState[ep.id].title = $event.target.value"
                                 class="w-full text-xl font-black text-[#1A1A1A] mb-3 bg-[#FAFAF8] border-0 outline-none rounded-lg px-2 -mx-2"
-                                placeholder="Episode title"
+                                placeholder="Chapter title"
                             />
                             <h2 v-else class="text-xl font-black text-[#1A1A1A] mb-3">{{ displayed(ep).title }}</h2>
 
@@ -756,7 +756,7 @@ const restoreRevision = async (ep) => {
                         <RefreshCcw class="w-5 h-5 text-[#F5A000]" />
                     </div>
                     <DialogTitle class="text-[#1A1A1A]">
-                        {{ pendingRefineKind === 'restore' ? 'Restore this version?' : 'Refine this episode?' }}
+                        {{ pendingRefineKind === 'restore' ? 'Restore this version?' : 'Refine this chapter?' }}
                     </DialogTitle>
                     <DialogDescription as="div" class="text-[#555555]">
                         <template v-if="pendingRefineKind === 'restore'">
@@ -766,10 +766,10 @@ const restoreRevision = async (ep) => {
                             </p>
                         </template>
                         <template v-else-if="isAdmin">
-                            <p>This will rewrite the episode. The current version is saved to history so you can restore it.</p>
+                            <p>This will rewrite the chapter. The current version is saved to history so you can restore it.</p>
                         </template>
                         <template v-else>
-                            <p>This will rewrite the episode. The current version is saved to history so you can restore it.</p>
+                            <p>This will rewrite the chapter. The current version is saved to history so you can restore it.</p>
                             <ul class="mt-2 space-y-1 list-disc list-inside">
                                 <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditsBalance }}</strong></li>
                                 <li>Cost: <strong class="text-[#1A1A1A]">1 credit</strong></li>

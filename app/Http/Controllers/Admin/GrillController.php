@@ -71,6 +71,11 @@ class GrillController extends Controller
                 'created_at' => $story->created_at->format('F j, Y'),
                 'business_name' => $profile?->business_name,
                 'industry' => $profile?->industry,
+                'business_url' => $profile?->business_url,
+                'linkedin_url' => $profile?->linkedin_url,
+                'social_url' => $profile?->social_url,
+                'biography' => $profile?->biography,
+                'services' => $profile?->services,
                 'user' => [
                     'name' => $story->user->name,
                     'email' => $story->user->email,

@@ -46,6 +46,7 @@ class RegisteredUserController extends Controller
         ]);
 
         Auth::login($user);
+        $user->recordLogin();
 
         $intent = session()->pull('post_register_intent');
 

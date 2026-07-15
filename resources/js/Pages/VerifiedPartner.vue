@@ -44,7 +44,7 @@ const eligibility = [
 const perks = [
     { icon: Star, title: 'Verified Badge', body: 'Display the Best Local Verified Partner badge on your website and social profiles to build trust with local customers.' },
     { icon: Calendar, title: 'Basic Pack Free', body: 'No credit card required at signup. Full access from day one.' },
-    { icon: Zap, title: '12 Episodes per Story', body: 'Each story your bot generates is broken into 12 shareable episodes — ready for social, email, or your website.' },
+    { icon: Zap, title: '12 Chapters per Story', body: 'Each story your bot generates is broken into 12 shareable chapters — ready for social, email, or your website.' },
     { icon: Users, title: '2 Stories per Month', body: 'Publish two full stories every month, covering different angles, offers, or audiences.' },
     { icon: ShieldCheck, title: 'Credits Accumulate', body: "Unused story and revision credits roll over — they never expire, so you're never left starting from zero." },
     { icon: Building2, title: 'Business-First Content', body: 'Every story is written around your specific business, not generic templates. Your voice, your market, your story.' },

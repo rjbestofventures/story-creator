@@ -5,6 +5,10 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
+import { Badge } from '@/Components/ui/badge';
+import {
+    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/Components/ui/tooltip';
 import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock } from 'lucide-vue-next';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
@@ -19,8 +23,21 @@ const basics = {
     business_name: 'Tammy Spa',
     industry: 'Health & Wellness',
     business_url: 'tammyspa.com',
+    linkedin_url: 'linkedin.com/in/tammy-spa',
+    social_url: 'instagram.com/tammyspa',
     biography: 'Founder-led wellness spa focused on personalized, science-backed care — peptides, biohacking, and protocols built around each client rather than a generic template.',
     services: 'Personalized wellness consultations, peptide therapy, biohacking protocols, recovery and longevity treatments.',
+};
+
+// Hover tooltips describing each locked demo field, matching the live form.
+const fieldHints = {
+    business_name: 'You will add your business name here.',
+    business_url:  'You will add your business website here.',
+    industry:      'You will add your business industry here.',
+    linkedin_url:  'You will add your LinkedIn profile here.',
+    social_url:    'You will add your Facebook or Instagram profile here.',
+    biography:     'You will add a short bio about you and your business here.',
+    services:      'You will add the services or products your business offers here.',
 };
 
 // Chat transcript: alternating user/assistant, with synthetic "[…]" button markers
@@ -29,15 +46,15 @@ const demoMessages = [
     { role: 'user',      content: 'Please begin the interview.' },
     { role: 'assistant', content: "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! I'll ask you a few quick questions about Tammy Spa, then turn your answers into a library of stories worth sharing. Ready?" },
     { role: 'user',      content: '[Ready to begin]' },
-    { role: 'assistant', content: "How did you first get into wellness and fitness, and what was that turning point that made you realize this was going to be your life's work?" },
+    { role: 'assistant', isQuestion: true, content: "How did you first get into wellness and fitness, and what was that turning point that made you realize this was going to be your life's work?" },
     { role: 'user',      content: "Look, I grew up with every advantage. My family had money, I had access to the best trainers, nutritionists, the whole thing. But it wasn't until my mid twenties that I realized having access and actually understanding your body are two completely different things. I started diving deep into peptides, into biohacking, into understanding how the body actually works at a cellular level. I became obsessed. Not in a vain way, but in a way where I genuinely wanted to optimize every system. That's when it clicked for me that this knowledge, this passion, it had to mean something beyond just me looking good in a mirror. I wanted to help other people experience that same transformation, that same understanding of what their body is actually capable of when you treat it right." },
     { role: 'assistant', content: "There's something powerful in growing up with every advantage and still discovering that access and understanding are two completely different things. That obsession you found in your twenties, wanting to understand every system, is exactly the kind of origin story people trust." },
     { role: 'user',      content: '[Ready for next question]' },
-    { role: 'assistant', content: 'Tell me about a specific moment when you realized your approach to wellness was different from everyone else doing this work.' },
+    { role: 'assistant', isQuestion: true, content: 'Tell me about a specific moment when you realized your approach to wellness was different from everyone else doing this work.' },
     { role: 'user',      content: "There was this woman who came to me probably five years ago. She'd been to every spa, every wellness place in town. She was tired, frustrated, feeling like nobody really saw her or understood what she actually needed. We spent two hours just talking. Not selling, just talking. And I told her the truth about what would actually work for her body, her lifestyle, her goals. It wasn't the most expensive package. It wasn't what made us the most money. It was what she actually needed. She became a client for three years. She referred probably twenty people. That's when I understood that trust and honesty, they're the actual product. The treatments, the peptides, the protocols, they're just the delivery mechanism." },
     { role: 'assistant', content: "You walked away from the bigger sale to give her the truth, and she paid you back with three years and twenty referrals. That is the whole philosophy in one story, trust is the product and everything else is just delivery." },
     { role: 'user',      content: '[Ready for next question]' },
-    { role: 'assistant', content: "What do you want people to know about Tammy's spa that they won't find anywhere else?" },
+    { role: 'assistant', isQuestion: true, content: "What do you want people to know about Tammy's spa that they won't find anywhere else?" },
     { role: 'user',      content: "We don't believe in one size fits all. Every single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yeah, I'm into the latest science, the peptides, the cutting edge stuff. But I'm also into listening. I'm into understanding your life, your stress, your actual goals. And then we build something that works for you, not for some generic idea of wellness. That's the difference. That's why people come back." },
     { role: 'assistant', content: "That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together." },
 ];
@@ -74,12 +91,27 @@ const chatBottom = ref(null);
 const isTyping = ref(false);
 const typingText = ref('');
 const typingSkip = ref(false);
+const typingIsQuestion = ref(false);
+const typingQuestionNumber = ref(0);
+
+const isThinking = ref(false);
+let resolveThinking = null;
 
 const currentTurn = ref({ show_input: false, button_text: '', complete: false });
 
 const displayLog = computed(() =>
     chatLog.value.filter(m => !(m.role === 'user' && m.content.startsWith('['))),
 );
+
+// Number the question turns so the amber highlight matches the live interview's numbering.
+const enrichedDisplayLog = computed(() => {
+    let qNum = 0;
+    return displayLog.value.map(msg => {
+        if (msg.role !== 'assistant' || !msg.isQuestion) return msg;
+        qNum++;
+        return { ...msg, _questionNumber: qNum };
+    });
+});
 
 const progress = computed(() => {
     if (phase.value === 0) return 0;
@@ -130,6 +162,26 @@ const nextMode = () => {
     return { show_input: true, button_text: '', complete: false };
 };
 
+// 3s of "thinking" dots before the typing effect starts — skippable, same as typing.
+const think = () => new Promise((resolve) => {
+    isThinking.value = true;
+    const finish = () => { isThinking.value = false; resolveThinking = null; resolve(); };
+    resolveThinking = finish;
+    setTimeout(() => { if (isThinking.value) finish(); }, 3000);
+});
+
+const questionCountSoFar = () => chatLog.value.filter(m => m.role === 'assistant' && m.isQuestion).length;
+
+const playAssistantTurn = async (assistantMsg) => {
+    typingIsQuestion.value = !!assistantMsg.isQuestion;
+    typingQuestionNumber.value = assistantMsg.isQuestion ? questionCountSoFar() + 1 : 0;
+    scrollDown();
+    await think();
+    scrollDown();
+    await typeOut(assistantMsg.content);
+    chatLog.value.push(assistantMsg);
+};
+
 const startInterview = async () => {
     phase.value = 1;
     chatLog.value = [];
@@ -137,15 +189,14 @@ const startInterview = async () => {
     complete.value = false;
     const firstAssistant = demoMessages[1];
     position.value = 2;
-    scrollDown();
-    await typeOut(firstAssistant.content);
-    chatLog.value.push(firstAssistant);
+    await playAssistantTurn(firstAssistant);
     currentTurn.value = nextMode();
     if (currentTurn.value.show_input) currentInput.value = demoMessages[position.value]?.content ?? '';
     scrollDown();
 };
 
 const advance = async () => {
+    if (isThinking.value) { resolveThinking?.(); return; }
     if (isTyping.value) { typingSkip.value = true; return; }
 
     const userMsg = demoMessages[position.value];
@@ -162,8 +213,7 @@ const advance = async () => {
         return;
     }
 
-    await typeOut(assistantMsg.content);
-    chatLog.value.push(assistantMsg);
+    await playAssistantTurn(assistantMsg);
     position.value += 2;
 
     if (position.value >= demoMessages.length) {
@@ -253,31 +303,78 @@ const goBack = () => {
                     <p class="text-[#555555]">Here's a business we've already filled in. Start the interview to watch StoryBot work.</p>
                 </div>
 
+                <TooltipProvider :delay-duration="150">
                 <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-5">
                     <div class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">Business Name</Label>
-                        <Input :model-value="basics.business_name" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed" />
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Input :model-value="basics.business_name" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
+                            </TooltipTrigger>
+                            <TooltipContent>{{ fieldHints.business_name }}</TooltipContent>
+                        </Tooltip>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">Website</Label>
-                            <Input :model-value="basics.business_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed" />
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Input :model-value="basics.business_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
+                                </TooltipTrigger>
+                                <TooltipContent>{{ fieldHints.business_url }}</TooltipContent>
+                            </Tooltip>
                         </div>
                         <div class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">Industry</Label>
-                            <Input :model-value="basics.industry" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed" />
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Input :model-value="basics.industry" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
+                                </TooltipTrigger>
+                                <TooltipContent>{{ fieldHints.industry }}</TooltipContent>
+                            </Tooltip>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="space-y-2">
+                            <Label class="text-[#1A1A1A] font-semibold">LinkedIn</Label>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Input :model-value="basics.linkedin_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
+                                </TooltipTrigger>
+                                <TooltipContent>{{ fieldHints.linkedin_url }}</TooltipContent>
+                            </Tooltip>
+                        </div>
+                        <div class="space-y-2">
+                            <Label class="text-[#1A1A1A] font-semibold">Facebook / Instagram</Label>
+                            <Tooltip>
+                                <TooltipTrigger as-child>
+                                    <Input :model-value="basics.social_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
+                                </TooltipTrigger>
+                                <TooltipContent>{{ fieldHints.social_url }}</TooltipContent>
+                            </Tooltip>
                         </div>
                     </div>
 
                     <div class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">About the business</Label>
-                        <Textarea :model-value="basics.biography" disabled rows="3" class="bg-gray-100 text-[#555555] border-[#DDDDDD] resize-none cursor-not-allowed" />
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Textarea :model-value="basics.biography" disabled rows="3" class="bg-gray-100 text-[#555555] border-[#DDDDDD] resize-none cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
+                            </TooltipTrigger>
+                            <TooltipContent>{{ fieldHints.biography }}</TooltipContent>
+                        </Tooltip>
                     </div>
 
                     <div class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">Services</Label>
-                        <Textarea :model-value="basics.services" disabled rows="2" class="bg-gray-100 text-[#555555] border-[#DDDDDD] resize-none cursor-not-allowed" />
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Textarea :model-value="basics.services" disabled rows="2" class="bg-gray-100 text-[#555555] border-[#DDDDDD] resize-none cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
+                            </TooltipTrigger>
+                            <TooltipContent>{{ fieldHints.services }}</TooltipContent>
+                        </Tooltip>
                     </div>
 
                     <Button
@@ -289,14 +386,15 @@ const goBack = () => {
                         <ArrowRight class="w-4 h-4" />
                     </Button>
                 </div>
+                </TooltipProvider>
             </div>
         </div>
 
         <!-- ─── PHASE 1: Interview replay ──────────────────────────────────── -->
         <div v-else-if="phase === 1" class="flex-1 min-h-0 overflow-hidden flex flex-col max-w-2xl mx-auto w-full px-4 py-4">
-            <div class="flex-1 min-h-0 space-y-4 overflow-y-auto pb-4 pr-1">
+            <div class="flex-1 min-h-0 flex flex-col justify-end space-y-4 overflow-y-auto pb-4 pr-1">
                 <div
-                    v-for="(msg, i) in displayLog"
+                    v-for="(msg, i) in enrichedDisplayLog"
                     :key="i"
                     class="flex gap-3"
                     :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
@@ -306,8 +404,24 @@ const goBack = () => {
                     </div>
                     <div
                         class="max-w-[80%] px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap"
-                        :class="msg.role === 'assistant' ? 'bg-white border border-[#DDDDDD] text-[#1A1A1A] rounded-tl-sm' : 'bg-[#1A1A1A] text-white rounded-tr-sm'"
-                    >{{ msg.content }}</div>
+                        :class="msg.role === 'assistant'
+                            ? (msg._questionNumber ? 'bg-amber-50 border border-amber-200 text-amber-800 font-semibold rounded-tl-sm' : 'bg-white border border-[#DDDDDD] text-[#1A1A1A] rounded-tl-sm')
+                            : 'bg-[#1A1A1A] text-white rounded-tr-sm'"
+                    >
+                        <span v-if="msg._questionNumber" class="text-amber-500 mr-1.5">{{ msg._questionNumber }}.</span>{{ msg.content }}
+                    </div>
+                </div>
+
+                <!-- Thinking bubble: 3s of dots before typing starts -->
+                <div v-if="isThinking" class="flex gap-3 cursor-pointer select-none" @click="resolveThinking?.()">
+                    <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center mt-0.5">
+                        <Sparkles class="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div class="bg-white border border-[#DDDDDD] px-4 py-3.5 rounded-2xl rounded-tl-sm flex items-center gap-1.5">
+                        <span class="w-2 h-2 bg-[#DDDDDD] rounded-full animate-bounce" style="animation-delay:0ms" />
+                        <span class="w-2 h-2 bg-[#DDDDDD] rounded-full animate-bounce" style="animation-delay:150ms" />
+                        <span class="w-2 h-2 bg-[#DDDDDD] rounded-full animate-bounce" style="animation-delay:300ms" />
+                    </div>
                 </div>
 
                 <!-- Typing bubble -->
@@ -315,8 +429,11 @@ const goBack = () => {
                     <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center mt-0.5">
                         <Sparkles class="w-3.5 h-3.5 text-white" />
                     </div>
-                    <div class="max-w-[80%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed whitespace-pre-wrap bg-white border border-[#DDDDDD] text-[#1A1A1A]">
-                        {{ typingText }}<span class="inline-block w-0.5 h-[1em] bg-[#F5A000] align-middle animate-pulse ml-0.5" />
+                    <div
+                        class="max-w-[80%] px-4 py-3 rounded-2xl rounded-tl-sm text-sm leading-relaxed whitespace-pre-wrap"
+                        :class="typingIsQuestion ? 'bg-amber-50 border border-amber-200 text-amber-800 font-semibold' : 'bg-white border border-[#DDDDDD] text-[#1A1A1A]'"
+                    >
+                        <span v-if="typingIsQuestion" class="text-amber-500 mr-1.5">{{ typingQuestionNumber }}.</span>{{ typingText }}<span class="inline-block w-0.5 h-[1em] bg-[#F5A000] align-middle animate-pulse ml-0.5" />
                     </div>
                 </div>
 
@@ -326,7 +443,7 @@ const goBack = () => {
             <!-- Action area -->
             <div class="flex-shrink-0 mt-2">
                 <div v-if="complete" class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex items-center justify-between gap-3">
-                    <p class="text-sm text-[#555555]">Interview complete. Ready to see the story library.</p>
+                    <p class="text-sm text-[#555555]">Thank you for completing the interview. Ready to see the story library.</p>
                     <button
                         type="button"
                         @click="generate"
@@ -376,7 +493,7 @@ const goBack = () => {
                     </div>
                 </div>
                 <h2 class="text-2xl font-black text-[#1A1A1A] mb-2">Crafting your story…</h2>
-                <p class="text-[#555555] mb-6">StoryCreator is writing episodes for <span class="font-semibold text-[#1A1A1A]">Tammy Spa</span>.</p>
+                <p class="text-[#555555] mb-6">StoryCreator is writing chapters for <span class="font-semibold text-[#1A1A1A]">Tammy Spa</span>.</p>
                 <div class="flex items-center justify-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:0ms" />
                     <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:150ms" />
@@ -393,24 +510,30 @@ const goBack = () => {
                         <Check class="w-7 h-7 text-[#F5A000]" />
                     </div>
                     <h1 class="text-2xl font-black text-[#1A1A1A] mb-2">Tammy Spa's story library</h1>
-                    <p class="text-[#555555]">Three ready-to-post episodes, written from the interview above.</p>
+                    <p class="text-[#555555]">Three ready-to-post chapters, written from the interview above.</p>
                 </div>
 
-                <div class="space-y-4">
-                    <div
+                <div class="space-y-6">
+                    <article
                         v-for="ep in demoEpisodes"
                         :key="ep.episode_number"
                         class="bg-white rounded-2xl border border-[#DDDDDD] overflow-hidden"
                     >
-                        <div class="flex items-center gap-3 px-6 py-4 border-b border-[#F0F0F0]">
-                            <span class="text-xs font-black w-6 shrink-0 text-center text-[#F5A000]">{{ ep.episode_number }}</span>
-                            <p class="text-sm font-bold text-[#1A1A1A]">{{ ep.title }}</p>
-                            <span class="ml-auto text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-50 text-amber-600">Social</span>
+                        <div class="px-4 sm:px-6 pt-5 pb-4 border-b border-[#F5F5F5] space-y-3">
+                            <div class="flex items-center gap-2">
+                                <Badge class="bg-blue-50 text-blue-700 border-blue-200 text-xs font-semibold border shrink-0">
+                                    Social Media
+                                </Badge>
+                                <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
+                                    Chapter {{ ep.episode_number }}
+                                </span>
+                            </div>
                         </div>
-                        <div class="px-6 py-4">
-                            <p class="whitespace-pre-wrap text-sm leading-relaxed text-[#333333]">{{ ep.content }}</p>
+                        <div class="px-4 sm:px-6 py-5">
+                            <h2 class="text-xl font-black text-[#1A1A1A] mb-3">{{ ep.title }}</h2>
+                            <div class="text-[#333333] text-[15px] leading-[1.8] whitespace-pre-wrap">{{ ep.content }}</div>
                         </div>
-                    </div>
+                    </article>
                 </div>
 
                 <!-- Convert CTA -->

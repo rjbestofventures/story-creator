@@ -15,6 +15,12 @@ const statusBadge = (status) => {
     };
     return map[status] ?? 'bg-gray-100 text-gray-600';
 };
+
+const normalizeUrl = (url) => (url.startsWith('http') ? url : `https://${url}`);
+
+const hasProfile = props.interview.business_name || props.interview.industry
+    || props.interview.business_url || props.interview.linkedin_url || props.interview.social_url
+    || props.interview.biography || props.interview.services;
 </script>
 
 <template>
@@ -61,6 +67,43 @@ const statusBadge = (status) => {
                         Story #{{ interview.story_id }}
                     </Link>
                 </div>
+            </div>
+        </div>
+
+        <!-- Business Profile -->
+        <div v-if="hasProfile" class="bg-white rounded-2xl px-6 py-5 mb-5" style="border: 1px solid #DDDDDD;">
+            <p class="text-xs font-bold uppercase tracking-widest mb-3" style="color: #888888;">Business Profile</p>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-3 mb-4">
+                <div v-if="interview.business_name">
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Business Name</p>
+                    <p class="text-sm text-[#1A1A1A]">{{ interview.business_name }}</p>
+                </div>
+                <div v-if="interview.industry">
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Industry</p>
+                    <p class="text-sm text-[#1A1A1A]">{{ interview.industry }}</p>
+                </div>
+                <div v-if="interview.business_url">
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Website</p>
+                    <a :href="normalizeUrl(interview.business_url)" target="_blank" rel="noopener" class="text-sm hover:underline break-all" style="color: #F5A000;">{{ interview.business_url }}</a>
+                </div>
+                <div v-if="interview.linkedin_url">
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">LinkedIn</p>
+                    <a :href="normalizeUrl(interview.linkedin_url)" target="_blank" rel="noopener" class="text-sm hover:underline break-all" style="color: #F5A000;">{{ interview.linkedin_url }}</a>
+                </div>
+                <div v-if="interview.social_url">
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Facebook / Instagram</p>
+                    <a :href="normalizeUrl(interview.social_url)" target="_blank" rel="noopener" class="text-sm hover:underline break-all" style="color: #F5A000;">{{ interview.social_url }}</a>
+                </div>
+            </div>
+
+            <div v-if="interview.biography" class="mb-3">
+                <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">About the business</p>
+                <p class="text-sm leading-relaxed" style="color: #333333;">{{ interview.biography }}</p>
+            </div>
+            <div v-if="interview.services">
+                <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground mb-1">Services</p>
+                <p class="text-sm leading-relaxed" style="color: #333333;">{{ interview.services }}</p>
             </div>
         </div>
 

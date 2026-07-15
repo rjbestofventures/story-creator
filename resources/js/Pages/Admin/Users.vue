@@ -465,7 +465,7 @@ const impersonate = (userId) => {
                             <Button
                                 variant="outline"
                                 :disabled="!getGrantForm(user).pack_id || getGrantForm(user).processing"
-                                class="gap-1.5 font-semibold border-[#F5A000] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
+                                class="shrink-0 gap-1.5 font-semibold border-[#F5A000] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
                                 @click="grantPack(user)"
                             >
                                 <Gift class="w-3.5 h-3.5" /> Grant
@@ -502,7 +502,7 @@ const impersonate = (userId) => {
                                         <span v-if="user.tier !== 'user'" class="text-purple-600">∞</span>
                                         <span v-else>{{ user.credits }}</span>
                                     </p>
-                                    <p v-if="user.tier === 'user'" class="text-[10px] text-muted-foreground">1 credit = 1 episode (generate or refine)</p>
+                                    <p v-if="user.tier === 'user'" class="text-[10px] text-muted-foreground">1 credit = 1 chapter (generate or refine)</p>
                                 </div>
                             </div>
 

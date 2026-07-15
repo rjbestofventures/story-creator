@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck, ShoppingBag } from 'lucide-vue-next';
+import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck, ShoppingBag, Receipt } from 'lucide-vue-next';
 import Footer from '@/Components/Footer.vue';
 
 defineProps({
@@ -97,6 +97,15 @@ const menuOpen = ref(false);
                                 >
                                     <ShoppingBag class="w-4 h-4" />
                                     Buy Credits
+                                </Link>
+                                <Link
+                                    v-if="!isAdmin"
+                                    :href="route('billing.history')"
+                                    @click="menuOpen = false"
+                                    class="flex items-center gap-2 px-3 py-2 text-sm text-[#555555] hover:text-[#1A1A1A] hover:bg-gray-50 transition-colors cursor-pointer"
+                                >
+                                    <Receipt class="w-4 h-4" />
+                                    Billing & Packs
                                 </Link>
                                 <Link
                                     :href="route('profile.edit')"

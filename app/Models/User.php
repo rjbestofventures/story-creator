@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Notifications\FirstLoginNotification;
+use App\Notifications\VerifyEmailNotification;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -25,6 +27,7 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return [
             'email_verified_at' => 'datetime',
+            'last_login_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'credits' => 'integer',
@@ -49,6 +52,27 @@ class User extends Authenticatable implements MustVerifyEmail
     public function purchases(): HasMany
     {
         return $this->hasMany(UserCredit::class)->latest('purchased_at');
+    }
+
+    // -------------------------------------------------------------------------
+    // Notifications
+    // -------------------------------------------------------------------------
+
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->notify(new VerifyEmailNotification);
+    }
+
+    /**
+     * Marks this login and notifies the admin the first time it ever happens.
+     */
+    public function recordLogin(): void
+    {
+        if ($this->last_login_at === null) {
+            FirstLoginNotification::sendFor($this);
+        }
+
+        $this->forceFill(['last_login_at' => now()])->save();
     }
 
     // -------------------------------------------------------------------------
