@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Mail, Lock, Eye, EyeOff, ArrowRight, Zap } from '@lucide/vue';
+import Footer from '@/Components/Footer.vue';
 
 defineProps({
     canResetPassword: Boolean,
@@ -26,7 +27,8 @@ const submit = () => {
 <template>
     <Head title="Log in" />
 
-    <div class="min-h-screen flex">
+    <div class="min-h-screen flex flex-col">
+      <div class="flex-1 flex">
 
         <!-- Left: Brand panel -->
         <div
@@ -225,5 +227,7 @@ const submit = () => {
             </div>
         </div>
 
+      </div>
+      <Footer />
     </div>
 </template>

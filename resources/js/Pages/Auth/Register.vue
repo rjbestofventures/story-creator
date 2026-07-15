@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap } from '@lucide/vue';
+import Footer from '@/Components/Footer.vue';
 
 const props = defineProps({ isDemo: Boolean });
 
@@ -25,7 +26,8 @@ const submit = () => {
 <template>
     <Head :title="props.isDemo ? 'Create demo account' : 'Create account'" />
 
-    <div class="min-h-screen flex">
+    <div class="min-h-screen flex flex-col">
+      <div class="flex-1 flex">
 
         <!-- Left: Brand panel -->
         <div
@@ -221,5 +223,7 @@ const submit = () => {
             </div>
         </div>
 
+      </div>
+      <Footer />
     </div>
 </template>

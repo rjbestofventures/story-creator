@@ -5,6 +5,8 @@ import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, Circle
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
 } from '@/Components/ui/dialog';
+import AnnouncementBar from '@/Components/AnnouncementBar.vue';
+import Footer from '@/Components/Footer.vue';
 
 const props = defineProps({
     canLogin: Boolean,
@@ -123,6 +125,8 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
     <Head title="StoryCreator.Bot — Your Story is Your Business" />
 
     <div class="min-h-screen flex flex-col" style="background: radial-gradient(ellipse at 50% 40%, #FEF9EC 0%, #F5F5F0 60%, #EFEFEA 100%);">
+
+        <AnnouncementBar />
 
         <!-- Nav -->
         <header class="bg-white flex items-center justify-between px-6 md:px-8 py-4">
@@ -539,14 +543,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
             </Link>
         </section>
 
-        <!-- Footer -->
-        <footer class="bg-white px-6 md:px-10 py-5 flex flex-col md:flex-row items-center justify-between gap-3" style="border-top: 1px solid #DDDDDD;">
-            <p class="text-xs" style="color: #555555;">© 2026 StoryCreator.Bot. All rights reserved.</p>
-            <nav class="flex items-center gap-6">
-<Link :href="route('terms')" class="text-xs transition hover:opacity-70" style="color: #555555;">Terms</Link>
-                <Link :href="route('privacy')" class="text-xs transition hover:opacity-70" style="color: #555555;">Privacy</Link>
-            </nav>
-        </footer>
+        <Footer />
 
     </div>
 </template>

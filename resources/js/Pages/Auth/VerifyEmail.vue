@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { Mail, Send } from '@lucide/vue';
+import Footer from '@/Components/Footer.vue';
 
 const props = defineProps({ status: String });
 
@@ -15,7 +16,8 @@ const email = usePage().props.auth.user?.email;
 <template>
     <Head title="Verify your email" />
 
-    <div class="min-h-screen flex flex-col items-center justify-center px-4" style="background-color: #FAFAF8;">
+    <div class="min-h-screen flex flex-col" style="background-color: #FAFAF8;">
+      <div class="flex-1 flex flex-col items-center justify-center px-4 py-10">
 
         <!-- Logo -->
         <Link href="/" class="flex items-center text-xl font-bold tracking-tight mb-12">
@@ -90,5 +92,7 @@ const email = usePage().props.auth.user?.email;
 
             </div>
         </div>
+      </div>
+      <Footer />
     </div>
 </template>

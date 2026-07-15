@@ -3,6 +3,7 @@ import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings, FileText, ClipboardList } from '@lucide/vue';
 import { TooltipProvider } from '@/Components/ui/tooltip';
+import Footer from '@/Components/Footer.vue';
 
 const page = usePage();
 const isSuperAdmin = computed(() => page.props.auth?.user?.roles?.includes('super_admin'));
@@ -76,5 +77,7 @@ const isActive = (item) => route().current(item.match);
                 <slot />
             </div>
         </TooltipProvider>
+
+        <Footer />
     </div>
 </template>

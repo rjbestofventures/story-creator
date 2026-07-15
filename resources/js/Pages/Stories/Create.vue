@@ -684,7 +684,7 @@ const formats = [
 
 <template>
     <Head title="Create Your Story" />
-    <AuthenticatedLayout>
+    <AuthenticatedLayout :hide-footer="phase === 1">
         <!-- In chat phase: lock height to viewport so input stays visible -->
         <div
             class="bg-[#FAFAF8] flex flex-col"

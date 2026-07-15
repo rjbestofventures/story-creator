@@ -1,5 +1,6 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
+import Footer from '@/Components/Footer.vue';
 </script>
 
 <template>
@@ -171,14 +172,7 @@ import { Head, Link } from '@inertiajs/vue3';
             </div>
         </main>
 
-        <!-- Footer -->
-        <footer class="bg-white px-6 md:px-10 py-5 flex flex-col md:flex-row items-center justify-between gap-3" style="border-top: 1px solid #DDDDDD;">
-            <p class="text-xs" style="color: #555555;">© 2026 StoryCreator.Bot. All rights reserved.</p>
-            <nav class="flex items-center gap-6">
-                <Link :href="route('terms')" class="text-xs transition hover:opacity-70" style="color: #555555;">Terms</Link>
-                <Link :href="route('privacy')" class="text-xs transition hover:opacity-70" style="color: #1A1A1A; font-weight: 600;">Privacy</Link>
-            </nav>
-        </footer>
+        <Footer />
 
     </div>
 </template>

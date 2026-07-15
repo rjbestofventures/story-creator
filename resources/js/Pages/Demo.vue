@@ -6,6 +6,8 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock } from 'lucide-vue-next';
+import AnnouncementBar from '@/Components/AnnouncementBar.vue';
+import Footer from '@/Components/Footer.vue';
 
 defineProps({
     canLogin: Boolean,
@@ -195,6 +197,8 @@ const goBack = () => {
     <Head title="Live Demo — StoryCreator.Bot" />
 
     <div class="bg-[#FAFAF8] flex flex-col" :class="phase !== 1 && 'min-h-screen'" :style="phase === 1 ? 'height: 100vh' : ''">
+
+        <AnnouncementBar />
 
         <!-- Top bar -->
         <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-4 flex-shrink-0">
@@ -437,6 +441,8 @@ const goBack = () => {
                 </div>
             </div>
         </div>
+
+        <Footer v-if="phase !== 1" />
 
     </div>
 </template>

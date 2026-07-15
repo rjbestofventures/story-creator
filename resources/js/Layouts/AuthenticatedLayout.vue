@@ -2,6 +2,14 @@
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
 import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck, ShoppingBag } from 'lucide-vue-next';
+import Footer from '@/Components/Footer.vue';
+
+defineProps({
+    // Suppressed on pages that lock their own content to the viewport height
+    // (e.g. the interview chat) — a footer there would push content behind
+    // the sticky nav instead of appending to a normally-scrolling page.
+    hideFooter: { type: Boolean, default: false },
+});
 
 const page  = usePage();
 const user  = computed(() => page.props.auth.user);
@@ -146,6 +154,8 @@ const menuOpen = ref(false);
         <main>
             <slot />
         </main>
+
+        <Footer v-if="!hideFooter" />
 
     </div>
 </template>

@@ -1,6 +1,8 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
 import { Check, ArrowRight, Star, Building2, Users, Zap, ShieldCheck, Calendar, TrendingUp, Radio, Award, Mail, Phone } from '@lucide/vue';
+import AnnouncementBar from '@/Components/AnnouncementBar.vue';
+import Footer from '@/Components/Footer.vue';
 
 defineProps({
     canLogin: Boolean,
@@ -92,6 +94,8 @@ const partnerBenefits = [
     <Head title="Become a Verified Business Partner — StoryCreator.Bot" />
 
     <div class="min-h-screen flex flex-col" style="background-color: #FAFAF8;">
+
+        <AnnouncementBar />
 
         <!-- Nav -->
         <header class="bg-white flex items-center justify-between px-6 md:px-8 py-4" style="border-bottom: 1px solid #DDDDDD;">
@@ -346,14 +350,7 @@ const partnerBenefits = [
             </div>
         </section>
 
-        <!-- Footer -->
-        <footer class="bg-white px-6 md:px-10 py-5 flex flex-col md:flex-row items-center justify-between gap-3" style="border-top: 1px solid #DDDDDD;">
-            <p class="text-xs" style="color: #555555;">© 2026 StoryCreator.Bot. All rights reserved.</p>
-            <nav class="flex items-center gap-6">
-                <Link :href="route('terms')" class="text-xs transition hover:opacity-70" style="color: #555555;">Terms</Link>
-                <Link :href="route('privacy')" class="text-xs transition hover:opacity-70" style="color: #555555;">Privacy</Link>
-            </nav>
-        </footer>
+        <Footer />
 
     </div>
 </template>
