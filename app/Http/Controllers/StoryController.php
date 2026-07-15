@@ -12,6 +12,7 @@ use App\Models\Story;
 use App\Models\User;
 use App\Services\InterviewService;
 use App\Services\StoryGeneratorService;
+use App\Services\TranscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Validation\ValidationException;
@@ -320,6 +321,21 @@ class StoryController extends Controller
         unset($result['_tokens_input'], $result['_tokens_output']);
 
         return response()->json($result);
+    }
+
+    public function transcribe(Request $request)
+    {
+        $request->validate([
+            'audio' => 'required|file|max:25600',
+        ]);
+
+        try {
+            $text = (new TranscriptionService)->transcribe($request->file('audio'));
+        } catch (\Throwable) {
+            return response()->json(['error' => 'Could not transcribe audio. Please try again or type your answer.'], 422);
+        }
+
+        return response()->json(['text' => $text]);
     }
 
     // -------------------------------------------------------------------------

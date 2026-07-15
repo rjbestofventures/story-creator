@@ -265,6 +265,8 @@ class AdminController extends Controller
         return Inertia::render('Admin/Settings/AI', [
             'anthropic_api_key' => SiteSetting::get('anthropic_api_key', ''),
             'env_key_set' => (bool) env('ANTHROPIC_API_KEY'),
+            'openai_api_key' => SiteSetting::get('openai_api_key', ''),
+            'openai_env_key_set' => (bool) env('OPENAI_API_KEY'),
             'interview_model' => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
             'generation_model' => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
             'interview_price_input' => (float) SiteSetting::get('interview_price_input', 0.80),
@@ -278,6 +280,7 @@ class AdminController extends Controller
     {
         $data = $request->validate([
             'anthropic_api_key' => 'nullable|string|max:255',
+            'openai_api_key' => 'nullable|string|max:255',
             'interview_model' => 'required|string|max:100',
             'generation_model' => 'required|string|max:100',
             'interview_price_input' => 'required|numeric|min:0',
@@ -287,6 +290,7 @@ class AdminController extends Controller
         ]);
 
         SiteSetting::set('anthropic_api_key', $data['anthropic_api_key'] ?? '');
+        SiteSetting::set('openai_api_key', $data['openai_api_key'] ?? '');
         SiteSetting::set('interview_model', $data['interview_model']);
         SiteSetting::set('generation_model', $data['generation_model']);
         SiteSetting::set('interview_price_input', $data['interview_price_input']);

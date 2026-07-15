@@ -67,6 +67,7 @@ Route::middleware(['auth', 'verified', 'requires.credits'])->group(function () {
     Route::get('/stories/create', [StoryController::class, 'create'])->name('stories.create');
     Route::post('/stories/init', [StoryController::class, 'init'])->name('stories.init');
     Route::post('/stories/interview', [StoryController::class, 'interview'])->name('stories.interview');
+    Route::post('/stories/transcribe', [StoryController::class, 'transcribe'])->name('stories.transcribe');
     Route::post('/stories', [StoryController::class, 'store'])->name('stories.store');
     Route::patch('/stories/{story}/progress', [StoryController::class, 'saveProgress'])->name('stories.progress');
     Route::post('/stories/{story}/generate', [StoryController::class, 'generate'])->name('stories.generate');

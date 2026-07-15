@@ -43,6 +43,10 @@ return [
         ],
     ],
 
+    'openai' => [
+        'key' => env('OPENAI_API_KEY'),
+    ],
+
     'stripe' => [
         'model' => User::class,
         'key' => env('STRIPE_KEY'),

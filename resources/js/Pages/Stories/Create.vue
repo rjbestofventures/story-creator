@@ -12,7 +12,7 @@ import {
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2 } from 'lucide-vue-next';
 
 const props = defineProps({
     profile:         Object,
@@ -152,7 +152,61 @@ const chatError    = ref('');
 const chatBottom   = ref(null);
 const inputRef     = ref(null);
 const answerCount  = ref(0); // actual text answers submitted (excludes button clicks)
-const voiceGuideOpen = ref(false);
+
+// ─── Voice capture — record answer, transcribe via OpenAI Whisper ────────────
+const isRecording    = ref(false);
+const isTranscribing = ref(false);
+const mediaRecorder  = ref(null);
+const audioChunks    = ref([]);
+
+const toggleRecording = async () => {
+    if (isRecording.value) {
+        mediaRecorder.value?.stop();
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const recorder = new MediaRecorder(stream);
+        audioChunks.value = [];
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.value.push(e.data); };
+        recorder.onstop = async () => {
+            stream.getTracks().forEach(t => t.stop());
+            isRecording.value = false;
+            await transcribeRecording();
+        };
+        mediaRecorder.value = recorder;
+        recorder.start();
+        isRecording.value = true;
+    } catch {
+        chatError.value = 'Could not access your microphone. Check browser permissions and try again.';
+    }
+};
+
+const transcribeRecording = async () => {
+    if (audioChunks.value.length === 0) return;
+    isTranscribing.value = true;
+    try {
+        const blob = new Blob(audioChunks.value, { type: mediaRecorder.value?.mimeType || 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'answer.webm');
+
+        const res = await fetch(route('stories.transcribe'), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+            body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Transcription failed.');
+
+        currentInput.value = currentInput.value ? `${currentInput.value} ${data.text}`.trim() : data.text;
+        nextTick(() => inputRef.value?.focus());
+    } catch (err) {
+        chatError.value = err.message || 'Could not transcribe your recording. Please try again or type your answer.';
+    } finally {
+        isTranscribing.value = false;
+    }
+};
 
 // Structured response from Claude — drives button vs input mode
 const currentTurn = ref({
@@ -876,35 +930,42 @@ const formats = [
 
                     <!-- Normal interview input -->
                     <div v-else>
-                        <button
-                            v-if="currentTurn.show_input && !isDemoMode"
-                            type="button"
-                            @click="voiceGuideOpen = true"
-                            class="flex items-center gap-2 mb-2 px-3 h-9 rounded-full border border-[#DDDDDD] bg-white hover:border-[#F5A000]/50 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
-                        >
-                            <Mic class="w-3.5 h-3.5 text-[#F5A000]" />
-                            <span class="text-sm font-bold text-[#1A1A1A]">For Voice Capture Click Here</span>
-                        </button>
-
-                        <div class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end"
-                             :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : ''"
+                        <div class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-2 items-end"
+                             :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : isRecording ? 'border-red-300' : ''"
                         >
                             <Textarea
                                 ref="inputRef"
                                 v-model="currentInput"
-                                :disabled="isLoading || !currentTurn.show_input"
+                                :disabled="isLoading || !currentTurn.show_input || isRecording"
                                 :readonly="isDemoMode && currentTurn.show_input"
-                                :placeholder="currentTurn.show_input ? (isDemoMode ? '' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
+                                :placeholder="currentTurn.show_input ? (isDemoMode ? '' : isRecording ? 'Recording… tap the mic to stop' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
                                 rows="2"
                                 class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0 transition-opacity duration-300"
                                 :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : (isDemoMode ? 'cursor-default select-none' : '')"
                                 @keydown="onKeydown"
                             />
 
+                            <!-- Mic button: record + transcribe answer -->
+                            <button
+                                v-if="currentTurn.show_input && !isDemoMode"
+                                type="button"
+                                :disabled="isLoading || isTranscribing"
+                                :title="isRecording ? 'Stop recording' : 'Speak your answer'"
+                                @click="toggleRecording"
+                                class="flex-shrink-0 w-9 h-9 rounded-xl border flex items-center justify-center transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                :class="isRecording
+                                    ? 'border-red-300 bg-red-50 animate-pulse'
+                                    : 'border-[#DDDDDD] bg-white hover:border-[#F5A000]/50 hover:bg-amber-50'"
+                            >
+                                <Loader2 v-if="isTranscribing" class="w-4 h-4 animate-spin text-[#F5A000]" />
+                                <Square v-else-if="isRecording" class="w-3.5 h-3.5 text-red-500 fill-red-500" />
+                                <Mic v-else class="w-4 h-4 text-[#F5A000]" />
+                            </button>
+
                             <!-- Morphing button: text label → send icon -->
                             <button
                                 type="button"
-                                :disabled="isLoading || (currentTurn.show_input && !canSubmit)"
+                                :disabled="isLoading || isRecording || isTranscribing || (currentTurn.show_input && !canSubmit)"
                                 @click="currentTurn.show_input ? submitAnswer() : handleButtonClick()"
                                 class="flex-shrink-0 flex items-center justify-center font-bold text-sm transition-all duration-300 cursor-pointer disabled:opacity-40"
                                 :class="currentTurn.show_input
@@ -1087,18 +1148,6 @@ const formats = [
             </div>
 
         </div>
-
-        <!-- Speak instead of type: voice typing guide -->
-        <Dialog v-model:open="voiceGuideOpen">
-            <DialogContent class="max-w-4xl sm:max-w-4xl w-[92vw] p-0 gap-0 overflow-hidden">
-                <DialogTitle class="sr-only">Voice Typing Guide</DialogTitle>
-                <iframe
-                    src="/guides/voice-typing-guide.html"
-                    title="Voice Typing Guide"
-                    class="w-full h-[90vh] border-0"
-                />
-            </DialogContent>
-        </Dialog>
 
         <Dialog v-model:open="confirmStartOpen">
             <DialogContent class="max-w-md">
