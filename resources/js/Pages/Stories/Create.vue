@@ -76,16 +76,22 @@ const loadingMsgIdx  = ref(null);
 let speakMsgAudio     = null;
 const speakMsgAudioUrls = {}; // idx -> cached object URL, so replays don't re-synthesize
 
+// Global mute — persisted so it stays off/on across visits. Auto-speak respects it;
+// a manual click on a bubble's speaker icon always plays regardless of mute.
+const speechMuted = ref(typeof localStorage !== 'undefined' && localStorage.getItem('sc_tts_muted') === '1');
+const toggleMute = () => {
+    speechMuted.value = !speechMuted.value;
+    localStorage.setItem('sc_tts_muted', speechMuted.value ? '1' : '0');
+    if (speechMuted.value) stopMsgSpeaking();
+};
+
 const stopMsgSpeaking = () => {
     speakMsgAudio?.pause();
     speakMsgAudio = null;
     speakingMsgIdx.value = null;
 };
 
-const toggleSpeakMessage = async (msg, idx) => {
-    if (speakingMsgIdx.value === idx) { stopMsgSpeaking(); return; }
-    stopMsgSpeaking();
-
+const playMsgAudio = async (msg, idx) => {
     if (speakMsgAudioUrls[idx]) {
         speakingMsgIdx.value = idx;
         speakMsgAudio = new Audio(speakMsgAudioUrls[idx]);
@@ -120,6 +126,19 @@ const toggleSpeakMessage = async (msg, idx) => {
     }
 };
 
+const toggleSpeakMessage = (msg, idx) => {
+    if (speakingMsgIdx.value === idx) { stopMsgSpeaking(); return; }
+    stopMsgSpeaking();
+    playMsgAudio(msg, idx);
+};
+
+// Fired right after a new assistant message lands in chatLog — plays it unless muted.
+const autoSpeakMessage = (msg) => {
+    if (speechMuted.value) return;
+    stopMsgSpeaking();
+    playMsgAudio(msg, enrichedDisplayLog.value.length - 1);
+};
+
 onUnmounted(() => {
     speakMsgAudio?.pause();
     for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
@@ -151,6 +170,7 @@ const advanceDemoReplay = async () => {
     scrollDown();
     await typeOut(assistantMsg.content);
     chatLog.value.push(assistantMsg);
+    autoSpeakMessage(assistantMsg);
 
     if (!userMsg.content.startsWith('[')) answerCount.value++;
 
@@ -526,6 +546,7 @@ const callInterview = async (isAnswer = false) => {
             if (data.question) entry._question = data.question;
             if (data.valid === false) entry._retry = true; // paired with the invalid user msg above
             chatLog.value.push(entry);
+            autoSpeakMessage(entry);
         }
 
         if (data.complete) {
@@ -601,6 +622,7 @@ const startInterview = async () => {
             scrollDown();
             await typeOut(firstAssistant.content);
             chatLog.value.push(firstAssistant);
+            autoSpeakMessage(firstAssistant);
             const mode = demoBuildTurn();
             currentTurn.value = { message: firstAssistant.content, question: '', ...mode };
         }
@@ -827,6 +849,20 @@ const formats = [
                             >
                                 <span class="truncate">{{ basics.business_name }}</span>
                                 <Pencil class="w-3 h-3 flex-shrink-0" />
+                            </button>
+                            <button
+                                v-if="phase === 1"
+                                type="button"
+                                @click="toggleMute"
+                                :aria-label="speechMuted ? 'Unmute StoryBot voice' : 'Mute StoryBot voice'"
+                                :title="speechMuted ? 'Unmute StoryBot voice' : 'Mute StoryBot voice'"
+                                class="flex items-center justify-center w-7 h-7 rounded-lg border transition-all duration-150 cursor-pointer"
+                                :class="speechMuted
+                                    ? 'border-[#DDDDDD] text-[#AAAAAA] hover:text-[#555555] hover:bg-gray-50'
+                                    : 'border-[#F5A000]/40 text-[#F5A000] bg-amber-50'"
+                            >
+                                <VolumeX v-if="speechMuted" class="w-3.5 h-3.5" />
+                                <Volume2 v-else class="w-3.5 h-3.5" />
                             </button>
                         </template>
                     </div>

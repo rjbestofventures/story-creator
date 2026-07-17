@@ -1,7 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Lock, Cpu, CreditCard } from '@lucide/vue';
+import { Lock, Cpu, CreditCard, Volume2 } from '@lucide/vue';
 
 const nav = [
     {
@@ -21,6 +21,12 @@ const nav = [
         desc:  'Payment keys',
         name:  'admin.settings.stripe',
         icon:  CreditCard,
+    },
+    {
+        label: 'Voice',
+        desc:  'Text-to-speech tone',
+        name:  'admin.settings.voice',
+        icon:  Volume2,
     },
 ];
 </script>

@@ -124,6 +124,9 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::get('/settings/ai/models', [AdminController::class, 'fetchModels'])->name('settings.ai.models');
     Route::get('/settings/stripe', [AdminController::class, 'stripeSettingsIndex'])->name('settings.stripe');
     Route::post('/settings/stripe', [AdminController::class, 'updateStripeSettings'])->name('settings.stripe.update');
+    Route::get('/settings/voice', [AdminController::class, 'voiceSettingsIndex'])->name('settings.voice');
+    Route::post('/settings/voice', [AdminController::class, 'updateVoiceSettings'])->name('settings.voice.update');
+    Route::post('/settings/voice/preview', [AdminController::class, 'previewVoice'])->name('settings.voice.preview');
 
     // User actions
     Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');

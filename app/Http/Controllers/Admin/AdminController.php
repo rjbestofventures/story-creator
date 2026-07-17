@@ -10,6 +10,7 @@ use App\Models\Story;
 use App\Models\User;
 use App\Models\UserCredit;
 use App\Notifications\AccountCreatedNotification;
+use App\Services\TextToSpeechService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -347,6 +348,59 @@ class AdminController extends Controller
         }
 
         return back();
+    }
+
+    /** Voices offered by OpenAI's gpt-4o-mini-tts model. */
+    public const TTS_VOICES = [
+        ['id' => 'alloy', 'label' => 'Alloy', 'desc' => 'Neutral, balanced'],
+        ['id' => 'ash', 'label' => 'Ash', 'desc' => 'Warm, confident'],
+        ['id' => 'ballad', 'label' => 'Ballad', 'desc' => 'Smooth, expressive'],
+        ['id' => 'coral', 'label' => 'Coral', 'desc' => 'Bright, friendly'],
+        ['id' => 'echo', 'label' => 'Echo', 'desc' => 'Clear, articulate'],
+        ['id' => 'fable', 'label' => 'Fable', 'desc' => 'Warm, storytelling'],
+        ['id' => 'nova', 'label' => 'Nova', 'desc' => 'Warm, natural (default)'],
+        ['id' => 'onyx', 'label' => 'Onyx', 'desc' => 'Deep, authoritative'],
+        ['id' => 'sage', 'label' => 'Sage', 'desc' => 'Calm, measured'],
+        ['id' => 'shimmer', 'label' => 'Shimmer', 'desc' => 'Soft, gentle'],
+        ['id' => 'verse', 'label' => 'Verse', 'desc' => 'Versatile, conversational'],
+    ];
+
+    public function voiceSettingsIndex(): Response
+    {
+        return Inertia::render('Admin/Settings/Voice', [
+            'tts_voice' => SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE),
+            'tts_instructions' => SiteSetting::get('tts_instructions', TextToSpeechService::DEFAULT_INSTRUCTIONS),
+            'voices' => self::TTS_VOICES,
+        ]);
+    }
+
+    public function updateVoiceSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'tts_voice' => ['required', 'string', Rule::in(array_column(self::TTS_VOICES, 'id'))],
+            'tts_instructions' => 'required|string|max:1000',
+        ]);
+
+        SiteSetting::set('tts_voice', $data['tts_voice']);
+        SiteSetting::set('tts_instructions', $data['tts_instructions']);
+
+        return back();
+    }
+
+    public function previewVoice(Request $request): \Illuminate\Http\Response
+    {
+        $data = $request->validate([
+            'voice' => ['required', 'string', Rule::in(array_column(self::TTS_VOICES, 'id'))],
+            'instructions' => 'nullable|string|max:1000',
+        ]);
+
+        $audio = (new TextToSpeechService)->synthesize(
+            "Hi, I'm StoryBot. This is how I sound.",
+            $data['voice'],
+            $data['instructions'] ?? null,
+        );
+
+        return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
     }
 
     // -------------------------------------------------------------------------
