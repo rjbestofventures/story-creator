@@ -30,12 +30,13 @@ const basics = {
 };
 
 // Hover tooltips describing each locked demo field, matching the live form.
+const DEMO_LOCK_HINT = 'This is a pre-filled example for Tammy Spa. The fields are locked — just click through to see how StoryBot works.';
 const fieldHints = {
-    business_name: 'You will add your business name here.',
-    business_url:  'You will add your business website here.',
-    industry:      'You will add your business industry here.',
-    linkedin_url:  'You will add your LinkedIn profile here.',
-    social_url:    'You will add your Facebook or Instagram profile here.',
+    business_name: DEMO_LOCK_HINT,
+    business_url:  DEMO_LOCK_HINT,
+    industry:      DEMO_LOCK_HINT,
+    linkedin_url:  DEMO_LOCK_HINT,
+    social_url:    DEMO_LOCK_HINT,
     biography:     'You will add a short bio about you and your business here.',
     services:      'You will add the services or products your business offers here.',
 };
@@ -93,6 +94,9 @@ const typingText = ref('');
 const typingSkip = ref(false);
 const typingIsQuestion = ref(false);
 const typingQuestionNumber = ref(0);
+
+const isTypingAnswer = ref(false);
+const answerTypingSkip = ref(false);
 
 const isThinking = ref(false);
 let resolveThinking = null;
@@ -153,6 +157,34 @@ const typeOut = (text) => new Promise((resolve) => {
     requestAnimationFrame(tick);
 });
 
+const typeOutInput = (text) => new Promise((resolve) => {
+    currentInput.value = '';
+    isTypingAnswer.value = true;
+    answerTypingSkip.value = false;
+    let i = 0;
+    let lastTime = null;
+    const CHARS_PER_SEC = 110;
+
+    const tick = (ts) => {
+        if (answerTypingSkip.value) {
+            currentInput.value = text;
+            isTypingAnswer.value = false;
+            answerTypingSkip.value = false;
+            resolve();
+            return;
+        }
+        if (lastTime !== null) {
+            const add = Math.max(1, Math.floor(((ts - lastTime) / 1000) * CHARS_PER_SEC));
+            i = Math.min(i + add, text.length);
+            currentInput.value = text.slice(0, i);
+        }
+        lastTime = ts;
+        if (i < text.length) requestAnimationFrame(tick);
+        else { isTypingAnswer.value = false; resolve(); }
+    };
+    requestAnimationFrame(tick);
+});
+
 const nextMode = () => {
     const upcoming = demoMessages[position.value];
     if (!upcoming) return { show_input: false, button_text: '', complete: true };
@@ -191,13 +223,14 @@ const startInterview = async () => {
     position.value = 2;
     await playAssistantTurn(firstAssistant);
     currentTurn.value = nextMode();
-    if (currentTurn.value.show_input) currentInput.value = demoMessages[position.value]?.content ?? '';
+    if (currentTurn.value.show_input) typeOutInput(demoMessages[position.value]?.content ?? '');
     scrollDown();
 };
 
 const advance = async () => {
     if (isThinking.value) { resolveThinking?.(); return; }
     if (isTyping.value) { typingSkip.value = true; return; }
+    if (isTypingAnswer.value) { answerTypingSkip.value = true; return; }
 
     const userMsg = demoMessages[position.value];
     const assistantMsg = demoMessages[position.value + 1];
@@ -220,7 +253,7 @@ const advance = async () => {
         finishInterview();
     } else {
         currentTurn.value = nextMode();
-        if (currentTurn.value.show_input) currentInput.value = demoMessages[position.value]?.content ?? '';
+        if (currentTurn.value.show_input) typeOutInput(demoMessages[position.value]?.content ?? '');
     }
     scrollDown();
 };

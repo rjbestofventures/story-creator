@@ -9,7 +9,8 @@ import {
 } from '@/Components/ui/dialog';
 import {
     ArrowLeft, Copy, Check, Sparkles, Loader2, Plus,
-    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight, Pencil, RefreshCcw,
+    Wand2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, RotateCcw, ArrowRight, Pencil, RefreshCcw,
+    Volume2, VolumeX,
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -104,6 +105,25 @@ const copyEpisode = async (content) => {
     copied.value = content;
     setTimeout(() => { copied.value = null; }, 2000);
 };
+
+// ─── Text-to-voice — read a chapter aloud via the browser's speech synthesis ──
+const speakingId = ref(null);
+
+const toggleSpeak = (ep) => {
+    window.speechSynthesis.cancel();
+    if (speakingId.value === ep.id) {
+        speakingId.value = null;
+        return;
+    }
+    const content = displayed(ep);
+    const utterance = new SpeechSynthesisUtterance(`${content.title}. ${content.content}`);
+    utterance.onend = () => { if (speakingId.value === ep.id) speakingId.value = null; };
+    utterance.onerror = () => { if (speakingId.value === ep.id) speakingId.value = null; };
+    speakingId.value = ep.id;
+    window.speechSynthesis.speak(utterance);
+};
+
+onUnmounted(() => window.speechSynthesis.cancel());
 
 // ─── Revision state per episode ───────────────────────────────────────────────
 const revState = ref({});
@@ -255,11 +275,13 @@ const refineError = ref(null);
 const confirmRefineOpen = ref(false);
 const pendingRefine     = ref(null);
 const pendingRefineKind = ref('refine'); // 'refine' | 'restore'
+const pendingRefineCost = ref(1);
 
-const requestRefine = (fn, kind = 'refine') => {
+const requestRefine = (fn, kind = 'refine', cost = 1) => {
     if (isDemo) { fn(); return; } // demo never charges
     pendingRefine.value     = fn;
     pendingRefineKind.value = kind;
+    pendingRefineCost.value = cost;
     confirmRefineOpen.value = true;
 };
 
@@ -353,6 +375,91 @@ const applyCustomRefine = async (ep) => {
         toningEpId.value = null;
         toningId.value   = null;
     }
+};
+
+// ─── Bulk AI Refine — one refinement applied to several chapters at once ─────
+const bulkOpen             = ref(false);
+const bulkSelected         = ref([]);
+const bulkTone             = ref(null);
+const bulkCustomInstruction = ref('');
+const bulkRefining         = ref(false);
+const bulkError            = ref(null);
+
+const bulkToneOptions = [
+    { key: 'friendlier',   label: 'Make it Friendlier' },
+    { key: 'shorter',      label: 'Make it Shorter' },
+    { key: 'humor',        label: 'Add Humor' },
+    { key: 'professional', label: 'More Professional' },
+    { key: 'more_cta',     label: 'Stronger Call to Action' },
+    { key: 'promotional',  label: 'Less Promotional' },
+];
+
+const toggleBulkEpisode = (epId) => {
+    const idx = bulkSelected.value.indexOf(epId);
+    if (idx === -1) bulkSelected.value.push(epId);
+    else bulkSelected.value.splice(idx, 1);
+};
+
+const selectBulkTone = (key) => {
+    bulkTone.value = bulkTone.value === key ? null : key;
+};
+
+const canApplyBulk = computed(() =>
+    bulkSelected.value.length > 0 &&
+    !bulkRefining.value &&
+    (bulkTone.value === 'custom' ? bulkCustomInstruction.value.trim().length > 0 : !!bulkTone.value)
+);
+
+const runBulkRefine = async () => {
+    bulkError.value = null;
+    bulkRefining.value = true;
+    try {
+        const res = await fetch(route('stories.episodes.bulk-refine', props.story.id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({
+                episode_ids: bulkSelected.value,
+                tone: bulkTone.value,
+                custom_instruction: bulkTone.value === 'custom' ? bulkCustomInstruction.value.trim() : undefined,
+            }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            bulkError.value = data.message ?? 'Bulk refine failed. Please try again.';
+            return;
+        }
+
+        for (const updatedEp of data.episodes) {
+            const idx = episodes.value.findIndex(e => e.id === updatedEp.id);
+            if (idx !== -1) {
+                episodes.value[idx] = {
+                    ...episodes.value[idx],
+                    content: updatedEp.content,
+                    versions_count: (episodes.value[idx].versions_count ?? 0) + 1,
+                };
+                syncEditState(updatedEp.id);
+                revState.value[updatedEp.id] = { position: total(episodes.value[idx]), versions: null };
+            }
+        }
+        if (typeof data.credits === 'number') creditsBalance.value = data.credits;
+
+        bulkSelected.value = [];
+        bulkTone.value = null;
+        bulkCustomInstruction.value = '';
+    } finally {
+        bulkRefining.value = false;
+    }
+};
+
+const applyBulkRefine = () => {
+    if (!canApplyBulk.value) return;
+    requestRefine(runBulkRefine, 'refine', bulkSelected.value.length);
 };
 
 // ─── Restore ──────────────────────────────────────────────────────────────────
@@ -480,6 +587,108 @@ const restoreRevision = async (ep) => {
                     </p>
                 </div>
 
+                <!-- Bulk AI Refine -->
+                <div v-if="!isDemo" class="mb-6 bg-white rounded-2xl border border-[#DDDDDD] overflow-hidden">
+                    <button
+                        type="button"
+                        @click="bulkOpen = !bulkOpen"
+                        class="w-full flex items-center justify-between gap-3 px-5 py-4 cursor-pointer hover:bg-[#FAFAF8] transition-colors"
+                    >
+                        <div class="flex items-center gap-3 text-left">
+                            <div class="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                                <Wand2 class="w-4 h-4 text-[#F5A000]" />
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm text-[#1A1A1A]">Bulk AI Refine</p>
+                                <p class="text-xs text-[#555555]">Refine several chapters together.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-xs font-semibold text-[#555555]">{{ bulkSelected.length }} selected</span>
+                            <ChevronDown v-if="!bulkOpen" class="w-4 h-4 text-[#555555]" />
+                            <ChevronUp v-else class="w-4 h-4 text-[#555555]" />
+                        </div>
+                    </button>
+
+                    <div v-if="bulkOpen" class="px-5 pb-5 pt-1 border-t border-[#F0F0F0]">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                            <!-- Choose chapters -->
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wide text-[#888888] mb-3">1. Choose Chapters</p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <label
+                                        v-for="ep in episodes"
+                                        :key="ep.id"
+                                        class="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold cursor-pointer transition-colors"
+                                        :class="bulkSelected.includes(ep.id) ? 'border-[#F5A000] bg-amber-50 text-[#1A1A1A]' : 'border-[#DDDDDD] text-[#555555] hover:border-[#F5A000]/40'"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="accent-[#F5A000]"
+                                            :checked="bulkSelected.includes(ep.id)"
+                                            @change="toggleBulkEpisode(ep.id)"
+                                        />
+                                        Chapter {{ ep.episode_number }}
+                                    </label>
+                                </div>
+                                <p class="text-xs text-[#888888] mt-3">Select only the chapters you want changed. The original versions will remain available.</p>
+                            </div>
+
+                            <!-- Choose refinement -->
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wide text-[#888888] mb-3">2. Choose One Refinement</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-for="opt in bulkToneOptions"
+                                        :key="opt.key"
+                                        type="button"
+                                        @click="selectBulkTone(opt.key)"
+                                        class="text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer"
+                                        :class="bulkTone === opt.key
+                                            ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50'
+                                            : 'text-[#555555] border-[#DDDDDD] hover:border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        {{ opt.label }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="selectBulkTone('custom')"
+                                        class="text-xs font-bold px-3 py-1.5 rounded-full border transition-colors cursor-pointer"
+                                        :class="bulkTone === 'custom'
+                                            ? 'text-[#F5A000] border-[#F5A000] bg-amber-50'
+                                            : 'text-[#B87800] border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        Custom Refinement
+                                    </button>
+                                </div>
+                                <textarea
+                                    v-if="bulkTone === 'custom'"
+                                    v-model="bulkCustomInstruction"
+                                    placeholder="Describe exactly how you want the selected chapters refined."
+                                    rows="3"
+                                    class="w-full mt-3 text-sm text-[#333333] bg-[#FAFAF8] border border-[#DDDDDD] rounded-lg px-3 py-2 resize-none placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#F5A000]/60"
+                                />
+                                <p class="text-xs text-[#888888] mt-3">Choose one predefined refinement or Custom Refinement. Only one option can be used at a time.</p>
+                            </div>
+                        </div>
+
+                        <p v-if="bulkError" class="text-xs text-red-600 mt-4">{{ bulkError }}</p>
+
+                        <div class="flex justify-end mt-5">
+                            <button
+                                type="button"
+                                :disabled="!canApplyBulk"
+                                @click="applyBulkRefine"
+                                class="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                            >
+                                <Loader2 v-if="bulkRefining" class="w-4 h-4 animate-spin" />
+                                {{ bulkRefining ? 'Refining…' : 'Apply to Selected' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Episodes -->
                 <div class="space-y-6">
                     <article
@@ -495,31 +704,45 @@ const restoreRevision = async (ep) => {
                         <!-- ── Card header ─────────────────────────────────── -->
                         <div class="px-4 sm:px-6 pt-5 pb-4 border-b border-[#F5F5F5] space-y-3">
 
-                            <!-- Edit + Copy buttons — absolute top-right (non-demo only) -->
-                            <div v-if="!isDemo" class="absolute top-3 right-3 flex items-center gap-1">
-                                <button
-                                    v-if="isAtCurrent(ep) && !isEditing(ep)"
-                                    type="button"
-                                    aria-label="Edit chapter"
-                                    @mousedown.prevent
-                                    @click.stop="editEpisode(ep)"
-                                    class="flex items-center gap-1.5 text-xs font-semibold px-2.5 h-8 rounded-lg border border-[#DDDDDD] text-[#555555] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
-                                >
-                                    <Pencil class="w-3.5 h-3.5" />
-                                    Edit
-                                </button>
+                            <!-- Speak + Edit + Copy buttons — absolute top-right -->
+                            <div class="absolute top-3 right-3 flex items-center gap-1">
                                 <button
                                     type="button"
-                                    aria-label="Copy chapter"
-                                    @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
+                                    :aria-label="speakingId === ep.id ? 'Stop reading chapter aloud' : 'Read chapter aloud'"
+                                    @click.stop="toggleSpeak(ep)"
                                     class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
-                                    :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
-                                        ? 'text-emerald-600 bg-emerald-50'
+                                    :class="speakingId === ep.id
+                                        ? 'text-[#F5A000] bg-amber-50'
                                         : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
                                 >
-                                    <Check v-if="copied === (editState[ep.id]?.content ?? displayed(ep).content)" class="w-4 h-4" />
-                                    <Copy v-else class="w-4 h-4" />
+                                    <VolumeX v-if="speakingId === ep.id" class="w-4 h-4" />
+                                    <Volume2 v-else class="w-4 h-4" />
                                 </button>
+                                <template v-if="!isDemo">
+                                    <button
+                                        v-if="isAtCurrent(ep) && !isEditing(ep)"
+                                        type="button"
+                                        aria-label="Edit chapter"
+                                        @mousedown.prevent
+                                        @click.stop="editEpisode(ep)"
+                                        class="flex items-center gap-1.5 text-xs font-semibold px-2.5 h-8 rounded-lg border border-[#DDDDDD] text-[#555555] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
+                                    >
+                                        <Pencil class="w-3.5 h-3.5" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label="Copy chapter"
+                                        @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
+                                        :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
+                                            ? 'text-emerald-600 bg-emerald-50'
+                                            : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                                    >
+                                        <Check v-if="copied === (editState[ep.id]?.content ?? displayed(ep).content)" class="w-4 h-4" />
+                                        <Copy v-else class="w-4 h-4" />
+                                    </button>
+                                </template>
                             </div>
 
                             <!-- Row 1: revision navigator (non-demo, has history) -->
@@ -769,11 +992,14 @@ const restoreRevision = async (ep) => {
                             <p>This will rewrite the chapter. The current version is saved to history so you can restore it.</p>
                         </template>
                         <template v-else>
-                            <p>This will rewrite the chapter. The current version is saved to history so you can restore it.</p>
+                            <p>
+                                This will rewrite {{ pendingRefineCost > 1 ? `${pendingRefineCost} chapters` : 'the chapter' }}.
+                                The current version{{ pendingRefineCost > 1 ? 's are' : ' is' }} saved to history so you can restore {{ pendingRefineCost > 1 ? 'them' : 'it' }}.
+                            </p>
                             <ul class="mt-2 space-y-1 list-disc list-inside">
                                 <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditsBalance }}</strong></li>
-                                <li>Cost: <strong class="text-[#1A1A1A]">1 credit</strong></li>
-                                <li>Remaining Balance After Refine: <strong class="text-[#1A1A1A]">{{ creditsBalance - 1 }} credit{{ (creditsBalance - 1) === 1 ? '' : 's' }}</strong></li>
+                                <li>Cost: <strong class="text-[#1A1A1A]">{{ pendingRefineCost }} credit{{ pendingRefineCost === 1 ? '' : 's' }}</strong></li>
+                                <li>Remaining Balance After Refine: <strong class="text-[#1A1A1A]">{{ creditsBalance - pendingRefineCost }} credit{{ (creditsBalance - pendingRefineCost) === 1 ? '' : 's' }}</strong></li>
                             </ul>
                         </template>
                     </DialogDescription>

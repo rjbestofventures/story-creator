@@ -27,7 +27,7 @@ const faqs = [
     { q: "Can I edit the content after it's generated?", a: 'Yes. Every post is fully editable. You can refine the content, adjust the tone, or even update your original answers before or after publishing. Revision credits are always available whenever you need to make changes.' },
     { q: 'Do my credits expire?', a: 'Never. Credits for rewrites, refinements, and special promotions remain in your account until you use them. There are no monthly fees and no expiration dates.' },
     { q: "What if I want to create more content after I've used my credits?", a: 'You can purchase additional content credits at any time. There are no subscriptions. You simply pay for what you need, and your credits never expire.' },
-    { q: 'Why use StoryCreator.Bot instead of asking AI to write my posts?', a: 'You certainly can. But general-purpose AI only knows what you tell it in the moment. StoryCreator.Bot begins with your story, your experience, your values, and what makes your business unique. It then creates authentic, ready-to-publish content designed to help customers get to know your business, build familiarity, and earn trust, without having to reinvent every prompt.' },
+    { q: "Can't I just use my own AI to make posts, instead of StoryCreator.Bot?", a: 'You certainly can. But general-purpose AI only knows what you tell it in the moment. StoryCreator.Bot begins with your story, your experience, your values, and what makes your business unique. It then creates authentic, ready-to-publish content designed to help customers get to know your business, build familiarity, and earn trust, without having to reinvent every prompt.' },
     { q: 'Is my information kept private?', a: 'Yes. The information you share is used only to create content for your business. It is never published without your approval.' },
     { q: 'Do I still need a Social Media Manager?', a: "That's entirely up to you. StoryCreator.Bot is designed to solve one of the hardest parts of social media marketing: consistently creating authentic content. A good Social Media Manager can still add tremendous value by selecting visuals, scheduling posts, managing campaigns, and analyzing results. StoryCreator.Bot simply gives them better content to work with." },
 ];
@@ -118,7 +118,7 @@ const payToPlayPacks = computed(() =>
 const payToPlayPopularSlug = computed(() => popularSlugIn(payToPlayPacks.value.filter((p) => !isAddon(p))));
 
 const partnerFeatures = ['12 complimentary chapters', 'Saves time and lowers costs', 'Story credits never expire', 'Verified partner badge', 'Priority guidance', 'Chapters for every story'];
-const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customizable output', 'Limited commitment', 'Tech support', 'Chapters for every story'];
+const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customizable output', 'Limited commitment', 'Tech support', 'Your story in chapters'];
 </script>
 
 <template>
@@ -247,8 +247,9 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 <p class="text-xs font-bold tracking-widest uppercase mb-4" style="color: #555555;">How It Works</p>
 
                 <h2 class="text-4xl md:text-5xl font-black mb-16" style="color: #1A1A1A;">
-                    Three Steps to Create Content That
-                    <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Delivers</span>
+                    Create Content That
+                    <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Delivers</span><br />
+                    in Three Easy Steps
                 </h2>
 
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-12">
@@ -260,7 +261,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         </div>
                         <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #555555;">Step 1</p>
                         <h3 class="text-lg font-bold mb-3" style="color: #1A1A1A;">Answer a Few Questions</h3>
-                        <p class="text-sm leading-relaxed" style="color: #555555;">Share insights about how you got here, what gets you up in the morning and what you're proud of.</p>
+                        <p class="text-sm leading-relaxed" style="color: #555555;">Share your work history, insights about how you got here, what gets you up in the morning and what you're proud of.</p>
                     </div>
 
                     <!-- Step 2 -->
@@ -279,8 +280,8 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                             <Download class="w-7 h-7" color="#1A1A1A" :stroke-width="2" />
                         </div>
                         <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #555555;">Step 3</p>
-                        <h3 class="text-lg font-bold mb-3" style="color: #1A1A1A;">Get Your Chapters</h3>
-                        <p class="text-sm leading-relaxed" style="color: #555555;">Review, refine, and use your chapters on the Best of Local network and across all social media, blogs, and more.</p>
+                        <h3 class="text-lg font-bold mb-3" style="color: #1A1A1A;">Get Chapters of Your Story</h3>
+                        <p class="text-sm leading-relaxed" style="color: #555555;">Review, refine, and use each chapter of your story on your Best of Local network and across all social media, blogs, and more.</p>
                     </div>
 
                 </div>
@@ -295,7 +296,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 <div class="text-center mb-10">
                     <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #555555;">Pricing</p>
                     <h2 class="text-4xl md:text-5xl font-black mb-3" style="color: #1A1A1A;">Simple, Transparent Pricing</h2>
-                    <p class="text-sm" style="color: #555555;">Buy a story pack when you need one. No subscription — credits never expire.</p>
+                    <p class="text-sm" style="color: #555555;">Partners get six months free, or buy a story package when you need one. No subscription — credits never expire.</p>
                 </div>
 
                 <!-- ═══ Verified Business Partners Pricing Plans ═══ -->
@@ -334,7 +335,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     </div>
                 </div>
 
-                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #6D28D9;">Renew, Refresh or Get More From Your Plan</p>
+                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #6D28D9;">Renew, Refresh or Get More From Your Plan After Your Free Start-Up Package</p>
 
                 <!-- Partner Packs -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
@@ -434,7 +435,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Ala Carte Payment Programs</span>
                     <h3 class="text-2xl font-black text-white">Pay to Play StoryCreator.Bot Pricing Options</h3>
                     <p class="text-sm mb-1" style="color: #888888;">Flexible
-                        <span class="font-bold" style="color: #F5A000;">content plans</span> for general social media use
+                        <span class="font-bold" style="color: #F5A000;">content plans</span> for general social media use. You must be Verified to post on Best of Local.
                     </p>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1 mt-3">
                         <span v-for="f in payToPlayFeatures"
@@ -445,7 +446,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     </div>
                 </div>
 
-                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #6D28D9;">Pay to Play Pricing Plans</p>
+                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #6D28D9;">Pay to Play Pricing Plans (For Non-Verified Business Partners Only)</p>
 
                 <!-- Pay to Play Packs -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">

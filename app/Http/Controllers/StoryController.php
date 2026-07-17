@@ -649,4 +649,67 @@ class StoryController extends Controller
             'credits' => $user->isAdmin() ? null : $user->fresh()->credits,
         ]);
     }
+
+    // -------------------------------------------------------------------------
+    // Bulk AI Refine — apply one tonal transformation to several episodes at once
+    // -------------------------------------------------------------------------
+
+    public function bulkRefineEpisodes(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_if($story->is_demo, 403);
+
+        $user = $request->user();
+
+        $data = $request->validate([
+            'episode_ids' => 'required|array|min:1',
+            'episode_ids.*' => 'integer',
+            'tone' => 'required|in:friendlier,shorter,humor,professional,longer,more_cta,less_cta,promotional,custom',
+            'custom_instruction' => 'required_if:tone,custom|string|max:2000',
+        ]);
+
+        $episodes = $story->episodes()->whereIn('id', $data['episode_ids'])->get();
+        abort_if($episodes->isEmpty(), 404);
+
+        if (! $user->isAdmin()) {
+            abort_unless($user->credits >= $episodes->count(), 403, 'Not enough credits to refine all selected chapters.');
+        }
+
+        $generator = new StoryGeneratorService;
+        $updated = [];
+
+        foreach ($episodes as $episode) {
+            $nextVersion = $episode->versions()->max('version') ?? 0;
+            EpisodeVersion::create([
+                'episode_id' => $episode->id,
+                'version' => $nextVersion + 1,
+                'title' => $episode->title,
+                'content' => $episode->content,
+            ]);
+
+            $refined = $generator->refineTone($episode->content, $data['tone'], $data['custom_instruction'] ?? null);
+            $episode->update(['content' => $refined['content']]);
+
+            $story->increment('refines_used');
+            $story->increment('tokens_input', $refined['_tokens_input'] ?? 0);
+            $story->increment('tokens_output', $refined['_tokens_output'] ?? 0);
+
+            if (! $user->isAdmin()) {
+                $user->decrement('credits');
+            }
+
+            $updated[] = [
+                'id' => $episode->id,
+                'episode_number' => $episode->episode_number,
+                'title' => $episode->title,
+                'content' => $episode->content,
+                'format' => $episode->format,
+            ];
+        }
+
+        return response()->json([
+            'episodes' => $updated,
+            'credits' => $user->isAdmin() ? null : $user->fresh()->credits,
+        ]);
+    }
 }

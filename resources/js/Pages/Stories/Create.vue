@@ -169,6 +169,12 @@ let analyser        = null;
 let monitorFrame     = null;
 let silenceSince     = null;
 
+// Live-stream captions while recording, via the browser's native speech recognition.
+// The recorded audio is still sent to Whisper on stop for the authoritative transcript.
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+let recognition      = null;
+let preRecordingText = '';
+
 const stopAudioMonitor = () => {
     if (monitorFrame) cancelAnimationFrame(monitorFrame);
     monitorFrame = null;
@@ -225,12 +231,28 @@ const toggleRecording = async () => {
             stream.getTracks().forEach(t => t.stop());
             activeStream = null;
             isRecording.value = false;
+            try { recognition?.stop(); } catch { /* already stopped */ }
             await transcribeRecording();
         };
         mediaRecorder.value = recorder;
         recorder.start();
         isRecording.value = true;
         startAudioMonitor(stream);
+
+        preRecordingText = currentInput.value;
+        if (SpeechRecognitionCtor) {
+            recognition = new SpeechRecognitionCtor();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            recognition.onresult = (e) => {
+                let liveText = '';
+                for (let i = 0; i < e.results.length; i++) liveText += e.results[i][0].transcript;
+                currentInput.value = preRecordingText ? `${preRecordingText} ${liveText}`.trim() : liveText;
+            };
+            recognition.onerror = () => { /* Whisper transcription remains the source of truth on stop */ };
+            try { recognition.start(); } catch { /* unsupported in this state, ignore */ }
+        }
     } catch {
         chatError.value = 'Could not access your microphone. Check browser permissions and try again.';
     }
@@ -239,6 +261,7 @@ const toggleRecording = async () => {
 onUnmounted(() => {
     stopAudioMonitor();
     activeStream?.getTracks().forEach(t => t.stop());
+    try { recognition?.stop(); } catch { /* already stopped */ }
 });
 
 const transcribeRecording = async () => {
@@ -258,7 +281,9 @@ const transcribeRecording = async () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || 'Transcription failed.');
 
-        currentInput.value = currentInput.value ? `${currentInput.value} ${data.text}`.trim() : data.text;
+        // Replace the live-captioned preview (from speech recognition) with Whisper's
+        // authoritative transcript, based on whatever text existed before recording started.
+        currentInput.value = preRecordingText ? `${preRecordingText} ${data.text}`.trim() : data.text;
         nextTick(() => inputRef.value?.focus());
     } catch (err) {
         chatError.value = err.message || 'Could not transcribe your recording. Please try again or type your answer.';
@@ -440,6 +465,8 @@ const callInterview = async (isAnswer = false) => {
         // Store combined assistant content in chatLog for display and API history
         const combined = [data.message, data.question].filter(Boolean).join('\n\n');
         if (combined.trim()) {
+            isLoading.value = false; // swap the "thinking" dots for the typing bubble
+            await typeOut(combined);
             const entry = { role: 'assistant', content: combined };
             if (data.question) entry._question = data.question;
             if (data.valid === false) entry._retry = true; // paired with the invalid user msg above
@@ -919,7 +946,7 @@ const formats = [
                         </div>
                     </div>
 
-                    <!-- Demo typing bubble -->
+                    <!-- Typing bubble (assistant response streaming out, demo or real) -->
                     <div v-if="isTyping" class="flex gap-3">
                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center mt-0.5">
                             <Sparkles class="w-3.5 h-3.5 text-white" />
@@ -992,33 +1019,38 @@ const formats = [
                         <!-- Listening: ChatGPT-style pulsing orb, reacts to live mic volume -->
                         <div
                             v-if="isRecording"
-                            class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex items-center justify-between gap-3"
+                            class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex flex-col gap-2"
                         >
-                            <div class="flex items-center gap-3">
-                                <div class="relative w-10 h-10 shrink-0 flex items-center justify-center">
-                                    <span
-                                        class="absolute inset-0 rounded-full bg-[#F5A000]/15"
-                                        :style="{ transform: `scale(${1.2 + audioLevel * 1.8})`, transition: 'transform 80ms ease-out' }"
-                                    />
-                                    <span
-                                        class="absolute inset-0 rounded-full bg-[#F5A000]/25"
-                                        :style="{ transform: `scale(${1 + audioLevel * 1.1})`, transition: 'transform 80ms ease-out' }"
-                                    />
-                                    <span
-                                        class="absolute w-6 h-6 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000]"
-                                        :style="{ transform: `scale(${1 + audioLevel * 0.5})`, transition: 'transform 80ms ease-out' }"
-                                    />
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="relative w-10 h-10 shrink-0 flex items-center justify-center">
+                                        <span
+                                            class="absolute inset-0 rounded-full bg-[#F5A000]/15"
+                                            :style="{ transform: `scale(${1.2 + audioLevel * 1.8})`, transition: 'transform 80ms ease-out' }"
+                                        />
+                                        <span
+                                            class="absolute inset-0 rounded-full bg-[#F5A000]/25"
+                                            :style="{ transform: `scale(${1 + audioLevel * 1.1})`, transition: 'transform 80ms ease-out' }"
+                                        />
+                                        <span
+                                            class="absolute w-6 h-6 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000]"
+                                            :style="{ transform: `scale(${1 + audioLevel * 0.5})`, transition: 'transform 80ms ease-out' }"
+                                        />
+                                    </div>
+                                    <span class="text-sm font-semibold text-[#1A1A1A]">Listening…</span>
                                 </div>
-                                <span class="text-sm font-semibold text-[#1A1A1A]">Listening…</span>
+                                <button
+                                    type="button"
+                                    title="Stop recording"
+                                    @click="toggleRecording"
+                                    class="flex-shrink-0 w-9 h-9 rounded-xl bg-[#1A1A1A] flex items-center justify-center text-white cursor-pointer hover:opacity-80 transition-opacity"
+                                >
+                                    <Square class="w-3.5 h-3.5 fill-white" />
+                                </button>
                             </div>
-                            <button
-                                type="button"
-                                title="Stop recording"
-                                @click="toggleRecording"
-                                class="flex-shrink-0 w-9 h-9 rounded-xl bg-[#1A1A1A] flex items-center justify-center text-white cursor-pointer hover:opacity-80 transition-opacity"
-                            >
-                                <Square class="w-3.5 h-3.5 fill-white" />
-                            </button>
+                            <p v-if="currentInput" class="text-sm text-[#555555] leading-relaxed pl-1 max-h-24 overflow-y-auto">
+                                {{ currentInput }}
+                            </p>
                         </div>
 
                         <!-- Type / speak-to-transcribe input bar -->

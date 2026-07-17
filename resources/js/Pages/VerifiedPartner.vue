@@ -14,31 +14,31 @@ const applyUrl = 'https://bestoflocal.app/advertise-your-business/';
 const steps = [
     {
         number: '01',
-        title: 'Apply Online',
+        title: 'Partnership Application',
         description: 'Fill out a short application telling us about your business — what you do, who you serve, and your content goals.',
     },
     {
         number: '02',
         title: 'Verification Review',
-        description: 'Our team reviews your application within 2–3 business days. We verify your business is legitimate and locally established.',
+        description: 'Our team reviews your application within 2–3 business days. Our proprietary vetting process determines eligibility.',
     },
     {
         number: '03',
         title: 'Get Approved & Onboarded',
-        description: "Once approved, you receive your Verified Partner badge, full account access, and a complimentary six-month trial at no charge.",
+        description: "Upon approval, see your enhanced, verified profile and badge on the app. You'll have full account access and six months free use of StoryCreator.Bot.",
     },
     {
         number: '04',
         title: 'Start Publishing',
-        description: 'Log in, answer a few questions about your business, and StoryCreator.Bot generates your first story — ready to publish.',
+        description: 'Log in, answer a few questions about your business, and StoryCreator.Bot generates your story — ready to publish.',
     },
 ];
 
 const eligibility = [
-    'Registered business operating for at least 6 months',
+    'Registered business, with references if operating less than six months',
     'Primarily serves a local or regional customer base',
-    'Has an active online presence (website, social, or Google Business)',
-    'Committed to publishing at least one story per month',
+    'Has, or is planning on, an active online presence (website, social, or Google Business)',
+    'Committed to publishing two stories monthly on Facebook',
 ];
 
 const perks = [
@@ -51,10 +51,10 @@ const perks = [
 ];
 
 const stats = [
-    { value: '75K+', label: 'Facebook Group Members' },
+    { value: '76K+', label: 'Facebook Group Members' },
     { value: '22K+', label: 'Instagram Followers' },
     { value: '21K+', label: 'App Downloads' },
-    { value: '1.5M', label: 'Total Monthly Platform Views' },
+    { value: '1.25M', label: 'Total Monthly Platform Views' },
 ];
 
 const differentiators = [
@@ -66,12 +66,12 @@ const differentiators = [
     {
         icon: TrendingUp,
         title: 'Reach beyond your echo chamber.',
-        body: 'Posting only to your own followers is old school. Real collaboration means getting visibility on dynamic platforms, significantly extending your reach beyond the people who already know you.',
+        body: "Posting only to your own followers is old school. It might feel good to have your own following, but real collaboration means getting visibility on dynamic platforms, significantly extending your reach beyond the people who already know you. And now you are adding to your following, not giving it away.",
     },
     {
         icon: ShieldCheck,
         title: 'Our Trust Network.',
-        body: "Unlike crowded marketplaces like Angi, Google, and Yelp where a search triggers a flood of responses, we limit each category to ten businesses. You are identified as one of a vetted few in a trustworthy local community. In a community of 75,000 fellow locals, only Verified Business Partners post under a company handle — every comment and engagement naturally inserts your business into the conversation.",
+        body: "Unlike crowded marketplaces like Angi, Google, and Yelp where a search triggers a flood of responses, we limit each category to ten businesses. You are identified as one of a vetted few in a trustworthy local community. In a community of 76,000 fellow locals, only Verified Business Partners post under a company handle — every comment and engagement naturally inserts your business into the conversation.",
     },
     {
         icon: Award,
@@ -81,12 +81,13 @@ const differentiators = [
 ];
 
 const partnerBenefits = [
-    'Premium placement on the Best of app and network',
-    'Enhanced business profile on the Best of app',
+    '100% targeted branding — your business handle across all network channels',
+    'Premium placement and enhanced business profile on the Best of app',
     'Lead generation — service requests delivered privately before posting to the group',
-    'Category exclusivity — ten businesses maximum per category',
-    'Using our StoryCreator.Bot takes minutes to create authentic episodic content in your own voice',
-    'Reach beyond your echo chamber — 75,000 fellow locals, most of them new to you',
+    'Category exclusivity built on scarcity — ten businesses maximum per category',
+    'Save time and money while consistently posting authentic, episodic content via StoryCreator.Bot',
+    'Reach beyond your echo chamber — 76,000 fellow locals, most of them new to you',
+    'Target a younger demographic — 22K+ on Instagram and 20K+ on Facebook',
 ];
 </script>
 
@@ -132,10 +133,10 @@ const partnerBenefits = [
                 Choose Your <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Marketing Approach</span>
             </h1>
             <p class="text-base leading-relaxed mb-4" style="color: #555555;">
-                We suggest becoming a Verified Business Partner so you can take advantage of all the exclusive marketing benefits inside our ecosystem, including <strong style="color: #1A1A1A;">StoryCreator.Bot</strong>.
+                Become a Verified Business Partner to take advantage of all the exclusive marketing benefits inside our ecosystem, including <strong style="color: #1A1A1A;">StoryCreator.Bot</strong>.
             </p>
             <p class="text-base leading-relaxed mb-6" style="color: #555555;">
-                However, you can also get a <strong style="color: #1A1A1A;">StoryCreator.Bot</strong> plan on its own, creating content you can promote anywhere other than Best of Delray Beach or other Best of locations.
+                Or, sign up for a <strong style="color: #1A1A1A;">StoryCreator.Bot</strong> plan on its own, creating content you can promote anywhere other than Best of Delray Beach or other Best of locations.
             </p>
             <p class="text-base font-bold leading-relaxed mb-8" style="color: #1A1A1A;">
                 Either way, your story does the marketing work, while you actually work for your business.
@@ -234,10 +235,10 @@ const partnerBenefits = [
                     When you really think about it, every business, every practice, every tradesman, and every professional in your field uses the same tools, provides the same services, and essentially has the same credentials. It's your story that is totally unique.
                 </p>
                 <p class="text-base leading-relaxed mb-6" style="color: #555555;">
-                    Word of mouth always carried that story. Digital social media is changing how that story travels, who hears it, and how fast. What has never changed is that people choose who they know and trust. Best of Delray Beach was built to make sure they know and trust you.
+                    Word of mouth always carried that story. Digital social media is changing how that story travels, who hears it, and how fast. What has never changed is that people choose who they know and trust.
                 </p>
                 <p class="text-base leading-relaxed" style="color: #555555;">
-                    Best of Delray Beach was built for this moment. A platform that encourages, supports, and highlights the stories that reveal character, engender trust, and demonstrate good faith. The story that makes someone say, that's who I'm calling.
+                    The Best of Delray Beach social media platforms were built to encourage, support, and highlight the stories that reveal character, engender trust, and demonstrate good faith. The authentic story that gives potential clients, patients, customers the confidence to say "yup." That's who I'm calling.
                 </p>
             </div>
         </section>
@@ -257,7 +258,7 @@ const partnerBenefits = [
             <div class="max-w-4xl mx-auto text-center">
                 <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #888888;">A Trust Network Built for This Moment</p>
                 <p class="text-base leading-relaxed mb-12" style="color: #CCCCCC;">
-                    Whether you're the top name in the trade or a new entry, Best of Delray Beach puts you in front of the people who matter most: 75,000 engaged locals, most of them new to you, who actively use our platforms to discover and refer businesses they trust. As a Verified Business Partner you post under your company handle, receive service requests privately before they hit the group, and use StoryCreator.Bot to produce authentic episodic content in your own voice, working alongside a social media team's strategy or entirely on your own. In a community this engaged and this intimate, your character is your most powerful marketing tool. Category exclusivity caps at ten businesses per category.
+                    Whether you're the top name in the trade or a new entry, Best of Delray Beach puts you in front of the people who matter most: 76,000 engaged locals, most of them new to you, who actively use our platforms to discover and refer businesses they trust. As a Verified Business Partner you post under your company handle, receive service requests privately before they hit the group, and use StoryCreator.Bot to produce authentic episodic content in your own voice, working alongside a social media team's strategy or entirely on your own. In a community this engaged and this intimate, your character is your most powerful marketing tool. Category exclusivity caps at ten businesses per category.
                 </p>
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
                     <div v-for="stat in stats" :key="stat.label">
