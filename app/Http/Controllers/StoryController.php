@@ -12,6 +12,7 @@ use App\Models\Story;
 use App\Models\User;
 use App\Services\InterviewService;
 use App\Services\StoryGeneratorService;
+use App\Services\TextToSpeechService;
 use App\Services\TranscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
@@ -436,6 +437,20 @@ class StoryController extends Controller
         abort_unless($story->user_id === $request->user()->id, 403);
 
         return response()->json(['status' => $story->status]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Text-to-voice — read a chapter aloud via OpenAI's TTS
+    // -------------------------------------------------------------------------
+
+    public function speakEpisode(Request $request, Story $story, Episode $episode)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_unless($episode->story_id === $story->id, 404);
+
+        $audio = (new TextToSpeechService)->synthesize(trim("{$episode->title}. {$episode->content}"));
+
+        return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
     }
 
     // -------------------------------------------------------------------------

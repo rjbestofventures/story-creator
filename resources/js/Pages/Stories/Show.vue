@@ -106,24 +106,59 @@ const copyEpisode = async (content) => {
     setTimeout(() => { copied.value = null; }, 2000);
 };
 
-// ─── Text-to-voice — read a chapter aloud via the browser's speech synthesis ──
-const speakingId = ref(null);
+// ─── Text-to-voice — read a chapter aloud via OpenAI's TTS (natural voice) ────
+const speakingId  = ref(null); // episode id currently playing
+const loadingId   = ref(null); // episode id currently being synthesized
+const speakError  = ref(null);
+let speakAudio    = null;
+const speakAudioUrls = {}; // episode id -> object URL, cached so replays don't re-synthesize
 
-const toggleSpeak = (ep) => {
-    window.speechSynthesis.cancel();
-    if (speakingId.value === ep.id) {
-        speakingId.value = null;
-        return;
-    }
-    const content = displayed(ep);
-    const utterance = new SpeechSynthesisUtterance(`${content.title}. ${content.content}`);
-    utterance.onend = () => { if (speakingId.value === ep.id) speakingId.value = null; };
-    utterance.onerror = () => { if (speakingId.value === ep.id) speakingId.value = null; };
-    speakingId.value = ep.id;
-    window.speechSynthesis.speak(utterance);
+const stopSpeaking = () => {
+    speakAudio?.pause();
+    speakAudio = null;
+    speakingId.value = null;
 };
 
-onUnmounted(() => window.speechSynthesis.cancel());
+const toggleSpeak = async (ep) => {
+    speakError.value = null;
+
+    if (speakingId.value === ep.id) { stopSpeaking(); return; }
+    stopSpeaking();
+
+    if (speakAudioUrls[ep.id]) {
+        speakingId.value = ep.id;
+        speakAudio = new Audio(speakAudioUrls[ep.id]);
+        speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; };
+        speakAudio.play();
+        return;
+    }
+
+    loadingId.value = ep.id;
+    try {
+        const res = await fetch(route('stories.episode.speak', { story: props.story.id, episode: ep.id }), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+        });
+        if (!res.ok) throw new Error('Text-to-speech failed.');
+
+        const url = URL.createObjectURL(await res.blob());
+        speakAudioUrls[ep.id] = url;
+
+        speakingId.value = ep.id;
+        speakAudio = new Audio(url);
+        speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; };
+        speakAudio.play();
+    } catch {
+        speakError.value = 'Could not read this chapter aloud. Please try again.';
+    } finally {
+        loadingId.value = null;
+    }
+};
+
+onUnmounted(() => {
+    speakAudio?.pause();
+    for (const url of Object.values(speakAudioUrls)) URL.revokeObjectURL(url);
+});
 
 // ─── Revision state per episode ───────────────────────────────────────────────
 const revState = ref({});
@@ -689,6 +724,12 @@ const restoreRevision = async (ep) => {
                     </div>
                 </div>
 
+                <!-- Read-aloud error -->
+                <div v-if="speakError" class="mb-6 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+                    <p class="text-sm text-red-600">{{ speakError }}</p>
+                    <button type="button" @click="speakError = null" class="text-red-400 hover:text-red-600 cursor-pointer text-xs font-semibold">Dismiss</button>
+                </div>
+
                 <!-- Episodes -->
                 <div class="space-y-6">
                     <article
@@ -708,14 +749,16 @@ const restoreRevision = async (ep) => {
                             <div class="absolute top-3 right-3 flex items-center gap-1">
                                 <button
                                     type="button"
+                                    :disabled="loadingId === ep.id"
                                     :aria-label="speakingId === ep.id ? 'Stop reading chapter aloud' : 'Read chapter aloud'"
                                     @click.stop="toggleSpeak(ep)"
-                                    class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer disabled:cursor-wait"
                                     :class="speakingId === ep.id
                                         ? 'text-[#F5A000] bg-amber-50'
                                         : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
                                 >
-                                    <VolumeX v-if="speakingId === ep.id" class="w-4 h-4" />
+                                    <Loader2 v-if="loadingId === ep.id" class="w-4 h-4 animate-spin" />
+                                    <VolumeX v-else-if="speakingId === ep.id" class="w-4 h-4" />
                                     <Volume2 v-else class="w-4 h-4" />
                                 </button>
                                 <template v-if="!isDemo">

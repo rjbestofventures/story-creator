@@ -314,7 +314,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                             <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">StoryCreator.Bot Partnership Program</span>
                             <h3 class="text-2xl font-black text-white">Verified Business Partners Pricing Plans</h3>
                             <p class="text-sm mb-1" style="color: #888888;">Six months
-                                <span class="font-bold" style="color: #F5A000;">free content</span> for
+                                <span class="font-bold uppercase" style="color: #F5A000;">free content</span> for
                                 <span class="font-bold text-xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Verified Local Businesses</span>
                             </p>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1 mt-3">
