@@ -12,7 +12,7 @@ import {
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2 } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2, Volume2, VolumeX } from 'lucide-vue-next';
 
 const props = defineProps({
     profile:         Object,
@@ -68,6 +68,61 @@ const typeOut = (text) => new Promise(resolve => {
         else { isTyping.value = false; resolve(); }
     };
     requestAnimationFrame(tick);
+});
+
+// ─── Text-to-voice — read any assistant chat bubble aloud via OpenAI's TTS ────
+const speakingMsgIdx = ref(null); // index within enrichedDisplayLog currently playing
+const loadingMsgIdx  = ref(null);
+let speakMsgAudio     = null;
+const speakMsgAudioUrls = {}; // idx -> cached object URL, so replays don't re-synthesize
+
+const stopMsgSpeaking = () => {
+    speakMsgAudio?.pause();
+    speakMsgAudio = null;
+    speakingMsgIdx.value = null;
+};
+
+const toggleSpeakMessage = async (msg, idx) => {
+    if (speakingMsgIdx.value === idx) { stopMsgSpeaking(); return; }
+    stopMsgSpeaking();
+
+    if (speakMsgAudioUrls[idx]) {
+        speakingMsgIdx.value = idx;
+        speakMsgAudio = new Audio(speakMsgAudioUrls[idx]);
+        speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+        speakMsgAudio.play();
+        return;
+    }
+
+    loadingMsgIdx.value = idx;
+    try {
+        const res = await fetch(route('speak'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            body: JSON.stringify({ text: msg.content }),
+        });
+        if (!res.ok) throw new Error('Text-to-speech failed.');
+
+        const url = URL.createObjectURL(await res.blob());
+        speakMsgAudioUrls[idx] = url;
+
+        speakingMsgIdx.value = idx;
+        speakMsgAudio = new Audio(url);
+        speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+        speakMsgAudio.play();
+    } catch {
+        chatError.value = 'Could not read this message aloud. Please try again.';
+    } finally {
+        loadingMsgIdx.value = null;
+    }
+};
+
+onUnmounted(() => {
+    speakMsgAudio?.pause();
+    for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
 });
 
 const demoBuildTurn = () => {
@@ -943,6 +998,20 @@ const formats = [
                                 </span>
                             </template>
                             <template v-else>{{ msg.content }}</template>
+
+                            <button
+                                v-if="msg.role === 'assistant'"
+                                type="button"
+                                :disabled="loadingMsgIdx === i"
+                                :aria-label="speakingMsgIdx === i ? 'Stop reading aloud' : 'Read aloud'"
+                                @click="toggleSpeakMessage(msg, i)"
+                                class="mt-1.5 inline-flex items-center justify-center w-6 h-6 rounded-md transition-colors cursor-pointer disabled:cursor-wait"
+                                :class="speakingMsgIdx === i ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                            >
+                                <Loader2 v-if="loadingMsgIdx === i" class="w-3.5 h-3.5 animate-spin" />
+                                <VolumeX v-else-if="speakingMsgIdx === i" class="w-3.5 h-3.5" />
+                                <Volume2 v-else class="w-3.5 h-3.5" />
+                            </button>
                         </div>
                     </div>
 

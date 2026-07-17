@@ -453,6 +453,18 @@ class StoryController extends Controller
         return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
     }
 
+    /** Read arbitrary text aloud — used for individual chat bubbles in the interview. */
+    public function speakText(Request $request)
+    {
+        $data = $request->validate([
+            'text' => 'required|string|max:4096',
+        ]);
+
+        $audio = (new TextToSpeechService)->synthesize($data['text']);
+
+        return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
     // -------------------------------------------------------------------------
     // Delete a story
     // -------------------------------------------------------------------------

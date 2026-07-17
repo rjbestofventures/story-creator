@@ -15,9 +15,10 @@ class TextToSpeechService
     {
         $response = Http::withToken(config('services.openai.key'))
             ->post('https://api.openai.com/v1/audio/speech', [
-                'model' => 'tts-1',
+                'model' => 'gpt-4o-mini-tts',
                 'voice' => $voice,
                 'input' => mb_substr($text, 0, self::MAX_INPUT_LENGTH),
+                'instructions' => 'Speak in a warm, natural, conversational human tone — relaxed pacing with genuine inflection, not flat or robotic.',
             ]);
 
         if (! $response->successful()) {

@@ -335,7 +335,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     </div>
                 </div>
 
-                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #6D28D9;">Renew, Refresh or Get More From Your Plan After Your Free Start-Up Package</p>
+                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #2BBDA8;">Renew, Refresh or Get More From Your Plan After Your Free Start-Up Package</p>
 
                 <!-- Partner Packs -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
@@ -446,7 +446,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     </div>
                 </div>
 
-                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #6D28D9;">Pay to Play Pricing Plans (For Non-Verified Business Partners Only)</p>
+                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #1BDEAB;">Pay to Play Pricing Plans (For Non-Verified Business Partners Only)</p>
 
                 <!-- Pay to Play Packs -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
