@@ -502,7 +502,7 @@ const impersonate = (userId) => {
                                         <span v-if="user.tier !== 'user'" class="text-purple-600">∞</span>
                                         <span v-else>{{ user.credits }}</span>
                                     </p>
-                                    <p v-if="user.tier === 'user'" class="text-[10px] text-muted-foreground">1 credit = 1 chapter (generate or refine)</p>
+                                    <p v-if="user.tier === 'user'" class="text-[10px] text-muted-foreground">1 credit = 1 episode (generate or refine)</p>
                                 </div>
                             </div>
 

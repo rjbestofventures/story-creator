@@ -9,8 +9,6 @@ defineProps({
     canRegister: Boolean,
 });
 
-const applyUrl = 'https://bestoflocal.app/advertise-your-business/';
-
 const steps = [
     {
         number: '01',
@@ -44,7 +42,7 @@ const eligibility = [
 const perks = [
     { icon: Star, title: 'Verified Badge', body: 'Display the Best Local Verified Partner badge on your website and social profiles to build trust with local customers.' },
     { icon: Calendar, title: 'Basic Pack Free', body: 'No credit card required at signup. Full access from day one.' },
-    { icon: Zap, title: '12 Chapters per Story', body: 'Each story your bot generates is broken into 12 shareable chapters — ready for social, email, or your website.' },
+    { icon: Zap, title: '12 Episodes per Story', body: 'Each story your bot generates is broken into 12 shareable episodes — ready for social, email, or your website.' },
     { icon: Users, title: '2 Stories per Month', body: 'Publish two full stories every month, covering different angles, offers, or audiences.' },
     { icon: ShieldCheck, title: 'Credits Accumulate', body: "Unused story and revision credits roll over — they never expire, so you're never left starting from zero." },
     { icon: Building2, title: 'Business-First Content', body: 'Every story is written around your specific business, not generic templates. Your voice, your market, your story.' },
@@ -142,15 +140,13 @@ const partnerBenefits = [
                 Either way, your story does the marketing work, while you actually work for your business.
             </p>
             <div class="flex flex-wrap items-center justify-center gap-4">
-                <a
-                    :href="applyUrl"
-                    target="_blank"
-                    rel="noopener"
+                <Link
+                    :href="route('partner.apply')"
                     class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
                     Become a Verified Business Partner <ArrowRight class="w-5 h-5" :stroke-width="2.5" />
-                </a>
+                </Link>
             </div>
         </section>
 
@@ -212,15 +208,13 @@ const partnerBenefits = [
                         <span class="text-sm leading-relaxed" style="color: #CCCCCC;">{{ item }}</span>
                     </li>
                 </ul>
-                <a
-                    :href="applyUrl"
-                    target="_blank"
-                    rel="noopener"
+                <Link
+                    :href="route('partner.apply')"
                     class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
                     Apply for the Partner Program <ArrowRight class="w-5 h-5" :stroke-width="2.5" />
-                </a>
+                </Link>
                 <p class="text-xs mt-4" style="color: #666666;">Questions? Email us at <a href="mailto:info@bestofdelraybeach.com" class="underline" style="color: #F5A000;">info@bestofdelraybeach.com</a></p>
             </div>
         </section>
@@ -325,15 +319,13 @@ const partnerBenefits = [
             <div class="max-w-2xl mx-auto text-center">
                 <p class="text-base leading-relaxed mb-2" style="color: #CCCCCC;">Great value. Limited supply. Categories are filling. Let us talk before yours closes.</p>
                 <h2 class="text-xl md:text-2xl font-black mb-8 text-white">Let's Discuss Your Plans Before Your Competition Does</h2>
-                <a
-                    :href="applyUrl"
-                    target="_blank"
-                    rel="noopener"
+                <Link
+                    :href="route('partner.apply')"
                     class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90 mb-8"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
                     Apply Now <ArrowRight class="w-5 h-5" :stroke-width="2.5" />
-                </a>
+                </Link>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-x-6 gap-y-2 text-sm" style="color: #888888;">
                     <a href="https://www.facebook.com/groups/bestofdelraybeach" target="_blank" rel="noopener" class="underline hover:opacity-80">
                         facebook.com/groups/bestofdelraybeach

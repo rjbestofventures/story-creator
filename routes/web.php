@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\GrillController;
 use App\Http\Controllers\LandingLockController;
+use App\Http\Controllers\PartnerApplicationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StoryController;
@@ -32,6 +33,9 @@ Route::get('/verified-partner', function () {
     ]);
 })->name('partner');
 
+Route::get('/become-a-partner', [PartnerApplicationController::class, 'create'])->name('partner.apply');
+Route::post('/become-a-partner', [PartnerApplicationController::class, 'store'])->middleware('throttle:10,1')->name('partner.apply.submit');
+
 Route::get('/unlock', [LandingLockController::class, 'show'])->name('landing.unlock');
 Route::post('/unlock', [LandingLockController::class, 'unlock'])->name('landing.unlock.submit');
 
@@ -41,6 +45,7 @@ Route::get('/demo', fn () => Inertia::render('Demo', [
     'canLogin' => Route::has('login'),
     'canRegister' => Route::has('register'),
 ]))->name('demo');
+Route::post('/demo/speak', [StoryController::class, 'speakDemo'])->middleware('throttle:30,1')->name('demo.speak');
 
 Route::get('/dashboard', function () {
     return to_route('stories.index');

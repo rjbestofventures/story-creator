@@ -30,7 +30,7 @@ class StoryGeneratedNotification extends Notification
         return (new MailMessage)
             ->subject('Story generated — StoryCreator.Bot')
             ->greeting('New story generated')
-            ->line("{$user->name} ({$user->email}) generated the story \"{$this->story->title}\" ({$this->story->episodes()->count()} chapters).")
+            ->line("{$user->name} ({$user->email}) generated the story \"{$this->story->title}\" ({$this->story->episodes()->count()} episodes).")
             ->salutation('StoryCreator.Bot');
     }
 }

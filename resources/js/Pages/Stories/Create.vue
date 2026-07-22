@@ -1227,7 +1227,7 @@ const formats = [
                     <h2 class="text-2xl font-black text-[#1A1A1A] mb-2">Crafting your story…</h2>
                     <p class="text-[#555555] mb-6">
                         StoryCreator is writing
-                        <span class="font-semibold text-[#1A1A1A]">{{ episodeCount }} chapters</span>
+                        <span class="font-semibold text-[#1A1A1A]">{{ episodeCount }} episodes</span>
                         for <span class="font-semibold text-[#1A1A1A]">{{ basics.business_name }}</span>.
                     </p>
 
@@ -1253,7 +1253,7 @@ const formats = [
                         <p class="text-[#555555]">
                             {{ answerCount }} answers collected for
                             <strong>{{ basics.business_name }}</strong>.
-                            Now choose your chapter format.
+                            Now choose your episode format.
                         </p>
                     </div>
 
@@ -1267,7 +1267,7 @@ const formats = [
                         <!-- Episode count chooser -->
                         <div v-if="!isDemoMode" class="space-y-3">
                             <div class="flex items-center justify-between">
-                                <Label class="text-[#1A1A1A] font-bold text-base block">How many chapters?</Label>
+                                <Label class="text-[#1A1A1A] font-bold text-base block">How many episodes?</Label>
                                 <span v-if="!isUnlimited" class="text-xs font-semibold text-[#555555]">
                                     {{ creditBalance }} credit{{ creditBalance === 1 ? '' : 's' }} available
                                 </span>
@@ -1296,18 +1296,18 @@ const formats = [
                                                 </span>
                                                 <Lock v-if="!unlocked(opt)" class="absolute top-6 right-2 w-3 h-3 text-[#AAAAAA]" />
                                                 <span class="text-xl font-black text-[#1A1A1A]">{{ opt.count }}</span>
-                                                <span class="text-[11px] text-[#555555]">chapters</span>
+                                                <span class="text-[11px] text-[#555555]">episodes</span>
                                                 <span v-if="!isUnlimited" class="text-[10px] text-[#AAAAAA]">{{ opt.count }} credits</span>
                                             </button>
                                         </TooltipTrigger>
                                         <TooltipContent v-if="!unlocked(opt)" side="bottom" class="max-w-xs p-3 flex-col items-start gap-1">
                                             <p class="text-xs leading-relaxed text-white">
                                                 <template v-if="opt.unlock_label">
-                                                    Unlock {{ opt.count }}-chapter stories with the
+                                                    Unlock {{ opt.count }}-episode stories with the
                                                     <strong class="font-semibold text-white">{{ opt.unlock_label }}</strong>.
                                                 </template>
                                                 <template v-else>
-                                                    This chapter count requires a higher pack.
+                                                    This episode count requires a higher pack.
                                                 </template>
                                             </p>
                                             <Link :href="route('shop.index')" class="text-xs font-semibold text-[#F5A000] hover:underline">
@@ -1354,11 +1354,11 @@ const formats = [
                             <p class="text-sm font-medium text-[#1A1A1A]">
                                 ✨ Generating
                                 <span class="text-[#F5A000] font-bold">{{ episodeCount }} Story</span>
-                                chapters for
+                                episodes for
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
                             <p class="text-xs text-[#555555] mt-1">
-                                <template v-if="!isUnlimited">This costs 1 StoryBot credit per chapter · </template>Takes up to 3 minutes
+                                <template v-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes up to 3 minutes
                             </p>
                         </div>
 
@@ -1411,16 +1411,16 @@ const formats = [
                     <DialogDescription as="div" class="text-[#555555]">
                         <p>
                             StoryBot will generate
-                            <strong class="text-[#1A1A1A]">{{ episodeCount }} chapters</strong>
+                            <strong class="text-[#1A1A1A]">{{ episodeCount }} episodes</strong>
                             for <strong class="text-[#1A1A1A]">{{ basics.business_name }}</strong>.
                         </p>
                         <ul v-if="!isUnlimited" class="mt-2 space-y-1 list-disc list-inside">
                             <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditBalance }}</strong></li>
-                            <li>Cost: <strong class="text-[#1A1A1A]">{{ episodeCount }} credit{{ episodeCount === 1 ? '' : 's' }}</strong> (1 credit per chapter)</li>
+                            <li>Cost: <strong class="text-[#1A1A1A]">{{ episodeCount }} credit{{ episodeCount === 1 ? '' : 's' }}</strong> (1 credit per episode)</li>
                             <li>Remaining Balance After Generation: <strong class="text-[#1A1A1A]">{{ creditBalance - episodeCount }} credits</strong></li>
                         </ul>
                         <p class="mt-2 text-xs">
-                            Once confirmed, StoryBot will immediately begin generating your chapters.
+                            Once confirmed, StoryBot will immediately begin generating your episodes.
                             <template v-if="!isUnlimited"> Credits used are non-refundable.</template>
                         </p>
                     </DialogDescription>

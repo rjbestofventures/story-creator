@@ -56,9 +56,9 @@ const formatPrice = (cents) => '$' + (cents / 100).toFixed(0);
 
 const episodeOptionsLabel = (pack) => {
     const options = [12, 18, 24].filter((n) => n <= (pack.max_episodes ?? 12));
-    if (options.length <= 1) return `Choose ${options[0] ?? 12} chapters per story`;
-    if (options.length === 2) return `Choose ${options[0]} or ${options[1]} chapters per story`;
-    return `Choose ${options[0]}, ${options[1]}, or ${options[2]} chapters per story`;
+    if (options.length <= 1) return `Choose ${options[0] ?? 12} episodes per story`;
+    if (options.length === 2) return `Choose ${options[0]} or ${options[1]} episodes per story`;
+    return `Choose ${options[0]}, ${options[1]}, or ${options[2]} episodes per story`;
 };
 </script>
 
@@ -104,8 +104,8 @@ const episodeOptionsLabel = (pack) => {
                 <div class="text-center mb-10">
                     <h2 class="text-3xl font-black text-[#1A1A1A] mb-3">Choose your credit pack</h2>
                     <p class="text-[#555555] max-w-lg mx-auto">
-                        Credits power everything: <strong class="text-[#1A1A1A]">1 credit generates or refines 1 chapter</strong>.
-                        Choose 12, 18, or 24 chapters per story. Credits never expire.
+                        Credits power everything: <strong class="text-[#1A1A1A]">1 credit generates or refines 1 episode</strong>.
+                        Choose 12, 18, or 24 episodes per story. Credits never expire.
                     </p>
                 </div>
 
@@ -150,7 +150,7 @@ const episodeOptionsLabel = (pack) => {
                                     <div class="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                                         <Check class="w-2.5 h-2.5 text-[#F5A000]" />
                                     </div>
-                                    <span>1 credit = generate or refine 1 chapter</span>
+                                    <span>1 credit = generate or refine 1 episode</span>
                                 </li>
                                 <li class="flex items-center gap-2.5 text-sm text-[#555555]">
                                     <div class="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">

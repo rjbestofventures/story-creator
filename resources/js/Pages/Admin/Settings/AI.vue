@@ -66,7 +66,7 @@ onMounted(() => {
 
 const phases = [
     { key: 'interview_model',  label: 'Interview Phase',  hint: 'Conducts the 15-question chat with the business owner.' },
-    { key: 'generation_model', label: 'Story Generation', hint: 'Writes the final chapters. Stronger models produce better output.' },
+    { key: 'generation_model', label: 'Story Generation', hint: 'Writes the final episodes. Stronger models produce better output.' },
 ];
 </script>
 

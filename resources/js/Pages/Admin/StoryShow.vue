@@ -71,7 +71,7 @@ const formatLabel = (format) => {
                         {{ story.status }}
                     </span>
                     <span class="text-xs px-2.5 py-1 rounded-full font-bold" style="background-color: #F5F5F5; color: #555555;">
-                        {{ story.episodes.length }} chapter{{ story.episodes.length !== 1 ? 's' : '' }}
+                        {{ story.episodes.length }} episode{{ story.episodes.length !== 1 ? 's' : '' }}
                     </span>
                 </div>
             </div>
@@ -110,8 +110,8 @@ const formatLabel = (format) => {
             <!-- Empty -->
             <div v-if="story.episodes.length === 0" class="bg-white rounded-2xl py-16 text-center" style="border: 1px solid #DDDDDD;">
                 <FileText class="w-8 h-8 mx-auto mb-3 text-muted-foreground opacity-40" />
-                <p class="text-sm font-semibold text-[#1A1A1A]">No chapters yet</p>
-                <p class="text-xs mt-1 text-muted-foreground">This story hasn't generated any chapters.</p>
+                <p class="text-sm font-semibold text-[#1A1A1A]">No episodes yet</p>
+                <p class="text-xs mt-1 text-muted-foreground">This story hasn't generated any episodes.</p>
             </div>
         </div>
     </AdminLayout>

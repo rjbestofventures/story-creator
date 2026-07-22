@@ -64,7 +64,7 @@ const closeModal = () => {
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] shadow-xl w-full max-w-md p-6">
                         <h3 class="text-lg font-black text-[#1A1A1A] mb-2">Delete your account?</h3>
                         <p class="text-sm text-[#555555] mb-5">
-                            All your stories, chapters, and data will be permanently deleted.
+                            All your stories, episodes, and data will be permanently deleted.
                             Enter your password to confirm.
                         </p>
 

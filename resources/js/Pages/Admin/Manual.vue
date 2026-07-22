@@ -51,7 +51,7 @@ import { ShieldCheck, Users, BookOpen, LogIn, KeyRound, Trash2, Search, FileText
                         </p>
                         <ul class="space-y-2 text-sm" style="color: #555555;">
                             <li class="flex gap-2"><span class="font-bold shrink-0" style="color: #1A1A1A;">Users & Plans</span> — View, search, create, and manage all users, roles, subscription plans, and credit balances.</li>
-                            <li class="flex gap-2"><span class="font-bold shrink-0" style="color: #1A1A1A;">Manage Plans</span> — Create and edit subscription plans, pricing, chapter limits, and story/refine credit allowances.</li>
+                            <li class="flex gap-2"><span class="font-bold shrink-0" style="color: #1A1A1A;">Manage Plans</span> — Create and edit subscription plans, pricing, episode limits, and story/refine credit allowances.</li>
                             <li class="flex gap-2"><span class="font-bold shrink-0" style="color: #1A1A1A;">All Stories</span> — View every story created on the platform, with status indicators and AI refine usage per story.</li>
                             <li class="flex gap-2"><span class="font-bold shrink-0" style="color: #1A1A1A;">Usage & Billing</span> — Aggregate billing and usage stats across all users.</li>
                             <li class="flex gap-2"><span class="font-bold shrink-0" style="color: #1A1A1A;">Settings</span> — Platform-level configuration including landing page access lock.</li>
@@ -84,7 +84,7 @@ import { ShieldCheck, Users, BookOpen, LogIn, KeyRound, Trash2, Search, FileText
                             </li>
                             <li class="flex items-start gap-2">
                                 <BookOpen class="w-3.5 h-3.5 shrink-0 mt-0.5" style="color: #F5A000;" />
-                                <span><strong>Assign a plan</strong> — sets story credits, refine credits, and chapter limits</span>
+                                <span><strong>Assign a plan</strong> — sets story credits, refine credits, and episode limits</span>
                             </li>
                             <li class="flex items-start gap-2">
                                 <Users class="w-3.5 h-3.5 shrink-0 mt-0.5" style="color: #F5A000;" />
@@ -116,10 +116,10 @@ import { ShieldCheck, Users, BookOpen, LogIn, KeyRound, Trash2, Search, FileText
                             <li>• <strong>Story ID</strong> with an <span class="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-blue-50 text-blue-600">In Progress</span> badge if the interview is not yet complete</li>
                             <li>• <strong>User Name</strong> and <strong>Email</strong> — click the user name to filter to that user's stories</li>
                             <li>• <strong>Date Generated</strong> — when the story was created</li>
-                            <li>• <strong>AI Refine Used</strong> — number of chapter regenerations consumed</li>
+                            <li>• <strong>AI Refine Used</strong> — number of episode regenerations consumed</li>
                         </ul>
                         <p class="text-sm leading-relaxed" style="color: #555555;">
-                            Click any story row to open a read-only view of all its chapters. The table is paginated at 25 stories per page.
+                            Click any story row to open a read-only view of all its episodes. The table is paginated at 25 stories per page.
                         </p>
                     </div>
 
@@ -131,7 +131,7 @@ import { ShieldCheck, Users, BookOpen, LogIn, KeyRound, Trash2, Search, FileText
                         </p>
                         <ul class="space-y-1.5 text-sm mb-4" style="color: #555555;">
                             <li>• <strong>Stories per month</strong> — credits granted at the start of each billing cycle</li>
-                            <li>• <strong>Chapter limit</strong> — max chapters generated per story</li>
+                            <li>• <strong>Episode limit</strong> — max episodes generated per story</li>
                             <li>• <strong>Refine credits</strong> — monthly allowance added on top of existing balance (accumulates)</li>
                             <li>• <strong>Pricing</strong> — monthly and yearly rates</li>
                             <li>• <strong>Trial months</strong> — free trial period before billing begins</li>

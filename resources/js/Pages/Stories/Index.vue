@@ -115,8 +115,8 @@ const confirmDelete = () => {
                                         </TooltipTrigger>
                                         <TooltipContent side="bottom" class="max-w-xs p-3">
                                             <p class="text-xs leading-relaxed">
-                                                Credits power everything. <strong>1 credit generates 1 chapter</strong>, and
-                                                <strong>1 credit refines or redoes</strong> a chapter. Choose 12, 18, or 24 chapters per story.
+                                                Credits power everything. <strong>1 credit generates 1 episode</strong>, and
+                                                <strong>1 credit refines or redoes</strong> a episode. Choose 12, 18, or 24 episodes per story.
                                                 Credits never expire.
                                             </p>
                                         </TooltipContent>
@@ -126,7 +126,7 @@ const confirmDelete = () => {
                             <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</div>
                             <template v-if="!isAdmin">
                                 <div class="text-xs text-[#555555] mt-0.5">1 AI Refine = 1 StoryBot Credit</div>
-                                <div class="text-xs text-[#555555]">1 Chapter Generation = 1 StoryBot Credit (ex: 12 chapter story = 12 StoryBot Credits)</div>
+                                <div class="text-xs text-[#555555]">1 Episode Generation = 1 StoryBot Credit (ex: 12 episode story = 12 StoryBot Credits)</div>
                             </template>
                         </div>
                         <Link v-if="!isAdmin" :href="route('shop.index')">
@@ -170,7 +170,7 @@ const confirmDelete = () => {
                     </div>
                     <h2 class="text-xl font-black text-[#1A1A1A] mb-2">No stories yet</h2>
                     <p class="text-[#555555] mb-6 max-w-sm mx-auto">
-                        Answer 3 questions about your business and we'll generate your first story chapters in seconds.
+                        Answer 3 questions about your business and we'll generate your first story episodes in seconds.
                     </p>
                     <Link :href="route('stories.create')">
                         <Button
@@ -246,7 +246,7 @@ const confirmDelete = () => {
                                 <div class="flex items-center gap-4 mt-3">
                                     <div v-if="story.status === 'draft'" class="flex items-center gap-1.5 text-xs text-[#555555]">
                                         <BookOpen class="w-3.5 h-3.5" />
-                                        {{ story.episodes_count }} {{ story.episodes_count === 1 ? 'chapter' : 'chapters' }}
+                                        {{ story.episodes_count }} {{ story.episodes_count === 1 ? 'episode' : 'episodes' }}
                                     </div>
                                     <div class="flex items-center gap-1.5 text-xs text-[#555555]">
                                         <Calendar class="w-3.5 h-3.5" />
@@ -295,7 +295,7 @@ const confirmDelete = () => {
                         <Zap class="w-5 h-5 text-[#F5A000] flex-shrink-0 mt-0.5" />
                         <div>
                             <p class="text-sm font-semibold text-[#1A1A1A]">You're out of StoryBot credits</p>
-                            <p class="text-sm text-[#555555] mt-0.5">Buy StoryBot credits to generate or refine more chapters.</p>
+                            <p class="text-sm text-[#555555] mt-0.5">Buy StoryBot credits to generate or refine more episodes.</p>
                         </div>
                     </div>
                     <Link :href="route('shop.index')" class="shrink-0">
@@ -316,7 +316,7 @@ const confirmDelete = () => {
                     <DialogTitle class="text-[#1A1A1A]">Delete story?</DialogTitle>
                     <DialogDescription class="text-[#555555]">
                         "<span class="font-semibold text-[#1A1A1A]">{{ deletingStory?.title }}</span>"
-                        and all its chapters will be permanently deleted. This cannot be undone.
+                        and all its episodes will be permanently deleted. This cannot be undone.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">

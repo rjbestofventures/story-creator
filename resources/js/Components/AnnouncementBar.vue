@@ -4,7 +4,7 @@
             <span style="color: #FFFFFF;">Social Media Powered by Our</span>
             <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;"> Intelligence</span><span style="color: #FFFFFF;">.</span>
             <span class="block sm:inline" style="color: #AAAAAA;">
-                <span class="hidden sm:inline"> · </span>A Best Of Ventures Technology.
+                <span class="hidden sm:inline"> · </span>A Best Of Ventures Inc. Technology.
             </span>
         </p>
     </div>

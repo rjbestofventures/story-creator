@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, onUnmounted } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -9,7 +9,7 @@ import { Badge } from '@/Components/ui/badge';
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2 } from 'lucide-vue-next';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
 
@@ -48,7 +48,7 @@ const demoMessages = [
     { role: 'assistant', content: "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! I'll ask you a few quick questions about Tammy Spa, then turn your answers into a library of stories worth sharing. Ready?" },
     { role: 'user',      content: '[Ready to begin]' },
     { role: 'assistant', isQuestion: true, content: "How did you first get into wellness and fitness, and what was that turning point that made you realize this was going to be your life's work?" },
-    { role: 'user',      content: "Look, I grew up with every advantage. My family had money, I had access to the best trainers, nutritionists, the whole thing. But it wasn't until my mid twenties that I realized having access and actually understanding your body are two completely different things. I started diving deep into peptides, into biohacking, into understanding how the body actually works at a cellular level. I became obsessed. Not in a vain way, but in a way where I genuinely wanted to optimize every system. That's when it clicked for me that this knowledge, this passion, it had to mean something beyond just me looking good in a mirror. I wanted to help other people experience that same transformation, that same understanding of what their body is actually capable of when you treat it right." },
+    { role: 'user',      content: "I grew up with every advantage. My family had money, I had access to the best trainers, nutritionists, the whole thing. But it wasn't until my mid twenties that I realized having access and actually understanding your body are two completely different things. I started diving deep into peptides, into biohacking, into understanding how the body actually works at a cellular level. I became obsessed. Not in a vain way, but in a way where I genuinely wanted to optimize every system. That's when it clicked for me that this knowledge, this passion, it had to mean something beyond just me looking good in a mirror. I wanted to help other people experience that same transformation, that same understanding of what their body is actually capable of when you treat it right." },
     { role: 'assistant', content: "There's something powerful in growing up with every advantage and still discovering that access and understanding are two completely different things. That obsession you found in your twenties, wanting to understand every system, is exactly the kind of origin story people trust." },
     { role: 'user',      content: '[Ready for next question]' },
     { role: 'assistant', isQuestion: true, content: 'Tell me about a specific moment when you realized your approach to wellness was different from everyone else doing this work.' },
@@ -57,7 +57,7 @@ const demoMessages = [
     { role: 'user',      content: '[Ready for next question]' },
     { role: 'assistant', isQuestion: true, content: "What do you want people to know about Tammy's spa that they won't find anywhere else?" },
     { role: 'user',      content: "We don't believe in one size fits all. Every single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yeah, I'm into the latest science, the peptides, the cutting edge stuff. But I'm also into listening. I'm into understanding your life, your stress, your actual goals. And then we build something that works for you, not for some generic idea of wellness. That's the difference. That's why people come back." },
-    { role: 'assistant', content: "That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together." },
+    { role: 'assistant', content: "That's a good question. That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together." },
 ];
 
 const demoEpisodes = [
@@ -97,6 +97,8 @@ const typingQuestionNumber = ref(0);
 
 const isTypingAnswer = ref(false);
 const answerTypingSkip = ref(false);
+const isThinkingAnswer = ref(false);
+let resolveThinkingAnswer = null;
 
 const isThinking = ref(false);
 let resolveThinking = null;
@@ -126,6 +128,61 @@ const progress = computed(() => {
 const scrollDown = () => {
     nextTick(() => chatBottom.value?.scrollIntoView({ behavior: 'smooth' }));
 };
+
+// ─── Text-to-voice — read any assistant bubble aloud (whitelisted lines only) ─
+const speakingMsgIdx = ref(null);
+const loadingMsgIdx  = ref(null);
+let speakMsgAudio     = null;
+const speakMsgAudioUrls = {}; // idx -> cached object URL
+
+const stopMsgSpeaking = () => {
+    speakMsgAudio?.pause();
+    speakMsgAudio = null;
+    speakingMsgIdx.value = null;
+};
+
+const toggleSpeakMessage = async (msg, idx) => {
+    if (speakingMsgIdx.value === idx) { stopMsgSpeaking(); return; }
+    stopMsgSpeaking();
+
+    if (speakMsgAudioUrls[idx]) {
+        speakingMsgIdx.value = idx;
+        speakMsgAudio = new Audio(speakMsgAudioUrls[idx]);
+        speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+        speakMsgAudio.play();
+        return;
+    }
+
+    loadingMsgIdx.value = idx;
+    try {
+        const res = await fetch(route('demo.speak'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            body: JSON.stringify({ text: msg.content }),
+        });
+        if (!res.ok) throw new Error('Text-to-speech failed.');
+
+        const url = URL.createObjectURL(await res.blob());
+        speakMsgAudioUrls[idx] = url;
+
+        speakingMsgIdx.value = idx;
+        speakMsgAudio = new Audio(url);
+        speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+        speakMsgAudio.play();
+    } catch {
+        // preview feature — fail silently, the demo still works fine without audio
+    } finally {
+        loadingMsgIdx.value = null;
+    }
+};
+
+onUnmounted(() => {
+    speakMsgAudio?.pause();
+    for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
+});
 
 const typeOut = (text) => new Promise((resolve) => {
     typingText.value = '';
@@ -157,33 +214,44 @@ const typeOut = (text) => new Promise((resolve) => {
     requestAnimationFrame(tick);
 });
 
-const typeOutInput = (text) => new Promise((resolve) => {
-    currentInput.value = '';
-    isTypingAnswer.value = true;
-    answerTypingSkip.value = false;
-    let i = 0;
-    let lastTime = null;
-    const CHARS_PER_SEC = 110;
-
-    const tick = (ts) => {
-        if (answerTypingSkip.value) {
-            currentInput.value = text;
-            isTypingAnswer.value = false;
-            answerTypingSkip.value = false;
-            resolve();
-            return;
-        }
-        if (lastTime !== null) {
-            const add = Math.max(1, Math.floor(((ts - lastTime) / 1000) * CHARS_PER_SEC));
-            i = Math.min(i + add, text.length);
-            currentInput.value = text.slice(0, i);
-        }
-        lastTime = ts;
-        if (i < text.length) requestAnimationFrame(tick);
-        else { isTypingAnswer.value = false; resolve(); }
-    };
-    requestAnimationFrame(tick);
+// 3s of "thinking" dots in the input box before the answer starts auto-typing — skippable.
+const thinkAnswer = () => new Promise((resolve) => {
+    isThinkingAnswer.value = true;
+    const finish = () => { isThinkingAnswer.value = false; resolveThinkingAnswer = null; resolve(); };
+    resolveThinkingAnswer = finish;
+    setTimeout(() => { if (isThinkingAnswer.value) finish(); }, 3000);
 });
+
+const typeOutInput = async (text) => {
+    await thinkAnswer();
+    return new Promise((resolve) => {
+        currentInput.value = '';
+        isTypingAnswer.value = true;
+        answerTypingSkip.value = false;
+        let i = 0;
+        let lastTime = null;
+        const CHARS_PER_SEC = 110;
+
+        const tick = (ts) => {
+            if (answerTypingSkip.value) {
+                currentInput.value = text;
+                isTypingAnswer.value = false;
+                answerTypingSkip.value = false;
+                resolve();
+                return;
+            }
+            if (lastTime !== null) {
+                const add = Math.max(1, Math.floor(((ts - lastTime) / 1000) * CHARS_PER_SEC));
+                i = Math.min(i + add, text.length);
+                currentInput.value = text.slice(0, i);
+            }
+            lastTime = ts;
+            if (i < text.length) requestAnimationFrame(tick);
+            else { isTypingAnswer.value = false; resolve(); }
+        };
+        requestAnimationFrame(tick);
+    });
+};
 
 const nextMode = () => {
     const upcoming = demoMessages[position.value];
@@ -230,6 +298,7 @@ const startInterview = async () => {
 const advance = async () => {
     if (isThinking.value) { resolveThinking?.(); return; }
     if (isTyping.value) { typingSkip.value = true; return; }
+    if (isThinkingAnswer.value) { resolveThinkingAnswer?.(); return; }
     if (isTypingAnswer.value) { answerTypingSkip.value = true; return; }
 
     const userMsg = demoMessages[position.value];
@@ -279,7 +348,7 @@ const goBack = () => {
 <template>
     <Head title="Live Demo — StoryCreator.Bot" />
 
-    <div class="bg-[#FAFAF8] flex flex-col" :class="phase !== 1 && 'min-h-screen'" :style="phase === 1 ? 'height: 100vh' : ''">
+    <div class="bg-[#FAFAF8] flex flex-col" :class="phase !== 1 && 'min-h-screen'" :style="phase === 1 ? 'height: 100vh; height: 100dvh; overflow: hidden;' : ''">
 
         <AnnouncementBar />
 
@@ -442,6 +511,20 @@ const goBack = () => {
                             : 'bg-[#1A1A1A] text-white rounded-tr-sm'"
                     >
                         <span v-if="msg._questionNumber" class="text-amber-500 mr-1.5">{{ msg._questionNumber }}.</span>{{ msg.content }}
+
+                        <button
+                            v-if="msg.role === 'assistant'"
+                            type="button"
+                            :disabled="loadingMsgIdx === i"
+                            :aria-label="speakingMsgIdx === i ? 'Stop reading aloud' : 'Read aloud'"
+                            @click="toggleSpeakMessage(msg, i)"
+                            class="mt-1.5 inline-flex items-center justify-center w-6 h-6 rounded-md transition-colors cursor-pointer disabled:cursor-wait"
+                            :class="speakingMsgIdx === i ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                        >
+                            <Loader2 v-if="loadingMsgIdx === i" class="w-3.5 h-3.5 animate-spin" />
+                            <VolumeX v-else-if="speakingMsgIdx === i" class="w-3.5 h-3.5" />
+                            <Volume2 v-else class="w-3.5 h-3.5" />
+                        </button>
                     </div>
                 </div>
 
@@ -489,7 +572,13 @@ const goBack = () => {
                 </div>
 
                 <div v-else class="bg-white border border-amber-300 bg-amber-50/30 rounded-2xl p-3 flex gap-3 items-end">
+                    <div v-if="isThinkingAnswer" class="flex-1 flex items-center gap-1.5 py-2 cursor-pointer select-none" @click="resolveThinkingAnswer?.()">
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:0ms" />
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:150ms" />
+                        <span class="w-1.5 h-1.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
+                    </div>
                     <Textarea
+                        v-else
                         :model-value="currentTurn.show_input ? currentInput : ''"
                         readonly
                         rows="2"
@@ -526,7 +615,7 @@ const goBack = () => {
                     </div>
                 </div>
                 <h2 class="text-2xl font-black text-[#1A1A1A] mb-2">Crafting your story…</h2>
-                <p class="text-[#555555] mb-6">StoryCreator is writing chapters for <span class="font-semibold text-[#1A1A1A]">Tammy Spa</span>.</p>
+                <p class="text-[#555555] mb-6">StoryCreator is writing episodes for <span class="font-semibold text-[#1A1A1A]">Tammy Spa</span>.</p>
                 <div class="flex items-center justify-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:0ms" />
                     <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:150ms" />
@@ -543,7 +632,7 @@ const goBack = () => {
                         <Check class="w-7 h-7 text-[#F5A000]" />
                     </div>
                     <h1 class="text-2xl font-black text-[#1A1A1A] mb-2">Tammy Spa's story library</h1>
-                    <p class="text-[#555555]">Three ready-to-post chapters, written from the interview above.</p>
+                    <p class="text-[#555555]">These Demo Episodes are written from the interview above.</p>
                 </div>
 
                 <div class="space-y-6">
@@ -558,7 +647,7 @@ const goBack = () => {
                                     Social Media
                                 </Badge>
                                 <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
-                                    Chapter {{ ep.episode_number }}
+                                    Episode {{ ep.episode_number }}
                                 </span>
                             </div>
                         </div>
@@ -573,9 +662,9 @@ const goBack = () => {
                 <div class="mt-8 rounded-2xl p-6 text-center" style="background-color: #1A1A1A;">
                     <div class="inline-flex items-center gap-2 mb-2">
                         <Lock class="w-4 h-4" style="color: #F5A000;" />
-                        <span class="text-xs font-bold uppercase tracking-widest" style="color: #888888;">This was a preview</span>
+                        <span class="text-xs font-bold uppercase tracking-widest" style="color: #888888;">This Preview was created for demonstration purposes only</span>
                     </div>
-                    <h3 class="text-xl font-black text-white mb-2">Ready to tell your own story?</h3>
+                    <h3 class="text-xl font-black text-white mb-2">Are you ready to tell your story?</h3>
                     <p class="text-sm mb-6" style="color: #CCCCCC;">Answer a few questions about your business and StoryCreator.Bot builds your full library, in your voice.</p>
                     <div class="flex flex-wrap items-center justify-center gap-3">
                         <Link

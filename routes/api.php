@@ -11,4 +11,5 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::middleware(ProvisionToken::class)->prefix('provision')->group(function () {
     Route::post('/user', [ProvisionController::class, 'createUser']);
+    Route::post('/deactivate', [ProvisionController::class, 'deactivateAccount']);
 });

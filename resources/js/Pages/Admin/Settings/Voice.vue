@@ -69,7 +69,7 @@ onUnmounted(() => previewAudio?.pause());
 
         <div class="space-y-1 mb-6">
             <h1 class="text-xl font-black" style="color:#1A1A1A;">Voice</h1>
-            <p class="text-sm" style="color:#555555;">Choose the voice and tone StoryBot uses to read chapters and chat messages aloud.</p>
+            <p class="text-sm" style="color:#555555;">Choose the voice and tone StoryBot uses to read episodes and chat messages aloud.</p>
         </div>
 
         <form @submit.prevent="save" class="space-y-4">
@@ -82,7 +82,7 @@ onUnmounted(() => previewAudio?.pause());
                     </div>
                     <div>
                         <h2 class="text-sm font-black" style="color:#1A1A1A;">Voice</h2>
-                        <p class="text-xs" style="color:#555555;">Powers text-to-speech for chapters and interview chat bubbles. Click play to preview.</p>
+                        <p class="text-xs" style="color:#555555;">Powers text-to-speech for episodes and interview chat bubbles. Click play to preview.</p>
                     </div>
                 </div>
 

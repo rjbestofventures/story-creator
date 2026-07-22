@@ -125,7 +125,7 @@ const editDialogOpen = computed({
         <div class="flex items-start justify-between mb-6">
             <div>
                 <h1 class="text-lg font-black" style="color: #1A1A1A;">Credit Packs</h1>
-                <p class="text-xs mt-0.5 text-muted-foreground">Each pack grants StoryBot credits. 1 credit = generate or refine 1 chapter. Changes apply to new purchases only.</p>
+                <p class="text-xs mt-0.5 text-muted-foreground">Each pack grants StoryBot credits. 1 credit = generate or refine 1 episode. Changes apply to new purchases only.</p>
             </div>
             <Button
                 class="shrink-0 gap-2 font-semibold bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 hover:opacity-90 hover:bg-none"
@@ -194,7 +194,7 @@ const editDialogOpen = computed({
                             <BookOpen class="w-5 h-5 text-[#F5A000] shrink-0" />
                             <div>
                                 <p class="text-sm font-black leading-tight" style="color: #1A1A1A;">{{ episodeOptionsLabel(pack.max_episodes) }}</p>
-                                <p class="text-[10px] font-medium text-muted-foreground mt-0.5">chapters / story</p>
+                                <p class="text-[10px] font-medium text-muted-foreground mt-0.5">episodes / story</p>
                             </div>
                         </div>
                     </div>
@@ -298,7 +298,7 @@ const editDialogOpen = computed({
                             <Input v-model.number="getEditForm(editingPack).price_dollars" type="number" min="0" step="0.01" class="text-center" />
                         </div>
                         <div class="space-y-1.5">
-                            <Label class="text-xs">Chapters / story</Label>
+                            <Label class="text-xs">Episodes / story</Label>
                             <Select :model-value="String(getEditForm(editingPack).max_episodes)" @update:model-value="val => getEditForm(editingPack).max_episodes = Number(val)">
                                 <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
                                 <SelectContent>
@@ -387,7 +387,7 @@ const editDialogOpen = computed({
                             <Input v-model.number="newForm.price_dollars" type="number" min="0" step="0.01" class="text-center" />
                         </div>
                         <div class="space-y-1.5">
-                            <Label class="text-xs">Chapters / story</Label>
+                            <Label class="text-xs">Episodes / story</Label>
                             <Select :model-value="String(newForm.max_episodes)" @update:model-value="val => newForm.max_episodes = Number(val)">
                                 <SelectTrigger class="w-full"><SelectValue /></SelectTrigger>
                                 <SelectContent>

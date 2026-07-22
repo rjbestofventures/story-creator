@@ -16,6 +16,8 @@ use App\Services\TextToSpeechService;
 use App\Services\TranscriptionService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -76,8 +78,8 @@ class StoryController extends Controller
 
         throw ValidationException::withMessages([
             'episode_count' => $unlock
-                ? "{$count}-chapter stories require the {$unlock}."
-                : "Your current pack does not allow {$count}-chapter stories.",
+                ? "{$count}-episode stories require the {$unlock}."
+                : "Your current pack does not allow {$count}-episode stories.",
         ]);
     }
 
@@ -422,7 +424,6 @@ class StoryController extends Controller
                     'custom_refine_instruction' => $ep->custom_refine_instruction,
                 ]),
             ],
-            'canCreateStory' => $user->canCreateStory(),
             'isAdmin' => $user->isAdmin(),
             'credits' => $user->isAdmin() ? null : $user->credits,
         ]);
@@ -440,7 +441,7 @@ class StoryController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // Text-to-voice — read a chapter aloud via OpenAI's TTS
+    // Text-to-voice — read a episode aloud via OpenAI's TTS
     // -------------------------------------------------------------------------
 
     public function speakEpisode(Request $request, Story $story, Episode $episode)
@@ -463,6 +464,36 @@ class StoryController extends Controller
         $audio = (new TextToSpeechService)->synthesize($data['text']);
 
         return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
+    /**
+     * The public /demo page has no auth, so its TTS endpoint only ever synthesizes
+     * these exact, fixed lines (never arbitrary client-supplied text) and caches
+     * each one to disk after the first request.
+     */
+    public const DEMO_LINES = [
+        "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! I'll ask you a few quick questions about Tammy Spa, then turn your answers into a library of stories worth sharing. Ready?",
+        "How did you first get into wellness and fitness, and what was that turning point that made you realize this was going to be your life's work?",
+        "There's something powerful in growing up with every advantage and still discovering that access and understanding are two completely different things. That obsession you found in your twenties, wanting to understand every system, is exactly the kind of origin story people trust.",
+        'Tell me about a specific moment when you realized your approach to wellness was different from everyone else doing this work.',
+        'You walked away from the bigger sale to give her the truth, and she paid you back with three years and twenty referrals. That is the whole philosophy in one story, trust is the product and everything else is just delivery.',
+        "What do you want people to know about Tammy's spa that they won't find anywhere else?",
+        "That's a good question. That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together.",
+    ];
+
+    public function speakDemo(Request $request)
+    {
+        $data = $request->validate([
+            'text' => ['required', 'string', Rule::in(self::DEMO_LINES)],
+        ]);
+
+        $path = 'demo-audio/'.md5($data['text']).'.mp3';
+
+        if (! Storage::disk('local')->exists($path)) {
+            Storage::disk('local')->put($path, (new TextToSpeechService)->synthesize($data['text']));
+        }
+
+        return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'audio/mpeg']);
     }
 
     // -------------------------------------------------------------------------
@@ -699,7 +730,7 @@ class StoryController extends Controller
         abort_if($episodes->isEmpty(), 404);
 
         if (! $user->isAdmin()) {
-            abort_unless($user->credits >= $episodes->count(), 403, 'Not enough credits to refine all selected chapters.');
+            abort_unless($user->credits >= $episodes->count(), 403, 'Not enough credits to refine all selected episodes.');
         }
 
         $generator = new StoryGeneratorService;

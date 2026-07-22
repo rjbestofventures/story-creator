@@ -55,4 +55,19 @@ class ProvisionController extends Controller
             'pack' => $pack?->slug,
         ], 201);
     }
+
+    public function deactivateAccount(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->firstOrFail();
+        $user->update(['is_active' => false]);
+
+        return response()->json([
+            'email' => $user->email,
+            'is_active' => $user->is_active,
+        ]);
+    }
 }

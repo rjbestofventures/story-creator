@@ -149,7 +149,7 @@ const isProcessing = (plan) => plan.price_monthly === 0
                     <ul class="space-y-2 flex-1 mb-6">
                         <li class="flex items-start gap-2 text-sm" style="color: #555555;">
                             <Check class="w-4 h-4 mt-0.5 flex-shrink-0" style="color: #F5A000;" />
-                            {{ plan.episode_limit }} chapters per story
+                            {{ plan.episode_limit }} episodes per story
                         </li>
                         <li class="flex items-start gap-2 text-sm" :style="plan.stories_per_month === 0 ? 'color:#AAAAAA' : 'color:#555555'">
                             <Check class="w-4 h-4 mt-0.5 flex-shrink-0" :style="plan.stories_per_month === 0 ? 'color:#DDDDDD' : 'color:#F5A000'" />

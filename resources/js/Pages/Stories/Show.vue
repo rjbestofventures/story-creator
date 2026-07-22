@@ -15,7 +15,6 @@ import {
 
 const props = defineProps({
     story: Object,
-    canCreateStory: Boolean,
     isAdmin: Boolean,
     credits: { type: Number, default: null },
 });
@@ -106,7 +105,7 @@ const copyEpisode = async (content) => {
     setTimeout(() => { copied.value = null; }, 2000);
 };
 
-// ─── Text-to-voice — read a chapter aloud via OpenAI's TTS (natural voice) ────
+// ─── Text-to-voice — read a episode aloud via OpenAI's TTS (natural voice) ────
 const speakingId  = ref(null); // episode id currently playing
 const loadingId   = ref(null); // episode id currently being synthesized
 const speakError  = ref(null);
@@ -149,7 +148,7 @@ const toggleSpeak = async (ep) => {
         speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; };
         speakAudio.play();
     } catch {
-        speakError.value = 'Could not read this chapter aloud. Please try again.';
+        speakError.value = 'Could not read this episode aloud. Please try again.';
     } finally {
         loadingId.value = null;
     }
@@ -412,7 +411,7 @@ const applyCustomRefine = async (ep) => {
     }
 };
 
-// ─── Bulk AI Refine — one refinement applied to several chapters at once ─────
+// ─── Bulk AI Refine — one refinement applied to several episodes at once ─────
 const bulkOpen             = ref(false);
 const bulkSelected         = ref([]);
 const bulkTone             = ref(null);
@@ -618,7 +617,7 @@ const restoreRevision = async (ep) => {
                     <h1 class="text-2xl md:text-4xl font-black text-[#1A1A1A] mb-3">{{ storyTitle }}</h1>
                     <p class="text-[#555555] text-base md:text-lg">
                         Here's what StoryCreator generated from your interview.
-                        <span class="text-[#F5A000] font-semibold">{{ episodes.length }} chapter{{ episodes.length === 1 ? '' : 's' }}</span> ready to publish.
+                        <span class="text-[#F5A000] font-semibold">{{ episodes.length }} episode{{ episodes.length === 1 ? '' : 's' }}</span> ready to publish.
                     </p>
                 </div>
 
@@ -635,7 +634,7 @@ const restoreRevision = async (ep) => {
                             </div>
                             <div>
                                 <p class="font-bold text-sm text-[#1A1A1A]">Bulk AI Refine</p>
-                                <p class="text-xs text-[#555555]">Refine several chapters together.</p>
+                                <p class="text-xs text-[#555555]">Refine several episodes together.</p>
                             </div>
                         </div>
                         <div class="flex items-center gap-2 shrink-0">
@@ -647,9 +646,9 @@ const restoreRevision = async (ep) => {
 
                     <div v-if="bulkOpen" class="px-5 pb-5 pt-1 border-t border-[#F0F0F0]">
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
-                            <!-- Choose chapters -->
+                            <!-- Choose episodes -->
                             <div>
-                                <p class="text-xs font-bold uppercase tracking-wide text-[#888888] mb-3">1. Choose Chapters</p>
+                                <p class="text-xs font-bold uppercase tracking-wide text-[#888888] mb-3">1. Choose Episodes</p>
                                 <div class="grid grid-cols-3 gap-2">
                                     <label
                                         v-for="ep in episodes"
@@ -663,10 +662,10 @@ const restoreRevision = async (ep) => {
                                             :checked="bulkSelected.includes(ep.id)"
                                             @change="toggleBulkEpisode(ep.id)"
                                         />
-                                        Chapter {{ ep.episode_number }}
+                                        Episode {{ ep.episode_number }}
                                     </label>
                                 </div>
-                                <p class="text-xs text-[#888888] mt-3">Select only the chapters you want changed. The original versions will remain available.</p>
+                                <p class="text-xs text-[#888888] mt-3">Select only the episodes you want changed. The original versions will remain available.</p>
                             </div>
 
                             <!-- Choose refinement -->
@@ -699,7 +698,7 @@ const restoreRevision = async (ep) => {
                                 <textarea
                                     v-if="bulkTone === 'custom'"
                                     v-model="bulkCustomInstruction"
-                                    placeholder="Describe exactly how you want the selected chapters refined."
+                                    placeholder="Describe exactly how you want the selected episodes refined."
                                     rows="3"
                                     class="w-full mt-3 text-sm text-[#333333] bg-[#FAFAF8] border border-[#DDDDDD] rounded-lg px-3 py-2 resize-none placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#F5A000]/60"
                                 />
@@ -750,7 +749,7 @@ const restoreRevision = async (ep) => {
                                 <button
                                     type="button"
                                     :disabled="loadingId === ep.id"
-                                    :aria-label="speakingId === ep.id ? 'Stop reading chapter aloud' : 'Read chapter aloud'"
+                                    :aria-label="speakingId === ep.id ? 'Stop reading episode aloud' : 'Read episode aloud'"
                                     @click.stop="toggleSpeak(ep)"
                                     class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer disabled:cursor-wait"
                                     :class="speakingId === ep.id
@@ -765,7 +764,7 @@ const restoreRevision = async (ep) => {
                                     <button
                                         v-if="isAtCurrent(ep) && !isEditing(ep)"
                                         type="button"
-                                        aria-label="Edit chapter"
+                                        aria-label="Edit episode"
                                         @mousedown.prevent
                                         @click.stop="editEpisode(ep)"
                                         class="flex items-center gap-1.5 text-xs font-semibold px-2.5 h-8 rounded-lg border border-[#DDDDDD] text-[#555555] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
@@ -775,7 +774,7 @@ const restoreRevision = async (ep) => {
                                     </button>
                                     <button
                                         type="button"
-                                        aria-label="Copy chapter"
+                                        aria-label="Copy episode"
                                         @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
                                         class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
                                         :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
@@ -827,7 +826,7 @@ const restoreRevision = async (ep) => {
                                     {{ formatLabel[ep.format] ?? ep.format }}
                                 </Badge>
                                 <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
-                                    Chapter {{ ep.episode_number }}
+                                    Episode {{ ep.episode_number }}
                                 </span>
                                 <span v-if="!isDemo" class="text-xs font-bold text-[#F5A000] border border-[#F5A000]/40 bg-amber-50 px-2 py-0.5 rounded-md shrink-0">
                                     Viewing Version {{ position(ep) }}
@@ -876,7 +875,7 @@ const restoreRevision = async (ep) => {
                                 :value="editState[ep.id].title"
                                 @input="editState[ep.id].title = $event.target.value"
                                 class="w-full text-xl font-black text-[#1A1A1A] mb-3 bg-[#FAFAF8] border-0 outline-none rounded-lg px-2 -mx-2"
-                                placeholder="Chapter title"
+                                placeholder="Episode title"
                             />
                             <h2 v-else class="text-xl font-black text-[#1A1A1A] mb-3">{{ displayed(ep).title }}</h2>
 
@@ -988,26 +987,13 @@ const restoreRevision = async (ep) => {
                         </Link>
                     </template>
                     <template v-else>
-                        <h3 class="text-xl font-black text-[#1A1A1A] mb-2">Ready to tell your next story?</h3>
-                        <p class="text-[#555555] mb-6 max-w-md mx-auto">
-                            Each story builds your brand's narrative. Start a new interview to explore a different angle of your business.
+                        <h3 class="text-xl font-black text-[#1A1A1A] mb-2">The first draft of your story is complete. What's next?</h3>
+                        <p class="text-[#555555] mb-4 max-w-lg mx-auto">
+                            You are now ready to either publish your episodes as currently written or refine them. Use your credits to make your story sound naturally like you and to ensure each episode encourages engagement.
                         </p>
-                        <template v-if="canCreateStory">
-                            <Link :href="route('stories.create')">
-                                <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
-                                    <Plus class="w-4 h-4" />
-                                    Create Another Story
-                                </Button>
-                            </Link>
-                        </template>
-                        <template v-else>
-                            <p class="text-sm text-[#555555] mb-4">You're out of credits. Top up to generate or refine more.</p>
-                            <Link :href="route('shop.index')">
-                                <Button class="inline-flex items-center gap-2 bg-white border border-[#DDDDDD] text-[#1A1A1A] font-bold h-11 px-8 rounded-xl hover:bg-[#F5F5F5] transition-all duration-300 cursor-pointer">
-                                    Buy Credits
-                                </Button>
-                            </Link>
-                        </template>
+                        <p class="text-[#555555] max-w-lg mx-auto">
+                            Scroll up to your episodes above, click "Edit," and you will see your refinement options. When you are ready to post, copy and paste your story episodes one at a time to Best of Delray Beach platforms or any other social media.
+                        </p>
                     </template>
                 </div>
 
@@ -1022,7 +1008,7 @@ const restoreRevision = async (ep) => {
                         <RefreshCcw class="w-5 h-5 text-[#F5A000]" />
                     </div>
                     <DialogTitle class="text-[#1A1A1A]">
-                        {{ pendingRefineKind === 'restore' ? 'Restore this version?' : 'Refine this chapter?' }}
+                        {{ pendingRefineKind === 'restore' ? 'Restore this version?' : 'Refine this episode?' }}
                     </DialogTitle>
                     <DialogDescription as="div" class="text-[#555555]">
                         <template v-if="pendingRefineKind === 'restore'">
@@ -1032,11 +1018,11 @@ const restoreRevision = async (ep) => {
                             </p>
                         </template>
                         <template v-else-if="isAdmin">
-                            <p>This will rewrite the chapter. The current version is saved to history so you can restore it.</p>
+                            <p>This will rewrite the episode. The current version is saved to history so you can restore it.</p>
                         </template>
                         <template v-else>
                             <p>
-                                This will rewrite {{ pendingRefineCost > 1 ? `${pendingRefineCost} chapters` : 'the chapter' }}.
+                                This will rewrite {{ pendingRefineCost > 1 ? `${pendingRefineCost} episodes` : 'the episode' }}.
                                 The current version{{ pendingRefineCost > 1 ? 's are' : ' is' }} saved to history so you can restore {{ pendingRefineCost > 1 ? 'them' : 'it' }}.
                             </p>
                             <ul class="mt-2 space-y-1 list-disc list-inside">

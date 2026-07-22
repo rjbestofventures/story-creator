@@ -52,17 +52,17 @@ const tierOf = (pack) => {
 const tierContent = {
     basic: {
         blurb: 'A solid starting point for businesses ready to tell their story.',
-        episodes: '12 chapters per story',
+        episodes: '12 episodes per story',
         posts: '12 posts, about 6 months of content at 2 posts/month',
     },
     premium: {
         blurb: 'More flexibility for businesses building a consistent content presence.',
-        episodes: '12 or 18 chapters per story, you choose',
+        episodes: '12 or 18 episodes per story, you choose',
         posts: 'Up to 18 posts, up to 9 months of content at 2 posts/month',
     },
     professional: {
         blurb: 'Full creative range for businesses running multiple stories at once.',
-        episodes: '12, 18, or 24 chapters per story, you choose',
+        episodes: '12, 18, or 24 episodes per story, you choose',
         posts: 'Up to 24 posts, up to 12 months of content at 2 posts/month',
     },
 };
@@ -72,17 +72,17 @@ const tierContent = {
 const partnerTierContent = {
     basic: {
         blurb: 'THE BASIC PLAN is what you receive free when you sign up or resubscribe as a Verified Business Partner. Basic Plan StoryBot credits can also be purchased to enhance story and episodic customization.',
-        episodes: '12 chapters per story',
+        episodes: '12 episodes per story',
         posts: '12 posts, about 6 months of content at 2 posts/month',
     },
     premium: {
-        blurb: 'THE PREMIUM PLAN provides 50% more chapters and expanded opportunity for customization. Premium Plan StoryBot credits can be applied to existing chapters or to create new, additional chapters.',
-        episodes: '12 or 18 chapters per story, you choose',
+        blurb: 'THE PREMIUM PLAN provides 50% more episodes and expanded opportunity for customization. Premium Plan StoryBot credits can be applied to existing episodes or to create new, additional episodes.',
+        episodes: '12 or 18 episodes per story, you choose',
         posts: 'Up to 18 posts, up to 9 months of content at 2 posts/month',
     },
     professional: {
-        blurb: "THE PROFESSIONAL PLAN is the most flexible option. You get a year's worth of authentic content with ample opportunity to customize your story either all at once or editing individual chapters.",
-        episodes: '12, 18, or 24 chapters per story, you choose',
+        blurb: "THE PROFESSIONAL PLAN is the most flexible option. You get a year's worth of authentic content with ample opportunity to customize your story either all at once or editing individual episodes.",
+        episodes: '12, 18, or 24 episodes per story, you choose',
         posts: 'Up to 24 posts, up to 12 months of content at 2 posts/month',
     },
 };
@@ -117,8 +117,8 @@ const payToPlayPacks = computed(() =>
 );
 const payToPlayPopularSlug = computed(() => popularSlugIn(payToPlayPacks.value.filter((p) => !isAddon(p))));
 
-const partnerFeatures = ['12 complimentary chapters', 'Saves time and lowers costs', 'Story credits never expire', 'Verified partner badge', 'Priority guidance', 'Chapters for every story'];
-const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customizable output', 'Limited commitment', 'Tech support', 'Your story in chapters'];
+const partnerFeatures = ['12 complimentary episodes', 'Saves time and lowers costs', 'Story credits never expire', 'Verified partner badge', 'Priority guidance', 'Episodes for every story'];
+const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customizable output', 'Limited commitment', 'Tech support', 'Your story in episodes'];
 </script>
 
 <template>
@@ -280,8 +280,8 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                             <Download class="w-7 h-7" color="#1A1A1A" :stroke-width="2" />
                         </div>
                         <p class="text-xs font-bold tracking-widest uppercase mb-2" style="color: #555555;">Step 3</p>
-                        <h3 class="text-lg font-bold mb-3" style="color: #1A1A1A;">Get Chapters of Your Story</h3>
-                        <p class="text-sm leading-relaxed" style="color: #555555;">Review, refine, and use each chapter of your story on your Best of Local network and across all social media, blogs, and more.</p>
+                        <h3 class="text-lg font-bold mb-3" style="color: #1A1A1A;">Get Episodes of Your Story</h3>
+                        <p class="text-sm leading-relaxed" style="color: #555555;">Review, refine, and use each episode of your story on your Best of Local network and across all social media, blogs, and more.</p>
                     </div>
 
                 </div>
@@ -385,7 +385,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                             <div>
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
                                 <p class="text-sm font-bold" style="color: #1A1A1A;">{{ packEpisodes(learnMorePack) }}</p>
-                                <p class="text-xs italic mt-0.5" style="color: #555555;">Each chapter = 1 ready-to-post piece of content</p>
+                                <p class="text-xs italic mt-0.5" style="color: #555555;">Each episode = 1 ready-to-post piece of content</p>
                                 <p class="text-xs mt-1" style="color: #888888;">{{ packPosts(learnMorePack) }}</p>
                             </div>
 
@@ -393,15 +393,15 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Your credit balance</p>
                                 <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
                                     <li><span class="font-semibold" style="color: #1A1A1A;">Total StoryBot Credits:</span> {{ learnMorePack.credits }}</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to generate 1 chapter:</span> 1 credit</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to manually edit or redo 1 chapter:</span> 1 credit</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to generate 1 episode:</span> 1 credit</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to manually edit or redo 1 episode:</span> 1 credit</li>
                                 </ul>
                             </div>
 
                             <div class="border-t pt-4" style="border-color: #EEEEEE;">
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
                                 <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Manual edit or redo any chapter for 1 credit. No extra fees.</li>
+                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Manual edit or redo any episode for 1 credit. No extra fees.</li>
                                     <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Unused credits never expire. They carry forward.</li>
                                 </ul>
                             </div>
@@ -413,7 +413,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                                 <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
                                 <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
                                     <li><span class="font-semibold" style="color: #1A1A1A;">Credits added to your account:</span> {{ learnMorePack.credits }} StoryBot Credits</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Enough to generate or refine:</span> up to {{ learnMorePack.credits }} chapters</li>
+                                    <li><span class="font-semibold" style="color: #1A1A1A;">Enough to generate or refine:</span> up to {{ learnMorePack.credits }} episodes</li>
                                 </ul>
                             </div>
 
