@@ -3,11 +3,15 @@ import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap } from '@lucide/vue';
 import Footer from '@/Components/Footer.vue';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/Components/ui/dialog';
 
 const props = defineProps({ isDemo: Boolean });
 
 const showPassword        = ref(false);
 const showPasswordConfirm = ref(false);
+const confirmPartnerOpen  = ref(false);
 
 const form = useForm({
     name:                  '',
@@ -16,10 +20,20 @@ const form = useForm({
     password_confirmation: '',
 });
 
-const submit = () => {
+const doRegister = () => {
     form.post(route('register'), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
+};
+
+const submit = () => {
+    if (props.isDemo) { doRegister(); return; }
+    confirmPartnerOpen.value = true;
+};
+
+const proceedStoryBotOnly = () => {
+    confirmPartnerOpen.value = false;
+    doRegister();
 };
 </script>
 
@@ -225,5 +239,34 @@ const submit = () => {
 
       </div>
       <Footer />
+
+        <Dialog v-model:open="confirmPartnerOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <DialogTitle class="text-[#1A1A1A]">Are you sure you don't want to become a Verified Business Partner?</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        As a Verified Business Partner, you'll receive <strong class="text-[#1A1A1A]">free access to StoryBot</strong>, along with other exclusive partner benefits.
+                        You can learn more about the benefits and submit your application through the link below.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="flex-col sm:flex-col gap-2">
+                    <button
+                        type="button"
+                        @click="proceedStoryBotOnly"
+                        class="w-full py-2.5 rounded-lg border font-semibold text-sm transition hover:bg-gray-50 cursor-pointer"
+                        style="border-color: #DDDDDD; color: #1A1A1A;"
+                    >
+                        StoryBot Only
+                    </button>
+                    <Link
+                        :href="route('partner')"
+                        class="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90"
+                        style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                    >
+                        Become a Verified Business Partner
+                    </Link>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

@@ -1,7 +1,12 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { ref, watch } from 'vue';
+import { useForm } from '@inertiajs/vue3';
 import { ArrowRight, Check } from 'lucide-vue-next';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from '@/Components/ui/dialog';
+
+const open = defineModel('open', { default: false });
 
 const submitted = ref(false);
 
@@ -14,45 +19,48 @@ const form = useForm({
 
 const submit = () => {
     form.post(route('partner.apply.submit'), {
+        preserveScroll: true,
         onSuccess: () => { submitted.value = true; },
     });
 };
+
+// Reset to a blank form each time the dialog is reopened.
+watch(open, (isOpen) => {
+    if (isOpen) {
+        submitted.value = false;
+        form.reset();
+        form.clearErrors();
+    }
+});
 </script>
 
 <template>
-    <Head title="Become a Verified Partner — StoryCreator.Bot" />
-
-    <div class="min-h-screen flex flex-col items-center justify-center px-6 py-12" style="background: radial-gradient(ellipse at 50% 40%, #FEF9EC 0%, #F5F5F0 60%, #EFEFEA 100%);">
-        <Link href="/" class="flex items-center text-xl font-bold tracking-tight mb-10">
-            <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">StoryCreator</span>
-            <span style="color: #1A1A1A;">.Bot</span>
-        </Link>
-
-        <div class="w-full max-w-sm bg-white rounded-2xl p-8" style="border: 1px solid #DDDDDD;">
-
+    <Dialog v-model:open="open">
+        <DialogContent class="max-w-sm">
             <template v-if="submitted">
-                <div class="text-center">
+                <div class="text-center py-4">
                     <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-50 mb-4">
                         <Check class="w-6 h-6" style="color: #F5A000;" />
                     </div>
-                    <h1 class="text-xl font-black mb-2" style="color: #1A1A1A;">Application received</h1>
+                    <h2 class="text-xl font-black mb-2" style="color: #1A1A1A;">Application received</h2>
                     <p class="text-sm" style="color: #555555;">Thanks for applying to become a Verified Business Partner. Our team will be in touch shortly.</p>
                 </div>
             </template>
 
             <template v-else>
-                <h1 class="text-xl font-black mb-1" style="color: #1A1A1A;">Become a Verified Partner</h1>
-                <p class="text-sm mb-6" style="color: #555555;">Tell us how to reach you and we'll follow up about joining the program.</p>
+                <DialogHeader>
+                    <DialogTitle class="text-[#1A1A1A]">Become a Verified Partner</DialogTitle>
+                    <DialogDescription class="text-[#555555]">Tell us how to reach you and we'll follow up about joining the program.</DialogDescription>
+                </DialogHeader>
 
                 <form @submit.prevent="submit" class="space-y-4" novalidate>
                     <div>
-                        <label for="first_name" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">First Name</label>
+                        <label for="dlg_first_name" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">First Name</label>
                         <input
-                            id="first_name"
+                            id="dlg_first_name"
                             v-model="form.first_name"
                             type="text"
                             autocomplete="given-name"
-                            autofocus
                             required
                             class="w-full px-3 py-2.5 rounded-lg text-sm outline-none transition-all duration-200"
                             style="border: 1px solid #DDDDDD; color: #1A1A1A; background: #FFFFFF;"
@@ -64,9 +72,9 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <label for="last_name" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Last Name</label>
+                        <label for="dlg_last_name" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Last Name</label>
                         <input
-                            id="last_name"
+                            id="dlg_last_name"
                             v-model="form.last_name"
                             type="text"
                             autocomplete="family-name"
@@ -81,9 +89,9 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <label for="phone" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Phone</label>
+                        <label for="dlg_phone" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Phone</label>
                         <input
-                            id="phone"
+                            id="dlg_phone"
                             :value="form.phone"
                             @input="(e) => form.phone = e.target.value.replace(/\D/g, '').slice(0, 11)"
                             type="tel"
@@ -103,9 +111,9 @@ const submit = () => {
                     </div>
 
                     <div>
-                        <label for="email" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Email</label>
+                        <label for="dlg_email" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Email</label>
                         <input
-                            id="email"
+                            id="dlg_email"
                             v-model="form.email"
                             type="email"
                             autocomplete="email"
@@ -135,7 +143,6 @@ const submit = () => {
                     </button>
                 </form>
             </template>
-
-        </div>
-    </div>
+        </DialogContent>
+    </Dialog>
 </template>

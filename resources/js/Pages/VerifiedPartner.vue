@@ -1,13 +1,17 @@
 <script setup>
+import { ref } from 'vue';
 import { Head, Link } from '@inertiajs/vue3';
 import { Check, ArrowRight, Star, Building2, Users, Zap, ShieldCheck, Calendar, TrendingUp, Radio, Award, Mail, Phone } from '@lucide/vue';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
+import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 
 defineProps({
     canLogin: Boolean,
     canRegister: Boolean,
 });
+
+const applyOpen = ref(false);
 
 const steps = [
     {
@@ -140,13 +144,14 @@ const partnerBenefits = [
                 Either way, your story does the marketing work, while you actually work for your business.
             </p>
             <div class="flex flex-wrap items-center justify-center gap-4">
-                <Link
-                    :href="route('partner.apply')"
-                    class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90"
+                <button
+                    type="button"
+                    @click="applyOpen = true"
+                    class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
-                    Become a Verified Business Partner <ArrowRight class="w-5 h-5" :stroke-width="2.5" />
-                </Link>
+                    Apply for the Partner Program <ArrowRight class="w-5 h-5" :stroke-width="2.5" />
+                </button>
             </div>
         </section>
 
@@ -208,13 +213,14 @@ const partnerBenefits = [
                         <span class="text-sm leading-relaxed" style="color: #CCCCCC;">{{ item }}</span>
                     </li>
                 </ul>
-                <Link
-                    :href="route('partner.apply')"
-                    class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90"
+                <button
+                    type="button"
+                    @click="applyOpen = true"
+                    class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
                     Apply for the Partner Program <ArrowRight class="w-5 h-5" :stroke-width="2.5" />
-                </Link>
+                </button>
                 <p class="text-xs mt-4" style="color: #666666;">Questions? Email us at <a href="mailto:info@bestofdelraybeach.com" class="underline" style="color: #F5A000;">info@bestofdelraybeach.com</a></p>
             </div>
         </section>
@@ -319,13 +325,14 @@ const partnerBenefits = [
             <div class="max-w-2xl mx-auto text-center">
                 <p class="text-base leading-relaxed mb-2" style="color: #CCCCCC;">Great value. Limited supply. Categories are filling. Let us talk before yours closes.</p>
                 <h2 class="text-xl md:text-2xl font-black mb-8 text-white">Let's Discuss Your Plans Before Your Competition Does</h2>
-                <Link
-                    :href="route('partner.apply')"
-                    class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90 mb-8"
+                <button
+                    type="button"
+                    @click="applyOpen = true"
+                    class="inline-flex items-center gap-2 px-8 py-4 rounded-lg font-bold text-base transition hover:opacity-90 mb-8 cursor-pointer"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
                     Apply Now <ArrowRight class="w-5 h-5" :stroke-width="2.5" />
-                </Link>
+                </button>
                 <div class="flex flex-col sm:flex-row items-center justify-center gap-x-6 gap-y-2 text-sm" style="color: #888888;">
                     <a href="https://www.facebook.com/groups/bestofdelraybeach" target="_blank" rel="noopener" class="underline hover:opacity-80">
                         facebook.com/groups/bestofdelraybeach
@@ -344,6 +351,8 @@ const partnerBenefits = [
         </section>
 
         <Footer />
+
+        <PartnerApplyDialog v-model:open="applyOpen" />
 
     </div>
 </template>

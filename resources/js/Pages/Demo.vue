@@ -135,16 +135,21 @@ const loadingMsgIdx  = ref(null);
 let speakMsgAudio     = null;
 const speakMsgAudioUrls = {}; // idx -> cached object URL
 
+// Global mute — persisted so it stays off/on across visits, same as the actual interview.
+const speechMuted = ref(typeof localStorage !== 'undefined' && localStorage.getItem('sc_tts_muted') === '1');
+const toggleMute = () => {
+    speechMuted.value = !speechMuted.value;
+    localStorage.setItem('sc_tts_muted', speechMuted.value ? '1' : '0');
+    if (speechMuted.value) stopMsgSpeaking();
+};
+
 const stopMsgSpeaking = () => {
     speakMsgAudio?.pause();
     speakMsgAudio = null;
     speakingMsgIdx.value = null;
 };
 
-const toggleSpeakMessage = async (msg, idx) => {
-    if (speakingMsgIdx.value === idx) { stopMsgSpeaking(); return; }
-    stopMsgSpeaking();
-
+const playMsgAudio = async (msg, idx) => {
     if (speakMsgAudioUrls[idx]) {
         speakingMsgIdx.value = idx;
         speakMsgAudio = new Audio(speakMsgAudioUrls[idx]);
@@ -177,6 +182,20 @@ const toggleSpeakMessage = async (msg, idx) => {
     } finally {
         loadingMsgIdx.value = null;
     }
+};
+
+const toggleSpeakMessage = (msg, idx) => {
+    if (speakingMsgIdx.value === idx) { stopMsgSpeaking(); return; }
+    stopMsgSpeaking();
+    playMsgAudio(msg, idx);
+};
+
+// Fired right after a new assistant message lands in the chat — plays it unless muted,
+// matching the auto-speak behavior of the actual (non-demo) interview.
+const autoSpeakMessage = (msg) => {
+    if (speechMuted.value) return;
+    stopMsgSpeaking();
+    playMsgAudio(msg, displayLog.value.length - 1);
 };
 
 onUnmounted(() => {
@@ -214,12 +233,12 @@ const typeOut = (text) => new Promise((resolve) => {
     requestAnimationFrame(tick);
 });
 
-// 3s of "thinking" dots in the input box before the answer starts auto-typing — skippable.
+// 8s of "thinking" dots in the input box before the answer starts auto-typing — skippable.
 const thinkAnswer = () => new Promise((resolve) => {
     isThinkingAnswer.value = true;
     const finish = () => { isThinkingAnswer.value = false; resolveThinkingAnswer = null; resolve(); };
     resolveThinkingAnswer = finish;
-    setTimeout(() => { if (isThinkingAnswer.value) finish(); }, 3000);
+    setTimeout(() => { if (isThinkingAnswer.value) finish(); }, 8000);
 });
 
 const typeOutInput = async (text) => {
@@ -280,6 +299,7 @@ const playAssistantTurn = async (assistantMsg) => {
     scrollDown();
     await typeOut(assistantMsg.content);
     chatLog.value.push(assistantMsg);
+    autoSpeakMessage(assistantMsg);
 };
 
 const startInterview = async () => {
@@ -381,6 +401,20 @@ const goBack = () => {
                 </div>
 
                 <div class="flex items-center gap-2 shrink-0">
+                    <button
+                        v-if="phase === 1"
+                        type="button"
+                        @click="toggleMute"
+                        :aria-label="speechMuted ? 'Unmute StoryBot voice' : 'Mute StoryBot voice'"
+                        :title="speechMuted ? 'Unmute StoryBot voice' : 'Mute StoryBot voice'"
+                        class="flex items-center justify-center w-7 h-7 rounded-lg border transition-all duration-150 cursor-pointer"
+                        :class="speechMuted
+                            ? 'border-[#DDDDDD] text-[#AAAAAA] hover:text-[#555555] hover:bg-gray-50'
+                            : 'border-[#F5A000]/40 text-[#F5A000] bg-amber-50'"
+                    >
+                        <VolumeX v-if="speechMuted" class="w-3.5 h-3.5" />
+                        <Volume2 v-else class="w-3.5 h-3.5" />
+                    </button>
                     <div class="w-7 h-7 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center">
                         <Sparkles class="w-3.5 h-3.5 text-white" />
                     </div>

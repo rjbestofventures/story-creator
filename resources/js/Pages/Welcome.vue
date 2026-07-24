@@ -221,21 +221,21 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
             <p class="text-xs font-bold tracking-widest uppercase mb-4" style="color: #555555;">Use StoryCreator.Bot</p>
             <div class="flex flex-wrap items-center justify-center gap-4">
                 <Link
-                    :href="canRegister ? route('register') : route('login')"
-                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
-                    style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                >
-                    Sign Up
-                    <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                </Link>
-
-                <Link
                     :href="route('demo')"
                     class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
                     style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
                 >
                     <Play class="w-4 h-4" fill="currentColor" :stroke-width="0" />
                     Try a Live Demo
+                </Link>
+
+                <Link
+                    :href="canRegister ? route('register') : route('login')"
+                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
+                    style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                >
+                    Sign Up
+                    <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                 </Link>
             </div>
         </main>

@@ -10,9 +10,10 @@ import {
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
+import FeedbackDialog from '@/Components/FeedbackDialog.vue';
 import {
     Sparkles, BookOpen, Plus, Trash2, ChevronRight,
-    Zap, Calendar, FileText, MessageSquare, Clock, ShoppingBag, CircleHelp
+    Zap, Calendar, FileText, MessageSquare, Clock, ShoppingBag, CircleHelp, MessageCircle
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -49,6 +50,8 @@ const formatColor = {
 const deletingStory = ref(null);
 const deleteOpen    = ref(false);
 
+const feedbackOpen = ref(false);
+
 const openDelete = (story) => {
     deletingStory.value = story;
     deleteOpen.value    = true;
@@ -68,33 +71,43 @@ const confirmDelete = () => {
         <div class="min-h-screen bg-[#FAFAF8]">
 
             <!-- Header -->
-            <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-5">
+            <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-4">
                 <div class="max-w-4xl mx-auto flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center">
-                            <Sparkles class="w-5 h-5 text-[#F5A000]" />
-                        </div>
-                        <div>
-                            <h1 class="font-black text-[#1A1A1A]" style="font-size: 2.15em;">MY STORYBOT LIBRARY</h1>
-                            <p class="text-xs text-[#555555]">{{ generatedCount }} {{ generatedCount === 1 ? 'story' : 'stories' }} generated</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        <Sparkles class="w-5 h-5" style="color: #F5A000;" />
+                        <h1 class="text-lg font-black" style="color: #1A1A1A;">
+                            My
+                            <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Storybot Library</span>
+                        </h1>
+                        <span class="text-xs text-[#555555]">· {{ generatedCount }} {{ generatedCount === 1 ? 'story' : 'stories' }} generated</span>
                     </div>
 
-                    <!-- Has credits (or admin): create a story -->
-                    <Link v-if="canCreateStory" :href="route('stories.create')">
-                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
-                            <Plus class="w-4 h-4" />
-                            New Story
+                    <div class="flex items-center gap-2">
+                        <Button
+                            variant="outline"
+                            @click="feedbackOpen = true"
+                            class="flex items-center gap-2 h-10 px-4 rounded-xl border-[#DDDDDD] text-[#1A1A1A] font-semibold cursor-pointer"
+                        >
+                            <MessageCircle class="w-4 h-4" />
+                            Feedback
                         </Button>
-                    </Link>
 
-                    <!-- Out of credits: buy more -->
-                    <Link v-else :href="route('shop.index')">
-                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
-                            <ShoppingBag class="w-4 h-4" />
-                            Buy StoryBot Credits
-                        </Button>
-                    </Link>
+                        <!-- Has credits (or admin): create a story -->
+                        <Link v-if="canCreateStory" :href="route('stories.create')">
+                            <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                                <Plus class="w-4 h-4" />
+                                New Story
+                            </Button>
+                        </Link>
+
+                        <!-- Out of credits: buy more -->
+                        <Link v-else :href="route('shop.index')">
+                            <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                                <ShoppingBag class="w-4 h-4" />
+                                Buy StoryBot Credits
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
             </div>
 
@@ -331,6 +344,8 @@ const confirmDelete = () => {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <FeedbackDialog v-model:open="feedbackOpen" />
 
     </AuthenticatedLayout>
 </template>
