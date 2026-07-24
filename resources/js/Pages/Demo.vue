@@ -528,7 +528,8 @@ const goBack = () => {
 
         <!-- ─── PHASE 1: Interview replay ──────────────────────────────────── -->
         <div v-else-if="phase === 1" class="flex-1 min-h-0 overflow-hidden flex flex-col max-w-2xl mx-auto w-full px-4 py-4">
-            <div class="flex-1 min-h-0 flex flex-col justify-end space-y-4 overflow-y-auto pb-4 pr-1">
+            <div class="flex-1 min-h-0 overflow-y-auto pb-4 pr-1">
+              <div class="min-h-full flex flex-col justify-end space-y-4">
                 <div
                     v-for="(msg, i) in enrichedDisplayLog"
                     :key="i"
@@ -588,6 +589,7 @@ const goBack = () => {
                 </div>
 
                 <div ref="chatBottom" />
+              </div>
             </div>
 
             <!-- Action area -->

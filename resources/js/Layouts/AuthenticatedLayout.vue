@@ -1,8 +1,10 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck, ShoppingBag, Receipt } from 'lucide-vue-next';
+import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck, ShoppingBag, Receipt, MessageCircle } from 'lucide-vue-next';
 import Footer from '@/Components/Footer.vue';
+import FeedbackDialog from '@/Components/FeedbackDialog.vue';
+import { Button } from '@/Components/ui/button';
 
 defineProps({
     // Suppressed on pages that lock their own content to the viewport height
@@ -20,6 +22,7 @@ const isAdmin = computed(() => {
 const impersonating = computed(() => page.props.impersonating ?? null);
 
 const menuOpen = ref(false);
+const feedbackOpen = ref(false);
 </script>
 
 <template>
@@ -47,11 +50,25 @@ const menuOpen = ref(false);
                         <Link
                             v-if="isAdmin"
                             :href="route('admin.users.index')"
-                            class="hidden md:flex items-center gap-1.5 text-xs font-semibold px-3 h-8 rounded-lg text-[#555555] hover:text-[#1A1A1A] hover:bg-gray-100 transition-colors cursor-pointer"
+                            class="hidden md:flex items-center gap-2 px-3 h-8 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                         >
-                            <ShieldCheck class="w-3.5 h-3.5 text-[#F5A000]" />
-                            Admin
+                            <ShieldCheck class="w-4 h-4" style="color: #F5A000;" />
+                            <span class="text-sm font-black" style="color: #1A1A1A;">
+                                Admin
+                                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Panel</span>
+                            </span>
                         </Link>
+
+                        <!-- Feedback -->
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            @click="feedbackOpen = true"
+                            class="flex items-center gap-2 h-8 rounded-lg border-[#DDDDDD] text-[#1A1A1A] font-semibold cursor-pointer"
+                        >
+                            <MessageCircle class="w-4 h-4" />
+                            Feedback
+                        </Button>
 
                         <!-- User menu -->
                         <div class="relative">
@@ -165,6 +182,8 @@ const menuOpen = ref(false);
         </main>
 
         <Footer v-if="!hideFooter" />
+
+        <FeedbackDialog v-model:open="feedbackOpen" />
 
     </div>
 </template>

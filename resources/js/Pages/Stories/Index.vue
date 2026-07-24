@@ -10,10 +10,9 @@ import {
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import FeedbackDialog from '@/Components/FeedbackDialog.vue';
 import {
     Sparkles, BookOpen, Plus, Trash2, ChevronRight,
-    Zap, Calendar, FileText, MessageSquare, Clock, ShoppingBag, CircleHelp, MessageCircle
+    Zap, Calendar, FileText, MessageSquare, Clock, ShoppingBag, CircleHelp
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -50,8 +49,6 @@ const formatColor = {
 const deletingStory = ref(null);
 const deleteOpen    = ref(false);
 
-const feedbackOpen = ref(false);
-
 const openDelete = (story) => {
     deletingStory.value = story;
     deleteOpen.value    = true;
@@ -83,15 +80,6 @@ const confirmDelete = () => {
                     </div>
 
                     <div class="flex items-center gap-2">
-                        <Button
-                            variant="outline"
-                            @click="feedbackOpen = true"
-                            class="flex items-center gap-2 h-10 px-4 rounded-xl border-[#DDDDDD] text-[#1A1A1A] font-semibold cursor-pointer"
-                        >
-                            <MessageCircle class="w-4 h-4" />
-                            Feedback
-                        </Button>
-
                         <!-- Has credits (or admin): create a story -->
                         <Link v-if="canCreateStory" :href="route('stories.create')">
                             <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
@@ -344,8 +332,6 @@ const confirmDelete = () => {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
-
-        <FeedbackDialog v-model:open="feedbackOpen" />
 
     </AuthenticatedLayout>
 </template>

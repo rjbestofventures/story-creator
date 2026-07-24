@@ -1,6 +1,6 @@
 <script setup>
 import { onMounted } from 'vue';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/Components/ui/dialog';
+import { Dialog, DialogContent, DialogTitle } from '@/Components/ui/dialog';
 
 const open = defineModel('open', { default: false });
 
@@ -16,18 +16,19 @@ onMounted(() => {
 
 <template>
     <Dialog v-model:open="open">
-        <DialogContent class="max-w-lg p-0 overflow-hidden">
-            <DialogHeader class="p-4 pb-0">
-                <DialogTitle class="text-[#1A1A1A]">Send Feedback</DialogTitle>
-            </DialogHeader>
-            <iframe
-                v-if="open"
-                src="https://link.bestofventures.com/widget/survey/Q5TJofZcNEpDYZW2PmBP"
-                style="border:none;width:100%;min-height:70vh;"
-                scrolling="no"
-                id="Q5TJofZcNEpDYZW2PmBP"
-                title="survey"
-            />
+        <DialogContent class="max-w-xl sm:max-w-xl w-full p-0 gap-0 overflow-hidden bg-transparent ring-0 shadow-none">
+            <!-- The survey itself renders its own branded title, so this is for screen readers only. -->
+            <DialogTitle class="sr-only">Send Feedback</DialogTitle>
+            <div class="max-h-[85vh] overflow-y-auto">
+                <iframe
+                    v-if="open"
+                    src="https://link.bestofventures.com/widget/survey/Q5TJofZcNEpDYZW2PmBP"
+                    style="border:none;width:100%;display:block;"
+                    scrolling="no"
+                    id="Q5TJofZcNEpDYZW2PmBP"
+                    title="survey"
+                />
+            </div>
         </DialogContent>
     </Dialog>
 </template>
