@@ -478,7 +478,7 @@ class StoryController extends Controller
         'Tell me about a specific moment when you realized your approach to wellness was different from everyone else doing this work.',
         'You walked away from the bigger sale to give her the truth, and she paid you back with three years and twenty referrals. That is the whole philosophy in one story, trust is the product and everything else is just delivery.',
         "What do you want people to know about Tammy's spa that they won't find anywhere else?",
-        "That's a good question. That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together.",
+        "That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together.",
     ];
 
     public function speakDemo(Request $request)

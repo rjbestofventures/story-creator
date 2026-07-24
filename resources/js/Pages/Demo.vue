@@ -56,8 +56,8 @@ const demoMessages = [
     { role: 'assistant', content: "You walked away from the bigger sale to give her the truth, and she paid you back with three years and twenty referrals. That is the whole philosophy in one story, trust is the product and everything else is just delivery." },
     { role: 'user',      content: '[Ready for next question]' },
     { role: 'assistant', isQuestion: true, content: "What do you want people to know about Tammy's spa that they won't find anywhere else?" },
-    { role: 'user',      content: "We don't believe in one size fits all. Every single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yeah, I'm into the latest science, the peptides, the cutting edge stuff. But I'm also into listening. I'm into understanding your life, your stress, your actual goals. And then we build something that works for you, not for some generic idea of wellness. That's the difference. That's why people come back." },
-    { role: 'assistant', content: "That's a good question. That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together." },
+    { role: 'user',      content: "That's a good question. We don't believe in one size fits all. Every single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yeah, I'm into the latest science, the peptides, the cutting edge stuff. But I'm also into listening. I'm into understanding your life, your stress, your actual goals. And then we build something that works for you, not for some generic idea of wellness. That's the difference. That's why people come back." },
+    { role: 'assistant', content: "That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together." },
 ];
 
 const demoEpisodes = [
