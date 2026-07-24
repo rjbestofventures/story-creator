@@ -53,7 +53,7 @@ const feedbackOpen = ref(false);
                             class="hidden md:flex items-center gap-2 px-3 h-8 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                         >
                             <ShieldCheck class="w-4 h-4" style="color: #F5A000;" />
-                            <span class="text-sm font-black" style="color: #1A1A1A;">
+                            <span class="text-md font-black" style="color: #1A1A1A;">
                                 Admin
                                 <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Panel</span>
                             </span>
