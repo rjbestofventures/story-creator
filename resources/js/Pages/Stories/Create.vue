@@ -40,13 +40,20 @@ const isTyping      = ref(false);
 const typingText    = ref('');
 const typingSkip    = ref(false);
 
-const typeOut = (text) => new Promise(resolve => {
+// durationMs, when given, paces the reveal to finish alongside audio of that length
+// (e.g. TTS narration) instead of the fixed default speed.
+const typeOut = (text, durationMs = null) => new Promise(resolve => {
     typingText.value  = '';
     isTyping.value    = true;
     typingSkip.value  = false;
     let i = 0;
     let lastTime = null;
-    const CHARS_PER_SEC = 100;
+    const DEFAULT_CPS = 100;
+    const MIN_CPS = 12; // floor so long narration doesn't crawl unreadably slow
+    const MAX_CPS = 100; // ceiling so short narration doesn't flash the text instantly
+    const CHARS_PER_SEC = durationMs
+        ? Math.min(MAX_CPS, Math.max(MIN_CPS, text.length / (durationMs / 1000)))
+        : DEFAULT_CPS;
 
     const tick = (ts) => {
         if (typingSkip.value) {
@@ -91,39 +98,47 @@ const stopMsgSpeaking = () => {
     speakingMsgIdx.value = null;
 };
 
+// Fetches (or reuses the cached) TTS audio for a message without playing it.
+// Returns an Audio element with metadata already loaded (so .duration is known
+// for pacing the typing animation), or null if synthesis failed.
+const fetchMsgAudio = async (text, idx) => {
+    let url = speakMsgAudioUrls[idx];
+    if (!url) {
+        loadingMsgIdx.value = idx;
+        try {
+            const res = await fetch(route('speak'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({ text }),
+            });
+            if (!res.ok) throw new Error('Text-to-speech failed.');
+            url = URL.createObjectURL(await res.blob());
+            speakMsgAudioUrls[idx] = url;
+        } catch {
+            return null;
+        } finally {
+            loadingMsgIdx.value = null;
+        }
+    }
+
+    const audio = new Audio(url);
+    await new Promise(resolve => {
+        if (audio.readyState >= 1) resolve();
+        else audio.addEventListener('loadedmetadata', resolve, { once: true });
+    });
+    return audio;
+};
+
 const playMsgAudio = async (msg, idx) => {
-    if (speakMsgAudioUrls[idx]) {
-        speakingMsgIdx.value = idx;
-        speakMsgAudio = new Audio(speakMsgAudioUrls[idx]);
-        speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
-        speakMsgAudio.play();
-        return;
-    }
-
-    loadingMsgIdx.value = idx;
-    try {
-        const res = await fetch(route('speak'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-            },
-            body: JSON.stringify({ text: msg.content }),
-        });
-        if (!res.ok) throw new Error('Text-to-speech failed.');
-
-        const url = URL.createObjectURL(await res.blob());
-        speakMsgAudioUrls[idx] = url;
-
-        speakingMsgIdx.value = idx;
-        speakMsgAudio = new Audio(url);
-        speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
-        speakMsgAudio.play();
-    } catch {
-        chatError.value = 'Could not read this message aloud. Please try again.';
-    } finally {
-        loadingMsgIdx.value = null;
-    }
+    const audio = await fetchMsgAudio(msg.content, idx);
+    if (!audio) { chatError.value = 'Could not read this message aloud. Please try again.'; return; }
+    speakingMsgIdx.value = idx;
+    speakMsgAudio = audio;
+    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+    speakMsgAudio.play();
 };
 
 const toggleSpeakMessage = (msg, idx) => {
@@ -132,11 +147,28 @@ const toggleSpeakMessage = (msg, idx) => {
     playMsgAudio(msg, idx);
 };
 
-// Fired right after a new assistant message lands in chatLog — plays it unless muted.
-const autoSpeakMessage = (msg) => {
-    if (speechMuted.value) return;
+// Types `text` out while (unless muted) simultaneously narrating it via TTS, pacing the
+// reveal speed so the text finishes right as the audio does. `onBeforeType`, if given,
+// fires right before the reveal starts (e.g. to swap "thinking" dots for the bubble) —
+// it runs after the audio has been fetched, so both the voice and the typing start together.
+const typeWithSpeech = async (text, idx, onBeforeType) => {
+    if (speechMuted.value) {
+        onBeforeType?.();
+        await typeOut(text);
+        return;
+    }
+
     stopMsgSpeaking();
-    playMsgAudio(msg, enrichedDisplayLog.value.length - 1);
+    const audio = await fetchMsgAudio(text, idx);
+    onBeforeType?.();
+
+    if (!audio) { await typeOut(text); return; }
+
+    speakingMsgIdx.value = idx;
+    speakMsgAudio = audio;
+    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+    speakMsgAudio.play();
+    await typeOut(text, audio.duration * 1000);
 };
 
 onUnmounted(() => {
@@ -168,9 +200,8 @@ const advanceDemoReplay = async () => {
     }
 
     scrollDown();
-    await typeOut(assistantMsg.content);
+    await typeWithSpeech(assistantMsg.content, enrichedDisplayLog.value.length);
     chatLog.value.push(assistantMsg);
-    autoSpeakMessage(assistantMsg);
 
     if (!userMsg.content.startsWith('[')) answerCount.value++;
 
@@ -540,13 +571,12 @@ const callInterview = async (isAnswer = false) => {
         // Store combined assistant content in chatLog for display and API history
         const combined = [data.message, data.question].filter(Boolean).join('\n\n');
         if (combined.trim()) {
-            isLoading.value = false; // swap the "thinking" dots for the typing bubble
-            await typeOut(combined);
+            // Swaps the "thinking" dots for the typing bubble right as narration starts.
+            await typeWithSpeech(combined, enrichedDisplayLog.value.length, () => { isLoading.value = false; });
             const entry = { role: 'assistant', content: combined };
             if (data.question) entry._question = data.question;
             if (data.valid === false) entry._retry = true; // paired with the invalid user msg above
             chatLog.value.push(entry);
-            autoSpeakMessage(entry);
         }
 
         if (data.complete) {
@@ -620,9 +650,8 @@ const startInterview = async () => {
         if (firstAssistant) {
             demoPosition.value = 2;
             scrollDown();
-            await typeOut(firstAssistant.content);
+            await typeWithSpeech(firstAssistant.content, enrichedDisplayLog.value.length);
             chatLog.value.push(firstAssistant);
-            autoSpeakMessage(firstAssistant);
             const mode = demoBuildTurn();
             currentTurn.value = { message: firstAssistant.content, question: '', ...mode };
         }

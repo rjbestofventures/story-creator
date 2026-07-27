@@ -149,39 +149,47 @@ const stopMsgSpeaking = () => {
     speakingMsgIdx.value = null;
 };
 
+// Fetches (or reuses the cached) TTS audio for a message without playing it.
+// Returns an Audio element with metadata already loaded (so .duration is known
+// for pacing the typing animation), or null if synthesis failed.
+const fetchMsgAudio = async (text, idx) => {
+    let url = speakMsgAudioUrls[idx];
+    if (!url) {
+        loadingMsgIdx.value = idx;
+        try {
+            const res = await fetch(route('demo.speak'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({ text }),
+            });
+            if (!res.ok) throw new Error('Text-to-speech failed.');
+            url = URL.createObjectURL(await res.blob());
+            speakMsgAudioUrls[idx] = url;
+        } catch {
+            return null; // preview feature — fail silently, the demo still works fine without audio
+        } finally {
+            loadingMsgIdx.value = null;
+        }
+    }
+
+    const audio = new Audio(url);
+    await new Promise(resolve => {
+        if (audio.readyState >= 1) resolve();
+        else audio.addEventListener('loadedmetadata', resolve, { once: true });
+    });
+    return audio;
+};
+
 const playMsgAudio = async (msg, idx) => {
-    if (speakMsgAudioUrls[idx]) {
-        speakingMsgIdx.value = idx;
-        speakMsgAudio = new Audio(speakMsgAudioUrls[idx]);
-        speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
-        speakMsgAudio.play();
-        return;
-    }
-
-    loadingMsgIdx.value = idx;
-    try {
-        const res = await fetch(route('demo.speak'), {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-            },
-            body: JSON.stringify({ text: msg.content }),
-        });
-        if (!res.ok) throw new Error('Text-to-speech failed.');
-
-        const url = URL.createObjectURL(await res.blob());
-        speakMsgAudioUrls[idx] = url;
-
-        speakingMsgIdx.value = idx;
-        speakMsgAudio = new Audio(url);
-        speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
-        speakMsgAudio.play();
-    } catch {
-        // preview feature — fail silently, the demo still works fine without audio
-    } finally {
-        loadingMsgIdx.value = null;
-    }
+    const audio = await fetchMsgAudio(msg.content, idx);
+    if (!audio) return;
+    speakingMsgIdx.value = idx;
+    speakMsgAudio = audio;
+    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+    speakMsgAudio.play();
 };
 
 const toggleSpeakMessage = (msg, idx) => {
@@ -190,12 +198,21 @@ const toggleSpeakMessage = (msg, idx) => {
     playMsgAudio(msg, idx);
 };
 
-// Fired right after a new assistant message lands in the chat — plays it unless muted,
-// matching the auto-speak behavior of the actual (non-demo) interview.
-const autoSpeakMessage = (msg) => {
-    if (speechMuted.value) return;
+// Types `text` out while (unless muted) simultaneously narrating it via TTS, pacing the
+// reveal speed so the text finishes right as the audio does, matching the sync behavior
+// of the actual (non-demo) interview.
+const typeWithSpeech = async (text, idx) => {
+    if (speechMuted.value) { await typeOut(text); return; }
+
     stopMsgSpeaking();
-    playMsgAudio(msg, displayLog.value.length - 1);
+    const audio = await fetchMsgAudio(text, idx);
+    if (!audio) { await typeOut(text); return; }
+
+    speakingMsgIdx.value = idx;
+    speakMsgAudio = audio;
+    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+    speakMsgAudio.play();
+    await typeOut(text, audio.duration * 1000);
 };
 
 onUnmounted(() => {
@@ -203,13 +220,20 @@ onUnmounted(() => {
     for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
 });
 
-const typeOut = (text) => new Promise((resolve) => {
+// durationMs, when given, paces the reveal to finish alongside audio of that length
+// (e.g. TTS narration) instead of the fixed default speed.
+const typeOut = (text, durationMs = null) => new Promise((resolve) => {
     typingText.value = '';
     isTyping.value = true;
     typingSkip.value = false;
     let i = 0;
     let lastTime = null;
-    const CHARS_PER_SEC = 110;
+    const DEFAULT_CPS = 110;
+    const MIN_CPS = 12; // floor so long narration doesn't crawl unreadably slow
+    const MAX_CPS = 110; // ceiling so short narration doesn't flash the text instantly
+    const CHARS_PER_SEC = durationMs
+        ? Math.min(MAX_CPS, Math.max(MIN_CPS, text.length / (durationMs / 1000)))
+        : DEFAULT_CPS;
 
     const tick = (ts) => {
         if (typingSkip.value) {
@@ -297,9 +321,8 @@ const playAssistantTurn = async (assistantMsg) => {
     scrollDown();
     await think();
     scrollDown();
-    await typeOut(assistantMsg.content);
+    await typeWithSpeech(assistantMsg.content, displayLog.value.length);
     chatLog.value.push(assistantMsg);
-    autoSpeakMessage(assistantMsg);
 };
 
 const startInterview = async () => {
