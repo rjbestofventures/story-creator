@@ -220,20 +220,45 @@ onUnmounted(() => {
     for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
 });
 
+// Punctuation gets extra "weight" so the reveal briefly holds after sentence/clause
+// boundaries instead of marching at a flat character rate — closer to natural speech
+// rhythm without needing real per-word timestamps.
+const PAUSE_WEIGHT = { '.': 6, '!': 6, '?': 6, '\n': 6, ',': 3, ';': 3, ':': 3, '—': 3 };
+const weighTextForTyping = (text) => {
+    const weights = new Array(text.length);
+    let total = 0;
+    for (let i = 0; i < text.length; i++) {
+        weights[i] = 1 + (PAUSE_WEIGHT[text[i]] ?? 0);
+        total += weights[i];
+    }
+    return { weights, total };
+};
+
 // durationMs, when given, paces the reveal to finish alongside audio of that length
 // (e.g. TTS narration) instead of the fixed default speed.
 const typeOut = (text, durationMs = null) => new Promise((resolve) => {
     typingText.value = '';
     isTyping.value = true;
     typingSkip.value = false;
-    let i = 0;
-    let lastTime = null;
+
+    if (!text) { isTyping.value = false; resolve(); return; }
+
+    const { weights, total: totalWeight } = weighTextForTyping(text);
+    const prefix = new Array(text.length + 1).fill(0);
+    for (let i = 0; i < text.length; i++) prefix[i + 1] = prefix[i] + weights[i];
+    const avgWeight = totalWeight / text.length;
+
     const DEFAULT_CPS = 110;
     const MIN_CPS = 12; // floor so long narration doesn't crawl unreadably slow
     const MAX_CPS = 110; // ceiling so short narration doesn't flash the text instantly
-    const CHARS_PER_SEC = durationMs
+    const CPS = durationMs
         ? Math.min(MAX_CPS, Math.max(MIN_CPS, text.length / (durationMs / 1000)))
         : DEFAULT_CPS;
+    const weightPerSec = CPS * avgWeight; // preserves the same total duration as flat pacing
+
+    let i = 0;
+    let elapsedWeight = 0;
+    let lastTime = null;
 
     const tick = (ts) => {
         if (typingSkip.value) {
@@ -245,8 +270,8 @@ const typeOut = (text, durationMs = null) => new Promise((resolve) => {
             return;
         }
         if (lastTime !== null) {
-            const add = Math.max(1, Math.floor(((ts - lastTime) / 1000) * CHARS_PER_SEC));
-            i = Math.min(i + add, text.length);
+            elapsedWeight += ((ts - lastTime) / 1000) * weightPerSec;
+            while (i < text.length && prefix[i + 1] <= elapsedWeight) i++;
             typingText.value = text.slice(0, i);
             scrollDown();
         }
