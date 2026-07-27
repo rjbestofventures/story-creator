@@ -202,7 +202,11 @@ const toggleSpeakMessage = (msg, idx) => {
 // reveal speed so the text finishes right as the audio does, matching the sync behavior
 // of the actual (non-demo) interview.
 const typeWithSpeech = async (text, idx) => {
-    if (speechMuted.value) { await typeOut(text); return; }
+    if (speechMuted.value) {
+        fetchMsgAudio(text, idx); // pre-warm the cache in the background so a later manual play is instant
+        await typeOut(text);
+        return;
+    }
 
     stopMsgSpeaking();
     const audio = await fetchMsgAudio(text, idx);

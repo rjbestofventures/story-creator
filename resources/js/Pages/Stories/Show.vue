@@ -118,6 +118,24 @@ const stopSpeaking = () => {
     speakingId.value = null;
 };
 
+// Fetches (or reuses the cached) TTS audio for an episode without playing it —
+// shared by the manual play button and the background scroll-into-view prefetch below.
+const synthesizeEpisodeAudio = async (ep) => {
+    if (speakAudioUrls[ep.id]) return speakAudioUrls[ep.id];
+    try {
+        const res = await fetch(route('stories.episode.speak', { story: props.story.id, episode: ep.id }), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+        });
+        if (!res.ok) throw new Error('Text-to-speech failed.');
+        const url = URL.createObjectURL(await res.blob());
+        speakAudioUrls[ep.id] = url;
+        return url;
+    } catch {
+        return null;
+    }
+};
+
 const toggleSpeak = async (ep) => {
     speakError.value = null;
 
@@ -133,29 +151,38 @@ const toggleSpeak = async (ep) => {
     }
 
     loadingId.value = ep.id;
-    try {
-        const res = await fetch(route('stories.episode.speak', { story: props.story.id, episode: ep.id }), {
-            method: 'POST',
-            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
-        });
-        if (!res.ok) throw new Error('Text-to-speech failed.');
+    const url = await synthesizeEpisodeAudio(ep);
+    loadingId.value = null;
 
-        const url = URL.createObjectURL(await res.blob());
-        speakAudioUrls[ep.id] = url;
+    if (!url) { speakError.value = 'Could not read this episode aloud. Please try again.'; return; }
 
-        speakingId.value = ep.id;
-        speakAudio = new Audio(url);
-        speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; };
-        speakAudio.play();
-    } catch {
-        speakError.value = 'Could not read this episode aloud. Please try again.';
-    } finally {
-        loadingId.value = null;
+    speakingId.value = ep.id;
+    speakAudio = new Audio(url);
+    speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; };
+    speakAudio.play();
+};
+
+// Lazily prefetches an episode's audio the moment its card scrolls near the
+// viewport, so by the time the user actually clicks play it's already cached.
+const prefetchedEpisodeIds = new Set();
+const episodeAudioObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        episodeAudioObserver.unobserve(entry.target);
+        if (entry.target.__episode) synthesizeEpisodeAudio(entry.target.__episode);
     }
+}, { rootMargin: '200px' });
+
+const observeEpisodeCard = (el, ep) => {
+    if (!el || prefetchedEpisodeIds.has(ep.id)) return;
+    prefetchedEpisodeIds.add(ep.id);
+    el.__episode = ep;
+    episodeAudioObserver.observe(el);
 };
 
 onUnmounted(() => {
     speakAudio?.pause();
+    episodeAudioObserver.disconnect();
     for (const url of Object.values(speakAudioUrls)) URL.revokeObjectURL(url);
 });
 
@@ -734,6 +761,7 @@ const restoreRevision = async (ep) => {
                     <article
                         v-for="ep in episodes"
                         :key="ep.id"
+                        :ref="el => observeEpisodeCard(el, ep)"
                         class="bg-white rounded-2xl border transition-all duration-200 overflow-hidden relative"
                         :class="focusedId === ep.id
                             ? 'border-[#F5A000]/40 shadow-md'

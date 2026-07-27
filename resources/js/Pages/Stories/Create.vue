@@ -178,6 +178,7 @@ const toggleSpeakMessage = (msg, idx) => {
 // it runs after the audio has been fetched, so both the voice and the typing start together.
 const typeWithSpeech = async (text, idx, onBeforeType) => {
     if (speechMuted.value) {
+        fetchMsgAudio(text, idx); // pre-warm the cache in the background so a later manual play is instant
         onBeforeType?.();
         await typeOut(text);
         return;
