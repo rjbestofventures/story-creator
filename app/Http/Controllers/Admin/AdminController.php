@@ -387,6 +387,24 @@ class AdminController extends Controller
         return back();
     }
 
+    public function featuresSettingsIndex(): Response
+    {
+        return Inertia::render('Admin/Settings/Features', [
+            'buy_credits_button_enabled' => (bool) SiteSetting::get('buy_credits_button_enabled', true),
+        ]);
+    }
+
+    public function updateFeaturesSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'buy_credits_button_enabled' => 'required|boolean',
+        ]);
+
+        SiteSetting::set('buy_credits_button_enabled', $data['buy_credits_button_enabled'] ? '1' : '0');
+
+        return back();
+    }
+
     public function previewVoice(Request $request): \Illuminate\Http\Response
     {
         $data = $request->validate([

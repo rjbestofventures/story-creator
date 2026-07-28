@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, nextTick, onUnmounted } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -17,6 +17,10 @@ defineProps({
     canLogin: Boolean,
     canRegister: Boolean,
 });
+
+// Logged-in users land here from their dashboard, not the homepage — send them
+// back to the library instead of hardcoding '/' and losing where they came from.
+const exitHref = computed(() => usePage().props.auth?.user ? route('stories.index') : '/');
 
 // ─── Baked demo dataset — same for everyone, no backend, no AI tokens ─────────
 const basics = {
@@ -429,7 +433,7 @@ const goBack = () => {
             <div class="max-w-2xl mx-auto flex items-center justify-between gap-4">
                 <component
                     :is="phase === 0 ? Link : 'button'"
-                    :href="phase === 0 ? '/' : undefined"
+                    :href="phase === 0 ? exitHref : undefined"
                     type="button"
                     @click="phase > 0 ? goBack() : undefined"
                     class="flex items-center gap-2 text-sm text-[#555555] hover:text-[#1A1A1A] transition-colors shrink-0 cursor-pointer"

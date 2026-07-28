@@ -59,6 +59,15 @@ const feedbackOpen = ref(false);
                             </span>
                         </Link>
 
+                        <!-- Try Live Demo -->
+                        <Link
+                            :href="route('demo')"
+                            class="hidden md:block text-sm font-semibold transition-colors hover:opacity-70 cursor-pointer"
+                            style="color: #EF4444;"
+                        >
+                            Try Live Demo
+                        </Link>
+
                         <!-- Feedback -->
                         <Button
                             variant="outline"

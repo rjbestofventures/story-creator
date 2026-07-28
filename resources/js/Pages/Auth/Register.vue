@@ -9,6 +9,27 @@ import {
 
 const props = defineProps({ isDemo: Boolean });
 
+const testimonials = [
+    {
+        quote: 'We recently went from zero social presence to scheduling a full content calendar in one afternoon. StoryCreator.Bot is the real deal.',
+        initials: 'GE',
+        name: 'Gabe Espisito',
+        company: 'Tropic Charters',
+    },
+    {
+        quote: 'I dreaded posting before I used StoryCreator.bot. Now it takes me less than a half hour to get 12 authentic sounding chapters of my story. And they work! I have never had so much online engagement and bookings!',
+        initials: 'VB',
+        name: 'Vase Bari',
+        company: 'Short Term Rentals.',
+    },
+    {
+        quote: 'I thought I knew so much as a seasoned user of digital marketing and then along comes Best of Delray Beach and StoryCreator.bot. Together, they are a game changer. My company has quadrupled in size and every post has my phone rings of the hook.',
+        initials: 'SS',
+        name: 'Steve Silverman',
+        company: 'Diamond Limosine',
+    },
+];
+
 const showPassword        = ref(false);
 const showPasswordConfirm = ref(false);
 const confirmPartnerOpen  = ref(false);
@@ -59,7 +80,7 @@ const proceedStoryBotOnly = () => {
                     style="background-color: #F5F5F5; color: #555555; border: 1px solid #DDDDDD;"
                 >
                     <Zap class="w-3.5 h-3.5" />
-                    AI-powered content engine
+                    Coded engineering, AI-powered content development
                 </div>
 
                 <h2 class="text-4xl font-black leading-tight mb-4" style="color: #1A1A1A;">
@@ -71,17 +92,24 @@ const proceedStoryBotOnly = () => {
                     Join our other Verified Business Partners that create professional content in minutes.
                 </p>
 
-                <div class="rounded-2xl p-5" style="background-color: #FFFFFF; border: 1px solid #DDDDDD;">
-                    <p class="text-sm leading-relaxed mb-4" style="color: #1A1A1A;">
-                        "We went from zero social presence to a full content calendar in one afternoon. StoryCreator.Bot is the real deal."
-                    </p>
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                            SR
-                        </div>
-                        <div>
-                            <p class="text-xs font-bold" style="color: #1A1A1A;">Sarah Reynolds</p>
-                            <p class="text-xs" style="color: #555555;">Owner, Reynolds & Co.</p>
+                <div class="space-y-4 mb-10">
+                    <div
+                        v-for="t in testimonials"
+                        :key="t.name"
+                        class="rounded-2xl p-5"
+                        style="background-color: #FFFFFF; border: 1px solid #DDDDDD;"
+                    >
+                        <p class="text-sm leading-relaxed mb-4" style="color: #1A1A1A;">
+                            "{{ t.quote }}"
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
+                                {{ t.initials }}
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold" style="color: #1A1A1A;">{{ t.name }}</p>
+                                <p class="text-xs" style="color: #555555;">{{ t.company }}</p>
+                            </div>
                         </div>
                     </div>
                 </div>

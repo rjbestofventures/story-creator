@@ -1,6 +1,6 @@
 <script setup>
 import { computed, ref } from 'vue';
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -22,6 +22,8 @@ const props = defineProps({
     isAdmin:   Boolean,
     adminRole: String,
 });
+
+const buyCreditsButtonEnabled = computed(() => usePage().props.features?.buyCreditsButtonEnabled ?? true);
 
 const creditBalance  = computed(() => props.credits ?? 0);
 // "Generated" excludes stories still in the interview phase (no episodes yet).
@@ -130,7 +132,7 @@ const confirmDelete = () => {
                                 <div class="text-xs text-[#555555]">1 Episode Generation = 1 StoryBot Credit (ex: 12 episode story = 12 StoryBot Credits)</div>
                             </template>
                         </div>
-                        <Link v-if="!isAdmin" :href="route('shop.index')">
+                        <Link v-if="!isAdmin && buyCreditsButtonEnabled" :href="route('shop.index')">
                             <Button class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer">
                                 <ShoppingBag class="w-4 h-4 text-[#F5A000]" />
                                 Buy StoryBot Credits
@@ -169,16 +171,16 @@ const confirmDelete = () => {
                     <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <BookOpen class="w-8 h-8 text-[#F5A000]" />
                     </div>
-                    <h2 class="text-xl font-black text-[#1A1A1A] mb-2">No stories yet</h2>
+                    <h2 class="text-xl font-black text-[#1A1A1A] mb-2">Create your first story</h2>
                     <p class="text-[#555555] mb-6 max-w-sm mx-auto">
-                        Answer 3 questions about your business and we'll generate your first story episodes in seconds.
+                        Answer a series of questions about your business, and StoryCreator.Bot will transform your responses into episodic content for your Facebook group and other social media platforms.
                     </p>
                     <Link :href="route('stories.create')">
                         <Button
                             class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
                         >
                             <Sparkles class="w-4 h-4" />
-                            Create My First Story
+                            New Story
                         </Button>
                     </Link>
                 </div>

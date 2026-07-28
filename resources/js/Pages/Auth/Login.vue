@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Mail, Lock, Eye, EyeOff, ArrowRight, Zap } from '@lucide/vue';
+import { Mail, Lock, Eye, EyeOff, ArrowRight } from '@lucide/vue';
 import Footer from '@/Components/Footer.vue';
 
 defineProps({
@@ -32,61 +32,10 @@ const submit = () => {
 
         <!-- Left: Brand panel -->
         <div
-            class="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden"
+            class="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative overflow-hidden"
             style="background: radial-gradient(ellipse at 30% 50%, #FEF9EC 0%, #F5F5F0 55%, #EBEBE6 100%);"
         >
-            <!-- Logo -->
-            <Link href="/" class="flex items-center text-xl font-bold tracking-tight">
-                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">StoryCreator</span>
-                <span style="color: #1A1A1A;">.Bot</span>
-            </Link>
-
-            <!-- Center content -->
-            <div class="max-w-sm">
-                <div
-                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-6"
-                    style="background-color: #F5F5F5; color: #555555; border: 1px solid #DDDDDD;"
-                >
-                    <Zap class="w-3.5 h-3.5" />
-                    AI-powered content engine
-                </div>
-
-                <h2 class="text-4xl font-black leading-tight mb-4" style="color: #1A1A1A;">
-                    Welcome back to your
-                    <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">story.</span>
-                </h2>
-
-                <p class="text-base leading-relaxed mb-10" style="color: #555555;">
-                    No hassle, time and cost saving engagement engineered to attract customers on social media.
-                </p>
-
-                <!-- Testimonial card -->
-                <div class="rounded-2xl p-5" style="background-color: #FFFFFF; border: 1px solid #DDDDDD;">
-                    <p class="text-sm leading-relaxed mb-4" style="color: #1A1A1A;">
-                        "StoryCreator.Bot saved me and my team 10+ hours a month. We struggled to post twice a month to easily publishing across all local channels."
-                    </p>
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                            JM
-                        </div>
-                        <div>
-                            <p class="text-xs font-bold" style="color: #1A1A1A;">Jamie Mitchell</p>
-                            <p class="text-xs" style="color: #555555;">Founder, BrightLocal Co.</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Bottom stat -->
-            <p class="text-xs" style="color: #555555;">
-                Trusted by <span class="font-bold" style="color: #1A1A1A;">10,000+</span> businesses telling their story
-            </p>
-
-            <!-- Decorative gradient blob -->
-            <div
-                class="absolute -bottom-24 -right-24 w-72 h-72 rounded-full opacity-30 pointer-events-none"
-                style="background: radial-gradient(circle, #FFC837, transparent);"
-            />
+            <img src="/images/brand-technology-changes.png" alt="Technology Changes. Human Nature Doesn't. — StoryCreator.Bot" class="max-w-full max-h-full object-contain" />
         </div>
 
         <!-- Right: Login form -->

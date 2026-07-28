@@ -1,7 +1,7 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
-import { Lock, Cpu, CreditCard, Volume2 } from '@lucide/vue';
+import { Lock, Cpu, CreditCard, Volume2, ToggleRight } from '@lucide/vue';
 
 const nav = [
     {
@@ -9,6 +9,12 @@ const nav = [
         desc:  'Landing page lock',
         name:  'admin.settings.access',
         icon:  Lock,
+    },
+    {
+        label: 'Features',
+        desc:  'Toggle UI elements',
+        name:  'admin.settings.features',
+        icon:  ToggleRight,
     },
     {
         label: 'AI Models',
