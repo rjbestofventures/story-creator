@@ -67,7 +67,7 @@ const confirmDelete = () => {
 <template>
     <Head title="My Stories" />
     <AuthenticatedLayout>
-        <div class="min-h-screen bg-[#FAFAF8]">
+        <div class="bg-[#FAFAF8]">
 
             <!-- Header -->
             <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-4">

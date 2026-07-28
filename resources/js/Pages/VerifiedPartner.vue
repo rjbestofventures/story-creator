@@ -115,14 +115,15 @@ const partnerBenefits = [
                 >
                     Log In
                 </Link>
-                <Link
+                <button
                     v-if="canRegister"
-                    :href="route('register')"
-                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition hover:opacity-90"
+                    type="button"
+                    @click="applyOpen = true"
+                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition hover:opacity-90 cursor-pointer"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
                     Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                </Link>
+                </button>
             </nav>
         </header>
 

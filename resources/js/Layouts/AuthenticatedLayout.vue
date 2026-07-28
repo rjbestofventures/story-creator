@@ -26,7 +26,7 @@ const feedbackOpen = ref(false);
 </script>
 
 <template>
-    <div class="min-h-screen bg-[#FAFAF8]">
+    <div class="min-h-screen flex flex-col bg-[#FAFAF8]">
 
         <!-- Top nav -->
         <nav class="bg-white border-b border-[#DDDDDD] sticky top-0 z-40">
@@ -185,8 +185,8 @@ const feedbackOpen = ref(false);
             </Link>
         </div>
 
-        <!-- Page content -->
-        <main>
+        <!-- Page content — grows so the footer is pinned to the bottom on short pages -->
+        <main class="flex-1">
             <slot />
         </main>
 

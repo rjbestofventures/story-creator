@@ -23,7 +23,7 @@ const isActive = (item) => route().current(item.match);
 </script>
 
 <template>
-    <div class="min-h-screen" style="background-color: #FAFAF8;">
+    <div class="min-h-screen flex flex-col" style="background-color: #FAFAF8;">
 
         <!-- Top bar -->
         <div class="bg-white border-b px-4 md:px-8 py-4" style="border-color: #DDDDDD;">
@@ -71,9 +71,9 @@ const isActive = (item) => route().current(item.match);
             </div>
         </div>
 
-        <!-- Page content -->
+        <!-- Page content — grows so the footer is pinned to the bottom on short pages -->
         <TooltipProvider :delay-duration="300">
-            <div class="max-w-6xl mx-auto px-4 md:px-8 py-6">
+            <div class="flex-1 w-full max-w-6xl mx-auto px-4 md:px-8 py-6">
                 <slot />
             </div>
         </TooltipProvider>

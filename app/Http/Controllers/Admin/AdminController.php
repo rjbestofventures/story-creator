@@ -367,22 +367,32 @@ class AdminController extends Controller
 
     public function voiceSettingsIndex(): Response
     {
+        $ttsVoice = SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE);
+
         return Inertia::render('Admin/Settings/Voice', [
-            'tts_voice' => SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE),
+            'tts_voice' => $ttsVoice,
             'tts_instructions' => SiteSetting::get('tts_instructions', TextToSpeechService::DEFAULT_INSTRUCTIONS),
+            'demo_bot_voice' => SiteSetting::get('demo_bot_voice', $ttsVoice),
+            'demo_customer_voice' => SiteSetting::get('demo_customer_voice', TextToSpeechService::DEFAULT_CUSTOMER_VOICE),
             'voices' => self::TTS_VOICES,
         ]);
     }
 
     public function updateVoiceSettings(Request $request): RedirectResponse
     {
+        $voiceRule = ['required', 'string', Rule::in(array_column(self::TTS_VOICES, 'id'))];
+
         $data = $request->validate([
-            'tts_voice' => ['required', 'string', Rule::in(array_column(self::TTS_VOICES, 'id'))],
+            'tts_voice' => $voiceRule,
             'tts_instructions' => 'required|string|max:1000',
+            'demo_bot_voice' => $voiceRule,
+            'demo_customer_voice' => $voiceRule,
         ]);
 
         SiteSetting::set('tts_voice', $data['tts_voice']);
         SiteSetting::set('tts_instructions', $data['tts_instructions']);
+        SiteSetting::set('demo_bot_voice', $data['demo_bot_voice']);
+        SiteSetting::set('demo_customer_voice', $data['demo_customer_voice']);
 
         return back();
     }

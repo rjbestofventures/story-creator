@@ -3,6 +3,7 @@ import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from '@lucide/vue';
 import Footer from '@/Components/Footer.vue';
+import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 
 defineProps({
     canResetPassword: Boolean,
@@ -10,6 +11,10 @@ defineProps({
 });
 
 const showPassword = ref(false);
+
+// Signup is closed to non-partners for now: the Sign Up entry points open the
+// partner application dialog instead of routing to /register.
+const signUpOpen = ref(false);
 
 const form = useForm({
     email: '',
@@ -53,7 +58,7 @@ const submit = () => {
                 <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">Log in to your account</h1>
                 <p class="text-sm mb-8" style="color: #555555;">
                     Don't have an account?
-                    <Link :href="route('register')" class="font-semibold underline transition hover:opacity-70" style="color: #1A1A1A;">Sign up free</Link>
+                    <button type="button" @click="signUpOpen = true" class="font-semibold underline transition hover:opacity-70 cursor-pointer" style="color: #1A1A1A;">Sign up free</button>
                 </p>
 
                 <!-- Status message -->
@@ -163,20 +168,23 @@ const submit = () => {
                 </div>
 
                 <!-- Register CTA -->
-                <Link
-                    :href="route('register')"
+                <button
+                    type="button"
+                    @click="signUpOpen = true"
                     class="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm transition-all duration-200 cursor-pointer"
                     style="border: 1.5px solid #DDDDDD; color: #1A1A1A; background: #FFFFFF;"
                     onmouseover="this.style.borderColor='#F5A000'"
                     onmouseout="this.style.borderColor='#DDDDDD'"
                 >
                     Create a free account
-                </Link>
+                </button>
 
             </div>
         </div>
 
       </div>
       <Footer />
+
+      <PartnerApplyDialog v-model:open="signUpOpen" />
     </div>
 </template>

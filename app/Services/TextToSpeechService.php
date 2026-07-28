@@ -14,6 +14,9 @@ class TextToSpeechService
 
     public const DEFAULT_VOICE = 'nova';
 
+    /** Demo answers are "spoken" by the customer, so they default to a distinct voice. */
+    public const DEFAULT_CUSTOMER_VOICE = 'ash';
+
     public const DEFAULT_INSTRUCTIONS = 'Speak in a warm, natural, conversational human tone — relaxed pacing with genuine inflection, not flat or robotic.';
 
     public function synthesize(string $text, ?string $voice = null, ?string $instructions = null): string

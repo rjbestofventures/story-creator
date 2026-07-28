@@ -12,6 +12,7 @@ import {
 import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2 } from 'lucide-vue-next';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
+import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 
 defineProps({
     canLogin: Boolean,
@@ -21,6 +22,10 @@ defineProps({
 // Logged-in users land here from their dashboard, not the homepage — send them
 // back to the library instead of hardcoding '/' and losing where they came from.
 const exitHref = computed(() => usePage().props.auth?.user ? route('stories.index') : '/');
+
+// Signup is closed to non-partners for now: Get Started opens the partner
+// application dialog instead of routing to /register.
+const signUpOpen = ref(false);
 
 // ─── Baked demo dataset — same for everyone, no backend, no AI tokens ─────────
 const basics = {
@@ -298,35 +303,75 @@ const thinkAnswer = () => new Promise((resolve) => {
     setTimeout(() => { if (isThinkingAnswer.value) finish(); }, 8000);
 });
 
-const typeOutInput = async (text) => {
-    await thinkAnswer();
-    return new Promise((resolve) => {
-        currentInput.value = '';
-        isTypingAnswer.value = true;
-        answerTypingSkip.value = false;
-        let i = 0;
-        let lastTime = null;
-        const CHARS_PER_SEC = 110;
+// Reveals `text` into the input box. durationMs, when given, paces the reveal to
+// finish alongside audio of that length, using the same punctuation weighting as
+// typeOut so the answer and the question sides feel identical.
+const revealInput = (text, durationMs = null) => new Promise((resolve) => {
+    currentInput.value = '';
+    isTypingAnswer.value = true;
+    answerTypingSkip.value = false;
 
-        const tick = (ts) => {
-            if (answerTypingSkip.value) {
-                currentInput.value = text;
-                isTypingAnswer.value = false;
-                answerTypingSkip.value = false;
-                resolve();
-                return;
-            }
-            if (lastTime !== null) {
-                const add = Math.max(1, Math.floor(((ts - lastTime) / 1000) * CHARS_PER_SEC));
-                i = Math.min(i + add, text.length);
-                currentInput.value = text.slice(0, i);
-            }
-            lastTime = ts;
-            if (i < text.length) requestAnimationFrame(tick);
-            else { isTypingAnswer.value = false; resolve(); }
-        };
-        requestAnimationFrame(tick);
-    });
+    if (!text) { isTypingAnswer.value = false; resolve(); return; }
+
+    const { weights, total: totalWeight } = weighTextForTyping(text);
+    const prefix = new Array(text.length + 1).fill(0);
+    for (let i = 0; i < text.length; i++) prefix[i + 1] = prefix[i] + weights[i];
+    const avgWeight = totalWeight / text.length;
+
+    const DEFAULT_CPS = 110;
+    const MIN_CPS = 12;
+    const MAX_CPS = 110;
+    const CPS = durationMs
+        ? Math.min(MAX_CPS, Math.max(MIN_CPS, text.length / (durationMs / 1000)))
+        : DEFAULT_CPS;
+    const weightPerSec = CPS * avgWeight;
+
+    let i = 0;
+    let elapsedWeight = 0;
+    let lastTime = null;
+
+    const tick = (ts) => {
+        if (answerTypingSkip.value) {
+            currentInput.value = text;
+            isTypingAnswer.value = false;
+            answerTypingSkip.value = false;
+            stopMsgSpeaking(); // skipping the text skips the narration with it
+            resolve();
+            return;
+        }
+        if (lastTime !== null) {
+            elapsedWeight += ((ts - lastTime) / 1000) * weightPerSec;
+            while (i < text.length && prefix[i + 1] <= elapsedWeight) i++;
+            currentInput.value = text.slice(0, i);
+        }
+        lastTime = ts;
+        if (i < text.length) requestAnimationFrame(tick);
+        else { isTypingAnswer.value = false; resolve(); }
+    };
+    requestAnimationFrame(tick);
+});
+
+// Auto-types the customer's answer while narrating it in the customer voice,
+// pacing the reveal to the audio — same sync behavior as the assistant's turns.
+const typeOutInput = async (text, idx = null) => {
+    const key = idx === null ? null : `answer-${idx}`;
+
+    // Warm the audio during the "thinking" pause so playback starts promptly.
+    const audioPromise = key && !speechMuted.value ? fetchMsgAudio(text, key) : null;
+
+    await thinkAnswer();
+
+    if (!audioPromise) return revealInput(text);
+
+    stopMsgSpeaking();
+    const audio = await audioPromise;
+    if (!audio) return revealInput(text);
+
+    speakingMsgIdx.value = key;
+    speakMsgAudio = audio;
+    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === key) speakingMsgIdx.value = null; };
+    speakMsgAudio.play();
+    return revealInput(text, audio.duration * 1000);
 };
 
 const nextMode = () => {
@@ -367,7 +412,7 @@ const startInterview = async () => {
     position.value = 2;
     await playAssistantTurn(firstAssistant);
     currentTurn.value = nextMode();
-    if (currentTurn.value.show_input) typeOutInput(demoMessages[position.value]?.content ?? '');
+    if (currentTurn.value.show_input) typeOutInput(demoMessages[position.value]?.content ?? '', position.value);
     scrollDown();
 };
 
@@ -398,7 +443,7 @@ const advance = async () => {
         finishInterview();
     } else {
         currentTurn.value = nextMode();
-        if (currentTurn.value.show_input) typeOutInput(demoMessages[position.value]?.content ?? '');
+        if (currentTurn.value.show_input) typeOutInput(demoMessages[position.value]?.content ?? '', position.value);
     }
     scrollDown();
 };
@@ -759,14 +804,15 @@ const goBack = () => {
                     <h3 class="text-xl font-black text-white mb-2">Are you ready to tell your story?</h3>
                     <p class="text-sm mb-6" style="color: #CCCCCC;">Answer a few questions about your business and StoryCreator.Bot builds your full library, in your voice.</p>
                     <div class="flex flex-wrap items-center justify-center gap-3">
-                        <Link
+                        <button
                             v-if="canRegister"
-                            :href="route('register')"
-                            class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
+                            type="button"
+                            @click="signUpOpen = true"
+                            class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
                             style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
                             Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                        </Link>
+                        </button>
                         <Link
                             :href="route('partner')"
                             class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:opacity-90"
@@ -780,6 +826,8 @@ const goBack = () => {
         </div>
 
         <Footer v-if="phase !== 1" />
+
+        <PartnerApplyDialog v-model:open="signUpOpen" />
 
     </div>
 </template>

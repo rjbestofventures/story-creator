@@ -7,6 +7,7 @@ import {
 } from '@/Components/ui/dialog';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
+import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 
 const props = defineProps({
     canLogin: Boolean,
@@ -16,6 +17,10 @@ const props = defineProps({
 
 const openFaq = ref(null);
 const learnMorePack = ref(null);
+
+// Signup is closed to non-partners for now: every Sign Up entry point opens the
+// partner application dialog instead of routing to /register.
+const signUpOpen = ref(false);
 
 const faqs = [
     { q: 'How does StoryCreator.Bot work?', a: 'Answer a series of simple questions about your business, how you got started, and your goals. StoryCreator.Bot transforms your answers into a series of ready-to-publish posts and content ideas, all based on your unique story.' },
@@ -146,14 +151,15 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         Dashboard
                     </Link>
                     <template v-else>
-                        <Link
+                        <button
                             v-if="canRegister"
-                            :href="route('register')"
-                            class="px-4 py-2 text-sm font-semibold transition hover:opacity-70"
+                            type="button"
+                            @click="signUpOpen = true"
+                            class="px-4 py-2 text-sm font-semibold transition hover:opacity-70 cursor-pointer"
                             style="color: #1A1A1A;"
                         >
                             Sign Up
-                        </Link>
+                        </button>
                         <Link
                             :href="route('login')"
                             class="px-5 py-2 rounded-lg text-sm font-bold transition hover:opacity-90"
@@ -229,14 +235,15 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     Try a Live Demo
                 </Link>
 
-                <Link
-                    :href="canRegister ? route('register') : route('login')"
-                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
+                <button
+                    type="button"
+                    @click="signUpOpen = true"
+                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
                     Sign Up
                     <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                </Link>
+                </button>
             </div>
         </main>
 
@@ -478,13 +485,14 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                             Learn more
                         </button>
 
-                        <Link
-                            :href="route('register')"
-                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90"
+                        <button
+                            type="button"
+                            @click="signUpOpen = true"
+                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90 cursor-pointer"
                             style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
                             Sign Up <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                        </Link>
+                        </button>
                     </div>
                 </div>
 
@@ -534,17 +542,20 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
         <!-- Closing CTA -->
         <section class="bg-white flex flex-col items-center justify-center text-center px-6 py-16" style="border-top: 1px solid #DDDDDD;">
             <h2 class="text-3xl md:text-4xl font-black mb-6" style="color: #1A1A1A;">Ready? Let's Get Your Story.</h2>
-            <Link
-                :href="canRegister ? route('register') : route('login')"
-                class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90"
+            <button
+                type="button"
+                @click="signUpOpen = true"
+                class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
                 style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
             >
                 Sign Up
                 <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-            </Link>
+            </button>
         </section>
 
         <Footer />
+
+        <PartnerApplyDialog v-model:open="signUpOpen" />
 
     </div>
 </template>

@@ -18,7 +18,7 @@ const sourceLabel = (source) => (source === 'grant' ? 'Granted by admin' : 'Purc
 <template>
     <Head title="Billing & Packs" />
     <AuthenticatedLayout>
-        <div class="min-h-screen bg-[#FAFAF8]">
+        <div class="bg-[#FAFAF8]">
 
             <!-- Page header -->
             <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-5">

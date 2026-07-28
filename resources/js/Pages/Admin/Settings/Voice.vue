@@ -7,12 +7,16 @@ import { Volume2, Play, Square, Loader2 } from '@lucide/vue';
 const props = defineProps({
     tts_voice: String,
     tts_instructions: String,
+    demo_bot_voice: String,
+    demo_customer_voice: String,
     voices: Array,
 });
 
 const form = useForm({
     tts_voice: props.tts_voice,
     tts_instructions: props.tts_instructions,
+    demo_bot_voice: props.demo_bot_voice,
+    demo_customer_voice: props.demo_customer_voice,
 });
 
 const saved = ref(false);
@@ -21,9 +25,17 @@ watch(() => form.recentlySuccessful, v => {
     if (v) { saved.value = true; setTimeout(() => saved.value = false, 2500); }
 });
 
+// The demo narrates two sides of the interview, each in its own voice.
+const demoPickers = [
+    { key: 'demo_bot_voice', title: 'StoryBot Questions & Responses', desc: "The assistant's side of the demo interview." },
+    { key: 'demo_customer_voice', title: 'Customer Answers', desc: 'The answers that auto-type into the demo input box.' },
+];
+
 // ─── Preview playback — hear a short sample in a given voice + tone ───────────
-const previewingId    = ref(null); // voice id currently playing
-const loadingPreview  = ref(null); // voice id currently being synthesized
+// Ids are scoped per picker ("<field>:<voice>") so the same voice chosen in two
+// grids doesn't light up both play buttons at once.
+const previewingId    = ref(null); // scoped id currently playing
+const loadingPreview  = ref(null); // scoped id currently being synthesized
 let previewAudio      = null;
 
 const stopPreview = () => {
@@ -32,11 +44,12 @@ const stopPreview = () => {
     previewingId.value = null;
 };
 
-const previewVoice = async (voiceId) => {
-    if (previewingId.value === voiceId) { stopPreview(); return; }
+const previewVoice = async (voiceId, scope = 'tts_voice') => {
+    const scopedId = `${scope}:${voiceId}`;
+    if (previewingId.value === scopedId) { stopPreview(); return; }
     stopPreview();
 
-    loadingPreview.value = voiceId;
+    loadingPreview.value = scopedId;
     try {
         const res = await fetch(route('admin.settings.voice.preview'), {
             method: 'POST',
@@ -103,13 +116,60 @@ onUnmounted(() => previewAudio?.pause());
                         </button>
                         <button
                             type="button"
-                            :disabled="loadingPreview === v.id"
-                            @click="previewVoice(v.id)"
+                            :disabled="loadingPreview === `tts_voice:${v.id}`"
+                            @click="previewVoice(v.id, 'tts_voice')"
                             class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer transition-colors disabled:cursor-wait"
-                            :class="previewingId === v.id ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                            :class="previewingId === `tts_voice:${v.id}` ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
                         >
-                            <Loader2 v-if="loadingPreview === v.id" class="w-4 h-4 animate-spin" />
-                            <Square v-else-if="previewingId === v.id" class="w-3.5 h-3.5 fill-current" />
+                            <Loader2 v-if="loadingPreview === `tts_voice:${v.id}`" class="w-4 h-4 animate-spin" />
+                            <Square v-else-if="previewingId === `tts_voice:${v.id}`" class="w-3.5 h-3.5 fill-current" />
+                            <Play v-else class="w-4 h-4" fill="currentColor" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Demo voices — one per side of the demo interview ──────── -->
+            <div
+                v-for="picker in demoPickers"
+                :key="picker.key"
+                class="bg-white rounded-2xl p-6"
+                style="border:1px solid #DDDDDD;"
+            >
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
+                        <Volume2 class="w-4 h-4" style="color:#F5A000;" />
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black" style="color:#1A1A1A;">{{ picker.title }}</h2>
+                        <p class="text-xs" style="color:#555555;">{{ picker.desc }}</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div
+                        v-for="v in voices"
+                        :key="v.id"
+                        class="flex items-center gap-1 pl-3 pr-1.5 py-1.5 rounded-xl border-2 transition-all duration-150"
+                        :style="form[picker.key] === v.id ? 'border-color:#F5A000; background:#FFFBF0;' : 'border-color:#DDDDDD; background:#FFFFFF;'"
+                    >
+                        <button
+                            type="button"
+                            @click="form[picker.key] = v.id"
+                            class="flex-1 flex flex-col items-start text-left cursor-pointer py-1"
+                        >
+                            <span class="text-xs font-bold leading-tight" :style="form[picker.key] === v.id ? 'color:#F5A000' : 'color:#1A1A1A'">{{ v.label }}</span>
+                            <span class="text-xs mt-0.5" style="color:#AAAAAA;">{{ v.desc }}</span>
+                        </button>
+                        <button
+                            type="button"
+                            :disabled="loadingPreview === `${picker.key}:${v.id}`"
+                            @click="previewVoice(v.id, picker.key)"
+                            class="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg cursor-pointer transition-colors disabled:cursor-wait"
+                            :class="previewingId === `${picker.key}:${v.id}` ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                        >
+                            <Loader2 v-if="loadingPreview === `${picker.key}:${v.id}`" class="w-4 h-4 animate-spin" />
+                            <Square v-else-if="previewingId === `${picker.key}:${v.id}`" class="w-3.5 h-3.5 fill-current" />
                             <Play v-else class="w-4 h-4" fill="currentColor" />
                         </button>
                     </div>

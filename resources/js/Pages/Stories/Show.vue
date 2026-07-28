@@ -598,7 +598,7 @@ const restoreRevision = async (ep) => {
             </div>
         </div>
 
-        <div class="min-h-screen bg-[#FAFAF8]">
+        <div class="bg-[#FAFAF8]">
 
             <!-- Top bar -->
             <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-4">

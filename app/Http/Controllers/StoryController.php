@@ -481,16 +481,36 @@ class StoryController extends Controller
         "That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together.",
     ];
 
+    /**
+     * The customer's side of the demo interview. Kept separate from DEMO_LINES so
+     * each side can be narrated in its own voice.
+     */
+    public const DEMO_ANSWER_LINES = [
+        "I grew up with every advantage. My family had money, I had access to the best trainers, nutritionists, the whole thing. But it wasn't until my mid twenties that I realized having access and actually understanding your body are two completely different things. I started diving deep into peptides, into biohacking, into understanding how the body actually works at a cellular level. I became obsessed. Not in a vain way, but in a way where I genuinely wanted to optimize every system. That's when it clicked for me that this knowledge, this passion, it had to mean something beyond just me looking good in a mirror. I wanted to help other people experience that same transformation, that same understanding of what their body is actually capable of when you treat it right.",
+        "There was this woman who came to me probably five years ago. She'd been to every spa, every wellness place in town. She was tired, frustrated, feeling like nobody really saw her or understood what she actually needed. We spent two hours just talking. Not selling, just talking. And I told her the truth about what would actually work for her body, her lifestyle, her goals. It wasn't the most expensive package. It wasn't what made us the most money. It was what she actually needed. She became a client for three years. She referred probably twenty people. That's when I understood that trust and honesty, they're the actual product. The treatments, the peptides, the protocols, they're just the delivery mechanism.",
+        "That's a good question. We don't believe in one size fits all. Every single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yeah, I'm into the latest science, the peptides, the cutting edge stuff. But I'm also into listening. I'm into understanding your life, your stress, your actual goals. And then we build something that works for you, not for some generic idea of wellness. That's the difference. That's why people come back.",
+    ];
+
     public function speakDemo(Request $request)
     {
         $data = $request->validate([
-            'text' => ['required', 'string', Rule::in(self::DEMO_LINES)],
+            'text' => ['required', 'string', Rule::in([...self::DEMO_LINES, ...self::DEMO_ANSWER_LINES])],
         ]);
 
-        $path = 'demo-audio/'.md5($data['text']).'.mp3';
+        $isAnswer = in_array($data['text'], self::DEMO_ANSWER_LINES, true);
+
+        $voice = $isAnswer
+            ? SiteSetting::get('demo_customer_voice', TextToSpeechService::DEFAULT_CUSTOMER_VOICE)
+            : SiteSetting::get('demo_bot_voice', SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE));
+
+        $instructions = SiteSetting::get('tts_instructions', TextToSpeechService::DEFAULT_INSTRUCTIONS);
+
+        // Key the cache on voice and instructions too — keying on text alone meant
+        // changing the voice in admin kept serving the previously synthesized audio.
+        $path = 'demo-audio/'.md5($data['text'].'|'.$voice.'|'.$instructions).'.mp3';
 
         if (! Storage::disk('local')->exists($path)) {
-            Storage::disk('local')->put($path, (new TextToSpeechService)->synthesize($data['text']));
+            Storage::disk('local')->put($path, (new TextToSpeechService)->synthesize($data['text'], $voice, $instructions));
         }
 
         return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'audio/mpeg']);

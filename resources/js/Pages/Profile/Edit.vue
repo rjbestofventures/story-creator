@@ -14,7 +14,7 @@ defineProps({
 <template>
     <Head title="Account Settings" />
     <AuthenticatedLayout>
-        <div class="min-h-screen bg-[#FAFAF8]">
+        <div class="bg-[#FAFAF8]">
 
             <!-- Page header -->
             <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-5">
