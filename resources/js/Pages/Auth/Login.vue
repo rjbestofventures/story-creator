@@ -35,7 +35,7 @@ const submit = () => {
             class="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative overflow-hidden"
             style="background: radial-gradient(ellipse at 30% 50%, #FEF9EC 0%, #F5F5F0 55%, #EBEBE6 100%);"
         >
-            <img src="/images/brand-technology-changes.png" alt="Technology Changes. Human Nature Doesn't. — StoryCreator.Bot" class="max-w-m max-h-full object-contain" />
+            <img src="/images/brand-technology-changes.png" alt="Technology Changes. Human Nature Doesn't. — StoryCreator.Bot" class="max-w-[500px] max-h-full object-contain" />
         </div>
 
         <!-- Right: Login form -->
