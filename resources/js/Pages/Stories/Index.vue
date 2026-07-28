@@ -172,8 +172,8 @@ const confirmDelete = () => {
                         <BookOpen class="w-8 h-8 text-[#F5A000]" />
                     </div>
                     <h2 class="text-xl font-black text-[#1A1A1A] mb-2">Create your first story</h2>
-                    <p class="text-[#555555] mb-6 max-w-sm mx-auto">
-                        Answer a series of questions about your business, and StoryCreator.Bot will transform your responses into episodic content for your Facebook group and other social media platforms.
+                    <p class="text-[#555555] mb-6 max-w-2xl mx-auto">
+                        Answer a series of questions about your business, and StoryCreator.Bot will transform your responses into six months of episodic content for the Best of Delray Beach Facebook group and your other social media platforms.
                     </p>
                     <Link :href="route('stories.create')">
                         <Button
