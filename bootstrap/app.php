@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\CheckLandingLock;
+use App\Http\Middleware\EnsureEmailIsVerifiedOrPartner;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\RequiresCredits;
@@ -27,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
 
         $middleware->alias([
+            'verified' => EnsureEmailIsVerifiedOrPartner::class,
             'role' => RoleMiddleware::class,
             'permission' => PermissionMiddleware::class,
             'role_or_permission' => RoleOrPermissionMiddleware::class,

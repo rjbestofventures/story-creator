@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck, ShoppingBag, Receipt, MessageCircle } from 'lucide-vue-next';
+import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck, ShoppingBag, Receipt, MessageCircle, PlayCircle } from 'lucide-vue-next';
 import Footer from '@/Components/Footer.vue';
 import FeedbackDialog from '@/Components/FeedbackDialog.vue';
 import { Button } from '@/Components/ui/button';
@@ -60,16 +60,21 @@ const feedbackOpen = ref(false);
                         </Link>
 
                         <!-- Try Live Demo -->
-                        <Link
-                            :href="route('demo')"
-                            class="hidden md:block text-sm font-semibold transition-colors hover:opacity-70 cursor-pointer"
-                            style="color: #EF4444;"
+                        <Button
+                            as-child
+                            variant="outline"
+                            size="sm"
+                            class="hidden md:flex items-center gap-2 h-8 rounded-lg border-[#DDDDDD] font-semibold cursor-pointer"
                         >
-                            Try Live Demo
-                        </Link>
+                            <Link :href="route('demo')" style="color: #EF4444;">
+                                <PlayCircle class="w-4 h-4" />
+                                Try Live Demo
+                            </Link>
+                        </Button>
 
                         <!-- Feedback -->
                         <Button
+                            v-if="!isAdmin"
                             variant="outline"
                             size="sm"
                             @click="feedbackOpen = true"
