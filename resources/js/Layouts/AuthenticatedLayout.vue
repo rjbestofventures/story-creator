@@ -66,7 +66,7 @@ const feedbackOpen = ref(false);
                             size="sm"
                             class="hidden md:flex items-center gap-2 h-8 rounded-lg border-[#DDDDDD] font-semibold cursor-pointer"
                         >
-                            <Link :href="route('demo')" style="color: #EF4444;">
+                            <Link :href="route('demo')" style="color: #1A1A1A;">
                                 <PlayCircle class="w-4 h-4" />
                                 Try Live Demo
                             </Link>

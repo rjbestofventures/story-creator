@@ -189,8 +189,26 @@ const fetchMsgAudio = async (text, idx) => {
         if (audio.readyState >= 1) resolve();
         else audio.addEventListener('loadedmetadata', resolve, { once: true });
     });
+    await ensureFiniteDuration(audio);
     return audio;
 };
+
+// Blob-sourced MP3s often report duration as Infinity on loadedmetadata (no
+// duration header until the browser scans the whole stream). Left alone, the
+// typing pace below divides by Infinity, falls back to the slowest speed, and
+// the on-screen text keeps animating long after the narration audio already
+// ended — i.e. the tail of the answer silently "plays" with no voice. Seeking
+// near the end forces Chrome/Firefox to resolve the real duration immediately.
+const ensureFiniteDuration = (audio) => new Promise((resolve) => {
+    if (Number.isFinite(audio.duration)) { resolve(); return; }
+    const onTimeUpdate = () => {
+        audio.removeEventListener('timeupdate', onTimeUpdate);
+        audio.currentTime = 0;
+        resolve();
+    };
+    audio.addEventListener('timeupdate', onTimeUpdate);
+    audio.currentTime = 1e101;
+});
 
 const playMsgAudio = async (msg, idx) => {
     const audio = await fetchMsgAudio(msg.content, idx);
@@ -786,6 +804,18 @@ const goBack = () => {
                                 <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
                                     Episode {{ ep.episode_number }}
                                 </span>
+                                <button
+                                    type="button"
+                                    :disabled="loadingMsgIdx === `episode-${ep.episode_number}`"
+                                    :aria-label="speakingMsgIdx === `episode-${ep.episode_number}` ? 'Stop reading episode aloud' : 'Read episode aloud'"
+                                    @click="toggleSpeakMessage({ content: `${ep.title}. ${ep.content}` }, `episode-${ep.episode_number}`)"
+                                    class="ml-auto flex items-center justify-center w-8 h-8 rounded-lg transition-colors cursor-pointer disabled:cursor-wait shrink-0"
+                                    :class="speakingMsgIdx === `episode-${ep.episode_number}` ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                                >
+                                    <Loader2 v-if="loadingMsgIdx === `episode-${ep.episode_number}`" class="w-4 h-4 animate-spin" />
+                                    <VolumeX v-else-if="speakingMsgIdx === `episode-${ep.episode_number}`" class="w-4 h-4" />
+                                    <Volume2 v-else class="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
                         <div class="px-4 sm:px-6 py-5">
@@ -818,7 +848,7 @@ const goBack = () => {
                             class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:opacity-90"
                             style="background-color: transparent; color: #FFFFFF; border-color: #444444;"
                         >
-                            Become a Verified Partner
+                            Learn More about Verified Partner
                         </Link>
                     </div>
                 </div>

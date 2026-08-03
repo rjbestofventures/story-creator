@@ -18,6 +18,9 @@ const props = defineProps({
 const openFaq = ref(null);
 const learnMorePack = ref(null);
 
+// Pay to Play pricing is hidden for now per stakeholder feedback.
+const showPayToPlay = false;
+
 // Signup is closed to non-partners for now: every Sign Up entry point opens the
 // partner application dialog instead of routing to /register.
 const signUpOpen = ref(false);
@@ -436,6 +439,8 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 </Dialog>
 
                 <!-- ═══ Pay to Play StoryCreator.Bot Pricing Options ═══ -->
+                <!-- Hidden for now — keep the markup so it's a one-line flip to bring back. -->
+                <template v-if="showPayToPlay">
 
                 <!-- Pay to Play Banner -->
                 <div id="pay-to-play" class="rounded-2xl p-6 mb-6 scroll-mt-24" style="background-color: #1A1A1A;">
@@ -495,6 +500,8 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         </button>
                     </div>
                 </div>
+
+                </template>
 
             </div>
         </section>

@@ -491,13 +491,24 @@ class StoryController extends Controller
         "That's a good question. We don't believe in one size fits all. Every single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yeah, I'm into the latest science, the peptides, the cutting edge stuff. But I'm also into listening. I'm into understanding your life, your stress, your actual goals. And then we build something that works for you, not for some generic idea of wellness. That's the difference. That's why people come back.",
     ];
 
+    /**
+     * The generated story-library episodes shown at the end of the demo. Narrated
+     * in the same voice as the customer's answers — they're written in the
+     * business owner's voice, same as those answers.
+     */
+    public const DEMO_EPISODE_LINES = [
+        "Access Was Never Understanding. I grew up with every advantage. Money, the best trainers, nutritionists, all of it. And for years I assumed that was the same thing as knowing my own body.\n\nIt wasn't.\n\nIt took until my mid twenties for that to click. I started going deep, into peptides, into biohacking, into how the body actually works at a cellular level. I became obsessed, not in a vain way, but in a way where I wanted to understand every system and how to make it better.\n\nSomewhere in there it stopped being about me looking good in a mirror. I realized this knowledge could change how other people feel in their own bodies too.\n\nThat's the moment Tammy Spa really started, long before it had a name.\n\nWhat's something you had access to for years before you truly understood it?",
+        "The Two Hours That Built Everything. A woman came to me about five years ago. She'd been to every spa, every wellness place in town, and she was tired. Frustrated. Feeling like nobody actually saw her.\n\nWe spent two hours just talking. Not selling. Talking.\n\nAnd then I told her the truth about what would actually work for her body and her life. It wasn't the most expensive package. It wasn't what made us the most money. It was what she needed.\n\nShe stayed a client for three years. She referred close to twenty people.\n\nThat's when I understood something I build everything around now: trust and honesty are the actual product. The treatments, the peptides, the protocols, they're just how we deliver it.\n\nWhen was the last time someone gave you the honest answer instead of the expensive one?",
+        "A Puzzle That's Only Yours. Here's what you won't find anywhere else at Tammy Spa: we don't believe in one size fits all.\n\nEvery single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yes, I'm into the latest science, the peptides, the cutting edge protocols. But I'm just as into listening.\n\nInto understanding your life, your stress, your actual goals. And then building something that works for you, not for some generic idea of wellness.\n\nThat's the difference. That's why people come back, and why they bring the people they care about.\n\nYou are not a template here. You never will be.\n\nIf your wellness plan was built around your real life, what would you finally have room for?",
+    ];
+
     public function speakDemo(Request $request)
     {
         $data = $request->validate([
-            'text' => ['required', 'string', Rule::in([...self::DEMO_LINES, ...self::DEMO_ANSWER_LINES])],
+            'text' => ['required', 'string', Rule::in([...self::DEMO_LINES, ...self::DEMO_ANSWER_LINES, ...self::DEMO_EPISODE_LINES])],
         ]);
 
-        $isAnswer = in_array($data['text'], self::DEMO_ANSWER_LINES, true);
+        $isAnswer = in_array($data['text'], [...self::DEMO_ANSWER_LINES, ...self::DEMO_EPISODE_LINES], true);
 
         $voice = $isAnswer
             ? SiteSetting::get('demo_customer_voice', TextToSpeechService::DEFAULT_CUSTOMER_VOICE)

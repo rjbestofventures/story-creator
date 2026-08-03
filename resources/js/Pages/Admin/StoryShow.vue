@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronDown, ChevronUp, FileText } from '@lucide/vue';
+import { ChevronLeft, ChevronDown, ChevronUp, FileText, ClipboardList } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps({
@@ -63,16 +63,26 @@ const formatLabel = (format) => {
                         <span class="text-xs" style="color: #888888;">{{ story.created_at }}</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <span
-                        class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize"
-                        :class="statusBadge(story.status)"
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize"
+                            :class="statusBadge(story.status)"
+                        >
+                            {{ story.status }}
+                        </span>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-bold" style="background-color: #F5F5F5; color: #555555;">
+                            {{ story.episodes.length }} episode{{ story.episodes.length !== 1 ? 's' : '' }}
+                        </span>
+                    </div>
+                    <Link
+                        :href="route('grill.show', story.id)"
+                        class="flex items-center gap-1.5 text-xs font-bold hover:underline"
+                        style="color: #F5A000;"
                     >
-                        {{ story.status }}
-                    </span>
-                    <span class="text-xs px-2.5 py-1 rounded-full font-bold" style="background-color: #F5F5F5; color: #555555;">
-                        {{ story.episodes.length }} episode{{ story.episodes.length !== 1 ? 's' : '' }}
-                    </span>
+                        <ClipboardList class="w-3.5 h-3.5" />
+                        View Answers
+                    </Link>
                 </div>
             </div>
         </div>
