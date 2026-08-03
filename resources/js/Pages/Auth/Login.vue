@@ -58,7 +58,7 @@ const submit = () => {
                 <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">Log in to your account</h1>
                 <p class="text-sm mb-8" style="color: #555555;">
                     Don't have an account?
-                    <button type="button" @click="signUpOpen = true" class="font-semibold underline transition hover:opacity-70 cursor-pointer" style="color: #1A1A1A;">Sign up free</button>
+                    <button type="button" @click="signUpOpen = true" class="font-semibold underline transition hover:opacity-70 cursor-pointer" style="color: #1A1A1A;">Sign up</button>
                 </p>
 
                 <!-- Status message -->
@@ -176,7 +176,7 @@ const submit = () => {
                     onmouseover="this.style.borderColor='#F5A000'"
                     onmouseout="this.style.borderColor='#DDDDDD'"
                 >
-                    Create a free account
+                    Create an account
                 </button>
 
             </div>

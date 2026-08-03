@@ -9,7 +9,7 @@ import { Badge } from '@/Components/ui/badge';
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2 } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2, Headphones, Square } from 'lucide-vue-next';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
 import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
@@ -220,9 +220,55 @@ const playMsgAudio = async (msg, idx) => {
 };
 
 const toggleSpeakMessage = (msg, idx) => {
+    // While "Listen to Your Story" is narrating, the only enabled episode button
+    // is the one currently playing — clicking it stops the whole story instead
+    // of just pausing this episode (which would strand the sequence).
+    if (storyPlaying.value && typeof idx === 'string' && idx.startsWith('episode-')) {
+        if (speakingMsgIdx.value === idx) toggleFullStory();
+        return;
+    }
+
     if (speakingMsgIdx.value === idx) { stopMsgSpeaking(); return; }
     stopMsgSpeaking();
     playMsgAudio(msg, idx);
+};
+
+// ─── "Listen to Your Story" — plays every demo episode back to back, auto-
+// scrolling to and highlighting whichever one is currently narrating ──────────
+const episodeCardEls = {};
+const registerEpisodeCard = (el, episodeNumber) => { if (el) episodeCardEls[episodeNumber] = el; };
+
+const storyPlaying = ref(false);
+let storyPlayAbort = false;
+
+const playEpisodeAndAwaitEnd = (ep) => new Promise(async (resolve) => {
+    const key = `episode-${ep.episode_number}`;
+    const audio = await fetchMsgAudio(`${ep.title}. ${ep.content}`, key);
+    if (!audio || storyPlayAbort) { resolve(); return; }
+    speakingMsgIdx.value = key;
+    speakMsgAudio = audio;
+    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === key) speakingMsgIdx.value = null; resolve(); };
+    speakMsgAudio.play();
+});
+
+const toggleFullStory = async () => {
+    if (storyPlaying.value) {
+        storyPlayAbort = true;
+        stopMsgSpeaking();
+        storyPlaying.value = false;
+        return;
+    }
+
+    storyPlayAbort = false;
+    storyPlaying.value = true;
+
+    for (const ep of demoEpisodes) {
+        if (storyPlayAbort) break;
+        episodeCardEls[ep.episode_number]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await playEpisodeAndAwaitEnd(ep);
+    }
+
+    storyPlaying.value = false;
 };
 
 // Types `text` out while (unless muted) simultaneously narrating it via TTS, pacing the
@@ -248,6 +294,7 @@ const typeWithSpeech = async (text, idx) => {
 
 onUnmounted(() => {
     speakMsgAudio?.pause();
+    storyPlayAbort = true;
     for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
 });
 
@@ -787,14 +834,32 @@ const goBack = () => {
                         <Check class="w-7 h-7 text-[#F5A000]" />
                     </div>
                     <h1 class="text-2xl font-black text-[#1A1A1A] mb-2">Tammy Spa's story library</h1>
-                    <p class="text-[#555555]">These Demo Episodes are written from the interview above.</p>
+                    <p class="text-[#555555] mb-6">These Demo Episodes are written from the interview above.</p>
+
+                    <button
+                        type="button"
+                        @click="toggleFullStory"
+                        class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer"
+                        :class="storyPlaying
+                            ? 'border-2 border-[#F5A000]/40 bg-amber-50 text-[#F5A000]'
+                            : 'bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A] hover:opacity-90'"
+                    >
+                        <Square v-if="storyPlaying" class="w-4 h-4 fill-current" />
+                        <Headphones v-else class="w-4 h-4" />
+                        {{ storyPlaying ? 'Stop Listening' : 'Listen to Your Story' }}
+                    </button>
                 </div>
 
                 <div class="space-y-6">
                     <article
                         v-for="ep in demoEpisodes"
                         :key="ep.episode_number"
-                        class="bg-white rounded-2xl border border-[#DDDDDD] overflow-hidden"
+                        :ref="el => registerEpisodeCard(el, ep.episode_number)"
+                        class="bg-white rounded-2xl border overflow-hidden transition-all duration-200"
+                        :class="speakingMsgIdx === `episode-${ep.episode_number}` ? '' : 'border-[#DDDDDD]'"
+                        :style="speakingMsgIdx === `episode-${ep.episode_number}`
+                            ? 'border-color: rgba(245,160,0,0.4); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);'
+                            : ''"
                     >
                         <div class="px-4 sm:px-6 pt-5 pb-4 border-b border-[#F5F5F5] space-y-3">
                             <div class="flex items-center gap-2">
@@ -806,10 +871,10 @@ const goBack = () => {
                                 </span>
                                 <button
                                     type="button"
-                                    :disabled="loadingMsgIdx === `episode-${ep.episode_number}`"
+                                    :disabled="loadingMsgIdx === `episode-${ep.episode_number}` || (storyPlaying && speakingMsgIdx !== `episode-${ep.episode_number}`)"
                                     :aria-label="speakingMsgIdx === `episode-${ep.episode_number}` ? 'Stop reading episode aloud' : 'Read episode aloud'"
                                     @click="toggleSpeakMessage({ content: `${ep.title}. ${ep.content}` }, `episode-${ep.episode_number}`)"
-                                    class="ml-auto flex items-center justify-center w-8 h-8 rounded-lg transition-colors cursor-pointer disabled:cursor-wait shrink-0"
+                                    class="ml-auto flex items-center justify-center w-8 h-8 rounded-lg transition-colors cursor-pointer disabled:cursor-wait disabled:opacity-40 shrink-0"
                                     :class="speakingMsgIdx === `episode-${ep.episode_number}` ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
                                 >
                                     <Loader2 v-if="loadingMsgIdx === `episode-${ep.episode_number}`" class="w-4 h-4 animate-spin" />
