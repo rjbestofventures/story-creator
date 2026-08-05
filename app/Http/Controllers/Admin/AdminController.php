@@ -474,19 +474,30 @@ class AdminController extends Controller
 
     public function elevenlabsVoices(): JsonResponse
     {
-        $voices = Cache::remember('elevenlabs.voices', now()->addHour(), function () {
+        $cacheKey = 'elevenlabs.voices';
+        $voices = Cache::get($cacheKey);
+
+        // Self-heals a previously-cached entry that isn't a plain list of voices —
+        // e.g. a Collection object that survived from before this endpoint switched
+        // to caching arrays, which the database cache driver corrupts on unserialize.
+        if (! is_array($voices) || ! array_is_list($voices)) {
+            Cache::forget($cacheKey);
+            $voices = null;
+        }
+
+        if ($voices === null) {
             $response = Http::withHeaders(['xi-api-key' => config('services.elevenlabs.key')])
                 ->get('https://api.elevenlabs.io/v2/voices', ['voice_type' => 'default', 'page_size' => 100]);
 
             abort_unless($response->successful(), 502, 'Could not load ElevenLabs voices.');
 
-            // Cache a plain array, not a Collection — the database cache driver's
-            // serialized-object round trip corrupted it into an incomplete class.
-            return collect($response->json('voices'))
+            $voices = collect($response->json('voices'))
                 ->map(fn ($v) => ['id' => $v['voice_id'], 'name' => $v['name']])
                 ->values()
                 ->all();
-        });
+
+            Cache::put($cacheKey, $voices, now()->addHour());
+        }
 
         return response()->json($voices);
     }
