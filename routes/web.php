@@ -132,6 +132,8 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::get('/settings/voice', [AdminController::class, 'voiceSettingsIndex'])->name('settings.voice');
     Route::post('/settings/voice', [AdminController::class, 'updateVoiceSettings'])->name('settings.voice.update');
     Route::post('/settings/voice/preview', [AdminController::class, 'previewVoice'])->name('settings.voice.preview');
+    Route::get('/settings/voice/elevenlabs-voices', [AdminController::class, 'elevenlabsVoices'])->name('settings.voice.elevenlabs-voices');
+    Route::post('/settings/voice/elevenlabs-preview', [AdminController::class, 'previewElevenLabsVoice'])->name('settings.voice.elevenlabs-preview');
     Route::get('/settings/features', [AdminController::class, 'featuresSettingsIndex'])->name('settings.features');
     Route::post('/settings/features', [AdminController::class, 'updateFeaturesSettings'])->name('settings.features.update');
 

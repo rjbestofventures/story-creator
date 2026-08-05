@@ -47,6 +47,10 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    'elevenlabs' => [
+        'key' => env('ELEVENLABS_API_KEY'),
+    ],
+
     'stripe' => [
         'model' => User::class,
         'key' => env('STRIPE_KEY'),

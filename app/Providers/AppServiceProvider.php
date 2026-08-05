@@ -31,6 +31,7 @@ class AppServiceProvider extends ServiceProvider
             $map = [
                 'anthropic_api_key' => ['anthropic.api_key'],
                 'openai_api_key' => ['services.openai.key'],
+                'elevenlabs_api_key' => ['services.elevenlabs.key'],
                 'stripe_key' => ['cashier.key',            'services.stripe.key'],
                 'stripe_secret' => ['cashier.secret',         'services.stripe.secret'],
                 'stripe_webhook_secret' => ['cashier.webhook.secret', 'services.stripe.webhook.secret'],

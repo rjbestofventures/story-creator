@@ -15,7 +15,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -375,6 +377,8 @@ class AdminController extends Controller
             'demo_bot_voice' => SiteSetting::get('demo_bot_voice', $ttsVoice),
             'demo_customer_voice' => SiteSetting::get('demo_customer_voice', TextToSpeechService::DEFAULT_CUSTOMER_VOICE),
             'voices' => self::TTS_VOICES,
+            'elevenlabs_api_key' => SiteSetting::get('elevenlabs_api_key', ''),
+            'elevenlabs_env_key_set' => (bool) env('ELEVENLABS_API_KEY'),
         ]);
     }
 
@@ -387,12 +391,15 @@ class AdminController extends Controller
             'tts_instructions' => 'required|string|max:1000',
             'demo_bot_voice' => $voiceRule,
             'demo_customer_voice' => $voiceRule,
+            'elevenlabs_api_key' => 'nullable|string|max:255',
         ]);
 
         SiteSetting::set('tts_voice', $data['tts_voice']);
         SiteSetting::set('tts_instructions', $data['tts_instructions']);
         SiteSetting::set('demo_bot_voice', $data['demo_bot_voice']);
         SiteSetting::set('demo_customer_voice', $data['demo_customer_voice']);
+        SiteSetting::set('elevenlabs_api_key', $data['elevenlabs_api_key'] ?? '');
+        Cache::forget('elevenlabs.voices');
 
         return back();
     }
@@ -429,6 +436,47 @@ class AdminController extends Controller
         );
 
         return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
+    // -------------------------------------------------------------------------
+    // ElevenLabs voice test — evaluating voice quality only, not wired into the
+    // live TTS flow (TextToSpeechService). Remove once the client decides.
+    // -------------------------------------------------------------------------
+
+    public function elevenlabsVoices(): JsonResponse
+    {
+        $voices = Cache::remember('elevenlabs.voices', now()->addHour(), function () {
+            $response = Http::withHeaders(['xi-api-key' => config('services.elevenlabs.key')])
+                ->get('https://api.elevenlabs.io/v2/voices', ['voice_type' => 'default', 'page_size' => 100]);
+
+            abort_unless($response->successful(), 502, 'Could not load ElevenLabs voices.');
+
+            return collect($response->json('voices'))
+                ->map(fn ($v) => ['id' => $v['voice_id'], 'name' => $v['name']])
+                ->values();
+        });
+
+        return response()->json($voices);
+    }
+
+    public function previewElevenLabsVoice(Request $request): \Illuminate\Http\Response
+    {
+        $data = $request->validate([
+            'voice_id' => 'required|string',
+            'text' => 'required|string|max:1000',
+        ]);
+
+        $response = Http::withHeaders([
+            'xi-api-key' => config('services.elevenlabs.key'),
+            'Content-Type' => 'application/json',
+        ])->post("https://api.elevenlabs.io/v1/text-to-speech/{$data['voice_id']}", [
+            'text' => $data['text'],
+            'model_id' => 'eleven_multilingual_v2',
+        ]);
+
+        abort_unless($response->successful(), 502, 'ElevenLabs synthesis failed.');
+
+        return response($response->body(), 200, ['Content-Type' => 'audio/mpeg']);
     }
 
     // -------------------------------------------------------------------------
