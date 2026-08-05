@@ -12,8 +12,8 @@ use App\Models\Story;
 use App\Models\User;
 use App\Services\InterviewService;
 use App\Services\StoryGeneratorService;
-use App\Services\TextToSpeechService;
 use App\Services\TranscriptionService;
+use App\Services\Tts;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
@@ -441,7 +441,7 @@ class StoryController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // Text-to-voice — read a episode aloud via OpenAI's TTS
+    // Text-to-voice — read an episode aloud via whichever provider is active
     // -------------------------------------------------------------------------
 
     public function speakEpisode(Request $request, Story $story, Episode $episode)
@@ -449,7 +449,7 @@ class StoryController extends Controller
         abort_unless($story->user_id === $request->user()->id, 403);
         abort_unless($episode->story_id === $story->id, 404);
 
-        $audio = (new TextToSpeechService)->synthesize(trim("{$episode->title}. {$episode->content}"));
+        $audio = Tts::speak(trim("{$episode->title}. {$episode->content}"));
 
         return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
     }
@@ -461,7 +461,7 @@ class StoryController extends Controller
             'text' => 'required|string|max:4096',
         ]);
 
-        $audio = (new TextToSpeechService)->synthesize($data['text']);
+        $audio = Tts::speak($data['text']);
 
         return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
     }
@@ -509,19 +509,15 @@ class StoryController extends Controller
         ]);
 
         $isAnswer = in_array($data['text'], [...self::DEMO_ANSWER_LINES, ...self::DEMO_EPISODE_LINES], true);
+        $role = $isAnswer ? 'demo_customer' : 'demo_bot';
+        $voice = Tts::voiceFor($role);
 
-        $voice = $isAnswer
-            ? SiteSetting::get('demo_customer_voice', TextToSpeechService::DEFAULT_CUSTOMER_VOICE)
-            : SiteSetting::get('demo_bot_voice', SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE));
-
-        $instructions = SiteSetting::get('tts_instructions', TextToSpeechService::DEFAULT_INSTRUCTIONS);
-
-        // Key the cache on voice and instructions too — keying on text alone meant
-        // changing the voice in admin kept serving the previously synthesized audio.
-        $path = 'demo-audio/'.md5($data['text'].'|'.$voice.'|'.$instructions).'.mp3';
+        // Key the cache on provider and voice too — keying on text alone meant
+        // changing the voice (or provider) in admin kept serving stale audio.
+        $path = 'demo-audio/'.md5($data['text'].'|'.Tts::provider().'|'.$voice).'.mp3';
 
         if (! Storage::disk('local')->exists($path)) {
-            Storage::disk('local')->put($path, (new TextToSpeechService)->synthesize($data['text'], $voice, $instructions));
+            Storage::disk('local')->put($path, Tts::speak($data['text'], $role));
         }
 
         return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'audio/mpeg']);

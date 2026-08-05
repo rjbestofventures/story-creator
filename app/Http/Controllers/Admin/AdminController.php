@@ -10,6 +10,7 @@ use App\Models\Story;
 use App\Models\User;
 use App\Models\UserCredit;
 use App\Notifications\AccountCreatedNotification;
+use App\Services\ElevenLabsService;
 use App\Services\TextToSpeechService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -379,7 +380,27 @@ class AdminController extends Controller
             'voices' => self::TTS_VOICES,
             'elevenlabs_api_key' => SiteSetting::get('elevenlabs_api_key', ''),
             'elevenlabs_env_key_set' => (bool) env('ELEVENLABS_API_KEY'),
+            'tts_provider' => SiteSetting::get('tts_provider', 'openai'),
+            'elevenlabs_voice' => SiteSetting::get('elevenlabs_voice', ElevenLabsService::DEFAULT_VOICE),
+            'elevenlabs_demo_bot_voice' => SiteSetting::get('elevenlabs_demo_bot_voice', ElevenLabsService::DEFAULT_VOICE),
+            'elevenlabs_demo_customer_voice' => SiteSetting::get('elevenlabs_demo_customer_voice', ElevenLabsService::DEFAULT_CUSTOMER_VOICE),
+            'elevenlabs_tier' => $this->elevenlabsTier(),
         ]);
+    }
+
+    /** Cached so the settings page doesn't hit ElevenLabs on every load. Null if the key is missing/invalid. */
+    private function elevenlabsTier(): ?string
+    {
+        if (! config('services.elevenlabs.key')) {
+            return null;
+        }
+
+        return Cache::remember('elevenlabs.tier', now()->addHour(), function () {
+            $response = Http::withHeaders(['xi-api-key' => config('services.elevenlabs.key')])
+                ->get('https://api.elevenlabs.io/v1/user/subscription');
+
+            return $response->successful() ? $response->json('tier') : null;
+        });
     }
 
     public function updateVoiceSettings(Request $request): RedirectResponse
@@ -392,6 +413,10 @@ class AdminController extends Controller
             'demo_bot_voice' => $voiceRule,
             'demo_customer_voice' => $voiceRule,
             'elevenlabs_api_key' => 'nullable|string|max:255',
+            'tts_provider' => ['required', 'string', Rule::in(['openai', 'elevenlabs'])],
+            'elevenlabs_voice' => 'nullable|string|max:255',
+            'elevenlabs_demo_bot_voice' => 'nullable|string|max:255',
+            'elevenlabs_demo_customer_voice' => 'nullable|string|max:255',
         ]);
 
         SiteSetting::set('tts_voice', $data['tts_voice']);
@@ -399,6 +424,10 @@ class AdminController extends Controller
         SiteSetting::set('demo_bot_voice', $data['demo_bot_voice']);
         SiteSetting::set('demo_customer_voice', $data['demo_customer_voice']);
         SiteSetting::set('elevenlabs_api_key', $data['elevenlabs_api_key'] ?? '');
+        SiteSetting::set('tts_provider', $data['tts_provider']);
+        SiteSetting::set('elevenlabs_voice', $data['elevenlabs_voice'] ?? '');
+        SiteSetting::set('elevenlabs_demo_bot_voice', $data['elevenlabs_demo_bot_voice'] ?? '');
+        SiteSetting::set('elevenlabs_demo_customer_voice', $data['elevenlabs_demo_customer_voice'] ?? '');
         Cache::forget('elevenlabs.voices');
 
         return back();
@@ -451,9 +480,12 @@ class AdminController extends Controller
 
             abort_unless($response->successful(), 502, 'Could not load ElevenLabs voices.');
 
+            // Cache a plain array, not a Collection — the database cache driver's
+            // serialized-object round trip corrupted it into an incomplete class.
             return collect($response->json('voices'))
                 ->map(fn ($v) => ['id' => $v['voice_id'], 'name' => $v['name']])
-                ->values();
+                ->values()
+                ->all();
         });
 
         return response()->json($voices);

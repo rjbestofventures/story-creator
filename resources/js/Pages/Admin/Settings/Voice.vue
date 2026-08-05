@@ -2,7 +2,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
-import { Volume2, Play, Square, Loader2, FlaskConical, KeyRound, Eye, EyeOff, CircleCheck, CircleDot } from '@lucide/vue';
+import { Volume2, Play, Square, Loader2, FlaskConical, KeyRound, Eye, EyeOff, CircleCheck, CircleDot, TriangleAlert, ShieldCheck } from '@lucide/vue';
 
 const props = defineProps({
     tts_voice: String,
@@ -12,6 +12,11 @@ const props = defineProps({
     voices: Array,
     elevenlabs_api_key: String,
     elevenlabs_env_key_set: Boolean,
+    tts_provider: String,
+    elevenlabs_voice: String,
+    elevenlabs_demo_bot_voice: String,
+    elevenlabs_demo_customer_voice: String,
+    elevenlabs_tier: String,
 });
 
 const form = useForm({
@@ -20,9 +25,17 @@ const form = useForm({
     demo_bot_voice: props.demo_bot_voice,
     demo_customer_voice: props.demo_customer_voice,
     elevenlabs_api_key: props.elevenlabs_api_key,
+    tts_provider: props.tts_provider,
+    elevenlabs_voice: props.elevenlabs_voice,
+    elevenlabs_demo_bot_voice: props.elevenlabs_demo_bot_voice,
+    elevenlabs_demo_customer_voice: props.elevenlabs_demo_customer_voice,
 });
 
 const showElevenKey = ref(false);
+const providers = [
+    { id: 'openai', label: 'OpenAI', desc: 'gpt-4o-mini-tts — currently live.' },
+    { id: 'elevenlabs', label: 'ElevenLabs', desc: 'More natural-sounding, higher cost per character.' },
+];
 
 const saved = ref(false);
 const save = () => form.post(route('admin.settings.voice.update'));
@@ -32,8 +45,8 @@ watch(() => form.recentlySuccessful, v => {
 
 // The demo narrates two sides of the interview, each in its own voice.
 const demoPickers = [
-    { key: 'demo_bot_voice', title: 'StoryBot Questions & Responses', desc: "The assistant's side of the demo interview." },
-    { key: 'demo_customer_voice', title: 'Customer Answers', desc: 'The answers that auto-type into the demo input box.' },
+    { key: 'demo_bot_voice', elevenKey: 'elevenlabs_demo_bot_voice', title: 'StoryBot Questions & Responses', desc: "The assistant's side of the demo interview." },
+    { key: 'demo_customer_voice', elevenKey: 'elevenlabs_demo_customer_voice', title: 'Customer Answers', desc: 'The answers that auto-type into the demo input box.' },
 ];
 
 // ─── Preview playback — hear a short sample in a given voice + tone ───────────
@@ -161,6 +174,47 @@ onUnmounted(stopEleven);
 
         <form @submit.prevent="save" class="space-y-4">
 
+            <!-- ─── TTS Provider ────────────────────────────────────────── -->
+            <div class="bg-white rounded-2xl p-6" style="border:1px solid #DDDDDD;">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
+                        <Volume2 class="w-4 h-4" style="color:#F5A000;" />
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black" style="color:#1A1A1A;">TTS Provider</h2>
+                        <p class="text-xs" style="color:#555555;">Which service generates every voice on the live site — episodes, interview chat, and the demo.</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-4">
+                    <button
+                        v-for="p in providers"
+                        :key="p.id"
+                        type="button"
+                        @click="form.tts_provider = p.id"
+                        class="flex flex-col items-start text-left px-4 py-3 rounded-xl border-2 transition-all duration-150 cursor-pointer"
+                        :style="form.tts_provider === p.id ? 'border-color:#F5A000; background:#FFFBF0;' : 'border-color:#DDDDDD; background:#FFFFFF;'"
+                    >
+                        <span class="text-sm font-bold" :style="form.tts_provider === p.id ? 'color:#F5A000' : 'color:#1A1A1A'">{{ p.label }}</span>
+                        <span class="text-xs mt-0.5" style="color:#888888;">{{ p.desc }}</span>
+                    </button>
+                </div>
+
+                <!-- License status — only relevant once ElevenLabs is selected -->
+                <div v-if="form.tts_provider === 'elevenlabs' && elevenlabs_tier === 'free'" class="flex items-start gap-2.5 rounded-xl px-4 py-3" style="background:#FEF2F2; border:1px solid #FECACA;">
+                    <TriangleAlert class="w-4 h-4 mt-0.5 shrink-0" style="color:#DC2626;" />
+                    <p class="text-sm" style="color:#DC2626;">Your ElevenLabs account is on the <strong>Free</strong> plan, which does not permit commercial use. Saving this as the live provider will route real site traffic through it — upgrade to a paid plan first.</p>
+                </div>
+                <div v-else-if="form.tts_provider === 'elevenlabs' && elevenlabs_tier" class="flex items-start gap-2.5 rounded-xl px-4 py-3" style="background:#F0FDF4; border:1px solid #BBF7D0;">
+                    <ShieldCheck class="w-4 h-4 mt-0.5 shrink-0" style="color:#16A34A;" />
+                    <p class="text-sm" style="color:#16A34A;">Your ElevenLabs account is on the <strong>{{ elevenlabs_tier }}</strong> plan, which permits commercial use.</p>
+                </div>
+                <div v-else-if="form.tts_provider === 'elevenlabs'" class="flex items-start gap-2.5 rounded-xl px-4 py-3" style="background:#FEF2F2; border:1px solid #FECACA;">
+                    <TriangleAlert class="w-4 h-4 mt-0.5 shrink-0" style="color:#DC2626;" />
+                    <p class="text-sm" style="color:#DC2626;">Could not confirm your ElevenLabs plan — check the API key below before going live.</p>
+                </div>
+            </div>
+
             <!-- ─── Voice selection ──────────────────────────────────────── -->
             <div class="bg-white rounded-2xl p-6" style="border:1px solid #DDDDDD;">
                 <div class="flex items-center gap-3 mb-5">
@@ -173,7 +227,7 @@ onUnmounted(stopEleven);
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div v-if="form.tts_provider === 'openai'" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div
                         v-for="v in voices"
                         :key="v.id"
@@ -201,6 +255,14 @@ onUnmounted(stopEleven);
                         </button>
                     </div>
                 </div>
+                <select
+                    v-else
+                    v-model="form.elevenlabs_voice"
+                    class="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                    style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
+                >
+                    <option v-for="v in elevenVoices" :key="v.id" :value="v.id">{{ v.name }}</option>
+                </select>
             </div>
 
             <!-- ─── Demo voices — one per side of the demo interview ──────── -->
@@ -220,7 +282,7 @@ onUnmounted(stopEleven);
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div v-if="form.tts_provider === 'openai'" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     <div
                         v-for="v in voices"
                         :key="v.id"
@@ -248,10 +310,18 @@ onUnmounted(stopEleven);
                         </button>
                     </div>
                 </div>
+                <select
+                    v-else
+                    v-model="form[picker.elevenKey]"
+                    class="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                    style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
+                >
+                    <option v-for="v in elevenVoices" :key="v.id" :value="v.id">{{ v.name }}</option>
+                </select>
             </div>
 
-            <!-- ─── Speaking style ───────────────────────────────────────── -->
-            <div class="bg-white rounded-2xl p-6" style="border:1px solid #DDDDDD;">
+            <!-- ─── Speaking style — OpenAI only ───────────────────────────── -->
+            <div v-if="form.tts_provider === 'openai'" class="bg-white rounded-2xl p-6" style="border:1px solid #DDDDDD;">
                 <div class="flex items-center gap-3 mb-5">
                     <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
                         <Volume2 class="w-4 h-4" style="color:#F5A000;" />
