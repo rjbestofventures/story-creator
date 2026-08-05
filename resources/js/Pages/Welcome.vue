@@ -298,6 +298,53 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
             </div>
         </section>
 
+        <!-- Free Content for Verified Business Partners -->
+        <section class="flex flex-col justify-center px-6 py-20" style="background-color: #FFFFFF;">
+            <div class="max-w-5xl mx-auto w-full">
+
+                <!-- Header -->
+                <div class="text-center mb-10">
+                    <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #555555;">Partner Program</p>
+                    <h2 class="text-4xl md:text-5xl font-black" style="color: #1A1A1A;">Free Content for Verified Business Partners</h2>
+                </div>
+
+                <!-- Partner Banner -->
+                <div class="rounded-2xl p-8 md:p-10 flex flex-col md:flex-row md:items-center gap-8" style="background-color: #1A1A1A;">
+                    <!-- Left: logo + info -->
+                    <div class="flex items-start gap-5 flex-1">
+                        <div class="relative shrink-0">
+                            <div class="w-20 h-20 rounded-xl flex items-center justify-center text-white font-black text-sm text-center leading-tight" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
+                                BEST<br/>LOCAL
+                            </div>
+                        </div>
+                        <div>
+                            <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">StoryCreator.Bot Partnership Program</span>
+                            <h3 class="text-3xl md:text-4xl font-black text-white">Verified Business Partners Pricing Plans</h3>
+                            <p class="text-base mb-1" style="color: #888888;">Six months
+                                <span class="font-bold uppercase" style="color: #F5A000;">free content</span> for
+                                <span class="font-bold text-2xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Verified Local Businesses</span>
+                            </p>
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1.5 mt-4">
+                                <span v-for="f in partnerFeatures"
+                                    :key="f" class="flex items-center gap-1.5 text-sm" style="color: #AAAAAA;">
+                                    <Check class="w-3.5 h-3.5 shrink-0" style="color: #F5A000;" :stroke-width="3" />
+                                    {{ f }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Right: CTA -->
+                    <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
+                        <Link :href="route('login')" class="flex items-center gap-2 px-7 py-3 rounded-lg font-bold text-base transition hover:opacity-90" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
+                            Login <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                        </Link>
+                        <Link :href="route('partner')" class="text-sm underline" style="color: #888888;">Learn how to become a verified partner →</Link>
+                    </div>
+                </div>
+
+            </div>
+        </section>
+
         <!-- Pricing -->
         <section class="flex flex-col justify-center px-6 py-20" style="background-color: #FAFAF8;">
             <div class="max-w-5xl mx-auto w-full">
@@ -306,46 +353,10 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 <div class="text-center mb-10">
                     <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #555555;">Pricing</p>
                     <h2 class="text-4xl md:text-5xl font-black mb-3" style="color: #1A1A1A;">Simple, Transparent Pricing</h2>
-                    <p class="text-sm" style="color: #555555;">Partners get six months free, or buy a story package when you need one. No subscription — credits never expire.</p>
+                    <p class="text-sm font-bold tracking-wide uppercase" style="color: #2BBDA8;">Renew, Refresh or Get More From Your Plan After Your Free Start-Up Package</p>
                 </div>
 
                 <!-- ═══ Verified Business Partners Pricing Plans ═══ -->
-
-                <!-- Partner Banner -->
-                <div class="rounded-2xl p-6 mb-6 flex flex-col md:flex-row md:items-center gap-6" style="background-color: #1A1A1A;">
-                    <!-- Left: logo + info -->
-                    <div class="flex items-start gap-4 flex-1">
-                        <div class="relative shrink-0">
-                            <div class="w-14 h-14 rounded-xl flex items-center justify-center text-white font-black text-xs text-center leading-tight" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                                BEST<br/>LOCAL
-                            </div>
-                        </div>
-                        <div>
-                            <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">StoryCreator.Bot Partnership Program</span>
-                            <h3 class="text-2xl font-black text-white">Verified Business Partners Pricing Plans</h3>
-                            <p class="text-sm mb-1" style="color: #888888;">Six months
-                                <span class="font-bold uppercase" style="color: #F5A000;">free content</span> for
-                                <span class="font-bold text-xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Verified Local Businesses</span>
-                            </p>
-                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1 mt-3">
-                                <span v-for="f in partnerFeatures"
-                                    :key="f" class="flex items-center gap-1.5 text-xs" style="color: #AAAAAA;">
-                                    <Check class="w-3 h-3 shrink-0" style="color: #F5A000;" :stroke-width="3" />
-                                    {{ f }}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                    <!-- Right: CTA -->
-                    <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
-                        <Link :href="route('login')" class="flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                            Login <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                        </Link>
-                        <Link :href="route('partner')" class="text-xs underline" style="color: #888888;">Learn how to become a verified partner →</Link>
-                    </div>
-                </div>
-
-                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #2BBDA8;">Renew, Refresh or Get More From Your Plan After Your Free Start-Up Package</p>
 
                 <!-- Partner Packs -->
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
