@@ -210,10 +210,6 @@ onUnmounted(stopEleven);
                     <ShieldCheck class="w-4 h-4 mt-0.5 shrink-0" style="color:#16A34A;" />
                     <p class="text-sm" style="color:#16A34A;">Your ElevenLabs account is on the <strong>{{ elevenlabs_tier }}</strong> plan, which permits commercial use.</p>
                 </div>
-                <div v-else-if="form.tts_provider === 'elevenlabs'" class="flex items-start gap-2.5 rounded-xl px-4 py-3" style="background:#FEF2F2; border:1px solid #FECACA;">
-                    <TriangleAlert class="w-4 h-4 mt-0.5 shrink-0" style="color:#DC2626;" />
-                    <p class="text-sm" style="color:#DC2626;">Could not confirm your ElevenLabs plan — check the API key below before going live.</p>
-                </div>
             </div>
 
             <!-- ─── Voice selection ──────────────────────────────────────── -->
