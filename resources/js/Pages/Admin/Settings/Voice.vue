@@ -2,6 +2,7 @@
 import { ref, watch, onMounted, onUnmounted } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
+import ElevenLabsVoicePicker from '@/Components/ElevenLabsVoicePicker.vue';
 import { Volume2, Play, Square, Loader2, FlaskConical, KeyRound, Eye, EyeOff, CircleCheck, CircleDot, TriangleAlert, ShieldCheck } from '@lucide/vue';
 
 const props = defineProps({
@@ -255,14 +256,13 @@ onUnmounted(stopEleven);
                         </button>
                     </div>
                 </div>
-                <select
+                <ElevenLabsVoicePicker
                     v-else
                     v-model="form.elevenlabs_voice"
-                    class="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-                    style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
-                >
-                    <option v-for="v in elevenVoices" :key="v.id" :value="v.id">{{ v.name }}</option>
-                </select>
+                    :voices="elevenVoices"
+                    :disabled="elevenLoadingVoices"
+                    :placeholder="elevenLoadingVoices ? 'Loading voices…' : 'Select a voice…'"
+                />
             </div>
 
             <!-- ─── Demo voices — one per side of the demo interview ──────── -->
@@ -310,14 +310,13 @@ onUnmounted(stopEleven);
                         </button>
                     </div>
                 </div>
-                <select
+                <ElevenLabsVoicePicker
                     v-else
                     v-model="form[picker.elevenKey]"
-                    class="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
-                    style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
-                >
-                    <option v-for="v in elevenVoices" :key="v.id" :value="v.id">{{ v.name }}</option>
-                </select>
+                    :voices="elevenVoices"
+                    :disabled="elevenLoadingVoices"
+                    :placeholder="elevenLoadingVoices ? 'Loading voices…' : 'Select a voice…'"
+                />
             </div>
 
             <!-- ─── Speaking style — OpenAI only ───────────────────────────── -->
@@ -407,16 +406,13 @@ onUnmounted(stopEleven);
                 <div class="flex flex-col gap-3">
                     <div>
                         <label class="block text-xs font-semibold mb-1.5" style="color:#1A1A1A;">Voice</label>
-                        <select
+                        <ElevenLabsVoicePicker
                             v-if="!elevenVoicesError"
                             v-model="elevenVoiceId"
+                            :voices="elevenVoices"
                             :disabled="elevenLoadingVoices || elevenVoices.length === 0"
-                            class="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                            style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
-                        >
-                            <option v-if="elevenLoadingVoices" value="">Loading voices…</option>
-                            <option v-for="v in elevenVoices" :key="v.id" :value="v.id">{{ v.name }}</option>
-                        </select>
+                            :placeholder="elevenLoadingVoices ? 'Loading voices…' : 'Select a voice…'"
+                        />
                         <input
                             v-else
                             v-model="elevenVoiceId"
