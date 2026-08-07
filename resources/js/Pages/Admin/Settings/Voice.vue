@@ -261,7 +261,6 @@ onUnmounted(stopEleven);
                     v-model="form.elevenlabs_voice"
                     :voices="elevenVoices"
                     :disabled="elevenLoadingVoices"
-                    :placeholder="elevenLoadingVoices ? 'Loading voices…' : 'Select a voice…'"
                 />
             </div>
 
@@ -315,7 +314,6 @@ onUnmounted(stopEleven);
                     v-model="form[picker.elevenKey]"
                     :voices="elevenVoices"
                     :disabled="elevenLoadingVoices"
-                    :placeholder="elevenLoadingVoices ? 'Loading voices…' : 'Select a voice…'"
                 />
             </div>
 
@@ -411,7 +409,6 @@ onUnmounted(stopEleven);
                             v-model="elevenVoiceId"
                             :voices="elevenVoices"
                             :disabled="elevenLoadingVoices || elevenVoices.length === 0"
-                            :placeholder="elevenLoadingVoices ? 'Loading voices…' : 'Select a voice…'"
                         />
                         <input
                             v-else
