@@ -48,29 +48,22 @@ const choose = (voice) => {
             />
         </div>
 
-        <div class="rounded-lg overflow-hidden" style="border:1px solid #DDDDDD;">
-            <table class="w-full text-sm border-collapse">
-                <tbody>
-                    <tr
-                        v-for="v in paged"
-                        :key="v.id"
-                        @click="choose(v)"
-                        class="transition-colors"
-                        :class="[!disabled && v.id !== modelValue && 'cursor-pointer hover:bg-[#FAFAF8]', disabled && 'opacity-50']"
-                        :style="v.id === modelValue ? 'background:#FFFBF0;' : ''"
-                    >
-                        <td class="px-3 py-2" :style="v.id === modelValue ? 'color:#F5A000; font-weight:700;' : 'color:#1A1A1A;'">{{ v.name }}</td>
-                        <td class="px-3 py-2 w-8 text-right">
-                            <Check v-if="v.id === modelValue" class="w-3.5 h-3.5 inline-block shrink-0" style="color:#F5A000;" />
-                        </td>
-                    </tr>
-                    <tr v-if="paged.length === 0">
-                        <td colspan="2" class="px-3 py-4 text-center text-sm" style="color:#AAAAAA;">
-                            {{ voices.length === 0 ? 'Loading voices…' : `No voices match "${search}".` }}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button
+                v-for="v in paged"
+                :key="v.id"
+                type="button"
+                :disabled="disabled"
+                @click="choose(v)"
+                class="flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border-2 text-left text-sm transition-all duration-150 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                :style="v.id === modelValue ? 'border-color:#F5A000; background:#FFFBF0;' : 'border-color:#DDDDDD; background:#FFFFFF;'"
+            >
+                <span class="truncate" :style="v.id === modelValue ? 'color:#F5A000; font-weight:700;' : 'color:#1A1A1A;'">{{ v.name }}</span>
+                <Check v-if="v.id === modelValue" class="w-3.5 h-3.5 shrink-0" style="color:#F5A000;" />
+            </button>
+            <p v-if="paged.length === 0" class="col-span-full px-3 py-4 text-center text-sm" style="color:#AAAAAA;">
+                {{ voices.length === 0 ? 'Loading voices…' : `No voices match "${search}".` }}
+            </p>
         </div>
 
         <div v-if="totalPages > 1" class="flex items-center justify-between mt-2">
