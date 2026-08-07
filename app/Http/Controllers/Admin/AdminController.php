@@ -428,7 +428,6 @@ class AdminController extends Controller
         SiteSetting::set('elevenlabs_voice', $data['elevenlabs_voice'] ?? '');
         SiteSetting::set('elevenlabs_demo_bot_voice', $data['elevenlabs_demo_bot_voice'] ?? '');
         SiteSetting::set('elevenlabs_demo_customer_voice', $data['elevenlabs_demo_customer_voice'] ?? '');
-        Cache::forget('elevenlabs.voices');
 
         return back();
     }
@@ -474,32 +473,21 @@ class AdminController extends Controller
 
     public function elevenlabsVoices(): JsonResponse
     {
-        $cacheKey = 'elevenlabs.voices';
-        $voices = Cache::get($cacheKey);
+        // Fetched fresh on every load, uncached — this only runs when an admin opens
+        // the Voice settings page, and it needs to reflect voices added or cloned in
+        // the ElevenLabs account immediately, not up to an hour later.
+        //
+        // No voice_type filter — includes premade defaults plus anything the account
+        // has added from the Voice Library or cloned itself.
+        $response = Http::withHeaders(['xi-api-key' => config('services.elevenlabs.key')])
+            ->get('https://api.elevenlabs.io/v2/voices', ['page_size' => 100]);
 
-        // Self-heals a previously-cached entry that isn't a plain list of voices —
-        // e.g. a Collection object that survived from before this endpoint switched
-        // to caching arrays, which the database cache driver corrupts on unserialize.
-        if (! is_array($voices) || ! array_is_list($voices)) {
-            Cache::forget($cacheKey);
-            $voices = null;
-        }
+        abort_unless($response->successful(), 502, 'Could not load ElevenLabs voices.');
 
-        if ($voices === null) {
-            // No voice_type filter — includes premade defaults plus anything the
-            // account has added from the Voice Library or cloned itself.
-            $response = Http::withHeaders(['xi-api-key' => config('services.elevenlabs.key')])
-                ->get('https://api.elevenlabs.io/v2/voices', ['page_size' => 100]);
-
-            abort_unless($response->successful(), 502, 'Could not load ElevenLabs voices.');
-
-            $voices = collect($response->json('voices'))
-                ->map(fn ($v) => ['id' => $v['voice_id'], 'name' => $v['name']])
-                ->values()
-                ->all();
-
-            Cache::put($cacheKey, $voices, now()->addHour());
-        }
+        $voices = collect($response->json('voices'))
+            ->map(fn ($v) => ['id' => $v['voice_id'], 'name' => $v['name']])
+            ->values()
+            ->all();
 
         return response()->json($voices);
     }
