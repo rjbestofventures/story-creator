@@ -23,6 +23,15 @@ const faqVisible = ref(4);
 const visibleFaqs = computed(() => faqs.slice(0, faqVisible.value));
 const showMoreFaqs = () => { faqVisible.value += 4; };
 
+// "Why this matters" cards clamp their body to 2 lines until expanded.
+const whyCards = [
+    { title: 'Starting out', bg: '#FFF8EC', body: "Let's face it. There are already companies out there offering the same services you do. Every buyer, every single one, gets their services from the people and companies they trusted most at one time. You are not competing on what you offer. You are competing on whether they trust you enough to try you out." },
+    { title: 'Holding ground', bg: '#FDEFD6', body: "The big players already have the relationships and the client base. There is always someone new who can move faster, charge less, and take risks you have learned not to take. You do good work every day. Some days that is still not enough to be seen." },
+    { title: 'Staying on top', bg: '#FBE0A8', body: "You built this by holding to high standards, delivering on them, and adapting when the ground shifted under you. That is what got you here, and word of mouth used to carry it forward for you. Now, in social media, an algorithm decides who gets recommended, and it might not have ever heard of you or your company. You have not lost customers. You have lost the thing that used to bring them." },
+];
+const expandedCards = ref([false, false, false]);
+const toggleCard = (i) => { expandedCards.value[i] = !expandedCards.value[i]; };
+
 // Pay to Play pricing is hidden for now per stakeholder feedback.
 const showPayToPlay = false;
 
@@ -226,6 +235,55 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 </button>
             </div>
         </main>
+
+        <!-- Why This Matters -->
+        <section class="px-6 py-20" style="background-color: #FFFFFF;">
+            <div class="max-w-6xl mx-auto text-center">
+
+                <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #8A8F98;">Why This Matters</p>
+                <h2 class="text-4xl md:text-5xl font-black mb-16" style="color: #15171C;">
+                    Every business has its own
+                    <span style="color: #F5A623;">story</span> to tell
+                </h2>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-7 text-left mb-14">
+                    <div
+                        v-for="(card, i) in whyCards"
+                        :key="card.title"
+                        class="flex flex-col items-start rounded-2xl p-8 transition-all duration-200 hover:-translate-y-1"
+                        :style="{ backgroundColor: card.bg, border: '1px solid #ECEEF1' }"
+                    >
+                        <h3 class="text-lg font-bold mb-3.5" style="color: #15171C;">{{ card.title }}</h3>
+                        <p
+                            class="text-[15px] leading-relaxed"
+                            style="color: #5B6069;"
+                            :class="expandedCards[i] ? '' : 'line-clamp-2'"
+                        >
+                            {{ card.body }}
+                        </p>
+                        <button
+                            type="button"
+                            @click="toggleCard(i)"
+                            class="mt-3.5 text-sm font-bold cursor-pointer hover:underline"
+                            style="color: #F5A623;"
+                        >
+                            {{ expandedCards[i] ? 'See less' : 'See more' }}
+                        </button>
+                    </div>
+                </div>
+
+                <div class="rounded-2xl p-9 md:p-10 text-left" style="background: linear-gradient(90deg, #F0951C 0%, #F7C948 100%);">
+                    <p class="text-xs font-bold tracking-widest uppercase mb-2.5" style="color: #FFF2DF;">The Tool</p>
+                    <p class="text-3xl font-black mb-3.5" style="color: #15171C;">StoryCreator.Bot</p>
+                    <p class="text-[15px] leading-relaxed max-w-2xl" style="color: #3A2A12;">
+                        One conversation, thirty minutes, in your own voice. Whether you're introducing yourself,
+                        proving reliability, or protecting a legacy, this is the tool that turns your story into
+                        content you actually own.
+                    </p>
+                </div>
+
+            </div>
+        </section>
 
         <!-- How It Works -->
         <section class="bg-white min-h-screen flex items-center px-6">
