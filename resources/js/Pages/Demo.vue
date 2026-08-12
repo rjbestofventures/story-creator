@@ -29,17 +29,17 @@ const signUpOpen = ref(false);
 
 // ─── Baked demo dataset — same for everyone, no backend, no AI tokens ─────────
 const basics = {
-    business_name: 'Tammy Spa',
-    industry: 'Health & Wellness',
-    business_url: 'tammyspa.com',
-    linkedin_url: 'linkedin.com/in/tammy-spa',
-    social_url: 'instagram.com/tammyspa',
-    biography: 'Founder-led wellness spa focused on personalized, science-backed care — peptides, biohacking, and protocols built around each client rather than a generic template.',
-    services: 'Personalized wellness consultations, peptide therapy, biohacking protocols, recovery and longevity treatments.',
+    business_name: 'Barnacle Busters',
+    industry: 'Yacht Maintenance',
+    business_url: 'barnaclebusters.com',
+    linkedin_url: 'linkedin.com/in/barnaclebusters',
+    social_url: 'facebook.com/barnaclebusters',
+    biography: 'Barnacle Busters offers Yacht Maintenance services Palm Beach, Broward, and Martin Counties with fully trained, experienced, and certified professional divers. Our large fleet of service vehicles will service your vessel right at your dock or marina.',
+    services: 'Services include Underwater Inspections and Photography and one time boat bottom cleanings.',
 };
 
 // Hover tooltips describing each locked demo field, matching the live form.
-const DEMO_LOCK_HINT = 'This is a pre-filled example for Tammy Spa. The fields are locked — just click through to see how StoryBot works.';
+const DEMO_LOCK_HINT = 'This is a pre-filled example for Barnacle Busters. The fields are locked — just click through to see how StoryBot works.';
 const fieldHints = {
     business_name: DEMO_LOCK_HINT,
     business_url:  DEMO_LOCK_HINT,
@@ -54,36 +54,36 @@ const fieldHints = {
 // between reactions and the next question — identical shape to the real interview.
 const demoMessages = [
     { role: 'user',      content: 'Please begin the interview.' },
-    { role: 'assistant', content: "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! I'll ask you a few quick questions about Tammy Spa, then turn your answers into a library of stories worth sharing. Ready?" },
+    { role: 'assistant', content: "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! I'll ask you a few quick questions about Barnacle Busters, then turn your answers into a library of stories worth sharing. Ready?" },
     { role: 'user',      content: '[Ready to begin]' },
-    { role: 'assistant', isQuestion: true, content: "How did you first get into wellness and fitness, and what was that turning point that made you realize this was going to be your life's work?" },
-    { role: 'user',      content: "I grew up with every advantage. My family had money, I had access to the best trainers, nutritionists, the whole thing. But it wasn't until my mid twenties that I realized having access and actually understanding your body are two completely different things. I started diving deep into peptides, into biohacking, into understanding how the body actually works at a cellular level. I became obsessed. Not in a vain way, but in a way where I genuinely wanted to optimize every system. That's when it clicked for me that this knowledge, this passion, it had to mean something beyond just me looking good in a mirror. I wanted to help other people experience that same transformation, that same understanding of what their body is actually capable of when you treat it right." },
-    { role: 'assistant', content: "There's something powerful in growing up with every advantage and still discovering that access and understanding are two completely different things. That obsession you found in your twenties, wanting to understand every system, is exactly the kind of origin story people trust." },
+    { role: 'assistant', isQuestion: true, content: "How did you get into this business? You don't need to make it polished. Just tell it like you would explain it to someone over coffee." },
+    { role: 'user',      content: "I started cleaning boats for extra money while I was young in northeast. For coffee or a beer. And so while my friends were, you know, partying during the summer, I was cleaning boats. And, and yeah, that's how I started it." },
+    { role: 'assistant', content: "There's something real about starting young, cleaning boats for coffee or a beer while everyone else was off partying. That kind of scrappy, hands-on beginning is exactly the origin story customers connect with." },
     { role: 'user',      content: '[Ready for next question]' },
-    { role: 'assistant', isQuestion: true, content: 'Tell me about a specific moment when you realized your approach to wellness was different from everyone else doing this work.' },
-    { role: 'user',      content: "There was this woman who came to me probably five years ago. She'd been to every spa, every wellness place in town. She was tired, frustrated, feeling like nobody really saw her or understood what she actually needed. We spent two hours just talking. Not selling, just talking. And I told her the truth about what would actually work for her body, her lifestyle, her goals. It wasn't the most expensive package. It wasn't what made us the most money. It was what she actually needed. She became a client for three years. She referred probably twenty people. That's when I understood that trust and honesty, they're the actual product. The treatments, the peptides, the protocols, they're just the delivery mechanism." },
-    { role: 'assistant', content: "You walked away from the bigger sale to give her the truth, and she paid you back with three years and twenty referrals. That is the whole philosophy in one story, trust is the product and everything else is just delivery." },
+    { role: 'assistant', isQuestion: true, content: 'What is one experience that changed the way you run your business today? Think of one specific customer, mistake, problem, mentor, job, opportunity, or turning point that taught you something you still use now.' },
+    { role: 'user',      content: "I realized that if I wanted to clean as many bottoms as I could and truly go overboard for my customers, that I would have to grow the business beyond myself. That it couldn't be me doing it. And then, as I got older and I got my family involved, it became even bigger. And now I'm proud to say my son, Rayan Danielle, is running it. And I think that answers that." },
+    { role: 'assistant', content: "That's a real turning point, understanding that going overboard for your customers meant the business had to grow beyond just you. And handing it to your son makes it a family story people will remember." },
     { role: 'user',      content: '[Ready for next question]' },
-    { role: 'assistant', isQuestion: true, content: "What do you want people to know about Tammy's spa that they won't find anywhere else?" },
-    { role: 'user',      content: "That's a good question. We don't believe in one size fits all. Every single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yeah, I'm into the latest science, the peptides, the cutting edge stuff. But I'm also into listening. I'm into understanding your life, your stress, your actual goals. And then we build something that works for you, not for some generic idea of wellness. That's the difference. That's why people come back." },
-    { role: 'assistant', content: "That is everything I need. You've given me a lot to work with, the science, the listening, the way you refuse to treat anyone like a template. Give me a moment while I put your story library together." },
+    { role: 'assistant', isQuestion: true, content: "What is something you believe about your business that you learned from experience?" },
+    { role: 'user',      content: "If you take care of people first everything comes from that." },
+    { role: 'assistant', content: "That is everything I need. Take care of people first and everything comes from that, that belief runs through your whole story. Give me a moment while I put your story library together." },
 ];
 
 const demoEpisodes = [
     {
         episode_number: 1,
-        title: 'Access Was Never Understanding',
-        content: "I grew up with every advantage. Money, the best trainers, nutritionists, all of it. And for years I assumed that was the same thing as knowing my own body.\n\nIt wasn't.\n\nIt took until my mid twenties for that to click. I started going deep, into peptides, into biohacking, into how the body actually works at a cellular level. I became obsessed, not in a vain way, but in a way where I wanted to understand every system and how to make it better.\n\nSomewhere in there it stopped being about me looking good in a mirror. I realized this knowledge could change how other people feel in their own bodies too.\n\nThat's the moment Tammy Spa really started, long before it had a name.\n\nWhat's something you had access to for years before you truly understood it?",
+        title: 'It Started With a Bucket and a Beer',
+        content: "I was just a kid up northeast, cleaning boats for extra money. Nothing glamorous. I'd do it for coffee, or a beer, whatever someone wanted to hand me.\n\nAnd while my friends were off partying all summer, I was in the water, scrubbing hulls.\n\nI didn't know it at the time, but that was the beginning of Barnacle Busters. No business plan, no big vision. Just a kid who didn't mind getting in the water and doing the work nobody else wanted to do.\n\nThat's really how it started.\n\nWhat's something you started just to make a little extra money that turned into something bigger?",
     },
     {
         episode_number: 2,
-        title: 'The Two Hours That Built Everything',
-        content: "A woman came to me about five years ago. She'd been to every spa, every wellness place in town, and she was tired. Frustrated. Feeling like nobody actually saw her.\n\nWe spent two hours just talking. Not selling. Talking.\n\nAnd then I told her the truth about what would actually work for her body and her life. It wasn't the most expensive package. It wasn't what made us the most money. It was what she needed.\n\nShe stayed a client for three years. She referred close to twenty people.\n\nThat's when I understood something I build everything around now: trust and honesty are the actual product. The treatments, the peptides, the protocols, they're just how we deliver it.\n\nWhen was the last time someone gave you the honest answer instead of the expensive one?",
+        title: 'Going Overboard Meant Growing Beyond Myself',
+        content: "At some point I realized something. If I wanted to clean as many bottoms as I could and truly go overboard for my customers, it couldn't just be me anymore.\n\nOne person only has so many hours, so many dives in a day.\n\nSo I started to grow the business beyond myself. And as I got older, I got my family involved, and it became even bigger than I ever pictured back when I was that kid with a bucket.\n\nNow I'm proud to say my son, Rayan Danielle, is running it.\n\nThat's the part I'm most proud of. Not the fleet, not the counties we cover. The family.\n\nWhat would it take for your business to grow beyond just you?",
     },
     {
         episode_number: 3,
-        title: "A Puzzle That's Only Yours",
-        content: "Here's what you won't find anywhere else at Tammy Spa: we don't believe in one size fits all.\n\nEvery single person who walks through that door gets treated like we're solving a puzzle that's unique to them. Yes, I'm into the latest science, the peptides, the cutting edge protocols. But I'm just as into listening.\n\nInto understanding your life, your stress, your actual goals. And then building something that works for you, not for some generic idea of wellness.\n\nThat's the difference. That's why people come back, and why they bring the people they care about.\n\nYou are not a template here. You never will be.\n\nIf your wellness plan was built around your real life, what would you finally have room for?",
+        title: 'Take Care of People First',
+        content: "After all these years, all the boats, all the divers, all the growth, here's what I believe more than anything.\n\nIf you take care of people first, everything comes from that.\n\nThe customers, the crew, my own family. Take care of them first, do right by them, and the rest follows. The vessels get serviced right at the dock. The work gets done by people who are trained and certified and actually care.\n\nThat's not a slogan. That's just how we've always done it, since the beginning.\n\nWhen you put people first, what have you seen come back to you?",
     },
 ];
 
@@ -555,7 +555,7 @@ const goBack = () => {
                 <div class="flex-1 max-w-sm">
                     <div class="flex items-center justify-between mb-1">
                         <span class="text-xs font-semibold text-[#555555]">
-                            <template v-if="phase === 0">Live Demo — Tammy Spa</template>
+                            <template v-if="phase === 0">Live Demo — Barnacle Busters</template>
                             <template v-else-if="phase === 1">{{ complete ? 'Interview complete' : `${answerCount} of 3 answered` }}</template>
                             <template v-else>Your story library</template>
                         </span>
@@ -594,7 +594,7 @@ const goBack = () => {
             <div class="w-full max-w-lg">
                 <div class="mb-6 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-[#555555]">
                     <span class="font-bold text-[#1A1A1A]">Demo mode.</span>
-                    This is a pre-filled example for Tammy Spa. The fields are locked — just click through to see how StoryBot works.
+                    This is a pre-filled example for Barnacle Busters. The fields are locked — just click through to see how StoryBot works.
                 </div>
 
                 <div class="mb-8 text-center">
@@ -817,7 +817,7 @@ const goBack = () => {
                     </div>
                 </div>
                 <h2 class="text-2xl font-black text-[#1A1A1A] mb-2">Crafting your story…</h2>
-                <p class="text-[#555555] mb-6">StoryCreator is writing episodes for <span class="font-semibold text-[#1A1A1A]">Tammy Spa</span>.</p>
+                <p class="text-[#555555] mb-6">StoryCreator is writing episodes for <span class="font-semibold text-[#1A1A1A]">Barnacle Busters</span>.</p>
                 <div class="flex items-center justify-center gap-2">
                     <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:0ms" />
                     <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:150ms" />
@@ -833,7 +833,7 @@ const goBack = () => {
                     <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-amber-50 mb-4">
                         <Check class="w-7 h-7 text-[#F5A000]" />
                     </div>
-                    <h1 class="text-2xl font-black text-[#1A1A1A] mb-2">Tammy Spa's story library</h1>
+                    <h1 class="text-2xl font-black text-[#1A1A1A] mb-2">Barnacle Busters' story library</h1>
                     <p class="text-[#555555] mb-6">These Demo Episodes are written from the interview above.</p>
 
                     <button

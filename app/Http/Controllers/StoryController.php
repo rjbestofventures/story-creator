@@ -430,6 +430,33 @@ class StoryController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // Interview answers — owner-facing Q&A viewer
+    // -------------------------------------------------------------------------
+
+    public function answers(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+
+        $story->load('businessProfile');
+        $profile = $story->businessProfile;
+
+        return Inertia::render('Stories/Answers', [
+            'interview' => [
+                'story_id' => $story->id,
+                'title' => $story->title,
+                'business_name' => $profile?->business_name,
+                'industry' => $profile?->industry,
+                'business_url' => $profile?->business_url,
+                'linkedin_url' => $profile?->linkedin_url,
+                'social_url' => $profile?->social_url,
+                'biography' => $profile?->biography,
+                'services' => $profile?->services,
+                'pairs' => $profile?->interviewQaPairs() ?? [],
+            ],
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
     // Lightweight status poll
     // -------------------------------------------------------------------------
 

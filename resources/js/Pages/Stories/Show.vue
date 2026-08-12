@@ -10,7 +10,7 @@ import {
 import {
     ArrowLeft, Copy, Check, Sparkles, Loader2, Plus,
     Wand2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, RotateCcw, ArrowRight, Pencil, RefreshCcw,
-    Volume2, VolumeX, Headphones, Square,
+    Volume2, VolumeX, Headphones, Square, ClipboardList,
 } from 'lucide-vue-next';
 
 const props = defineProps({
@@ -708,19 +708,30 @@ const restoreRevision = async (ep) => {
                         <span class="text-[#F5A000] font-semibold">{{ episodes.length }} episode{{ episodes.length === 1 ? '' : 's' }}</span> ready to publish.
                     </p>
 
-                    <button
-                        v-if="episodes.length > 0"
-                        type="button"
-                        @click="toggleFullStory"
-                        class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer"
-                        :class="storyPlaying
-                            ? 'border-2 border-[#F5A000]/40 bg-amber-50 text-[#F5A000]'
-                            : 'bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A] hover:opacity-90'"
-                    >
-                        <Square v-if="storyPlaying" class="w-4 h-4 fill-current" />
-                        <Headphones v-else class="w-4 h-4" />
-                        {{ storyPlaying ? 'Stop Listening' : 'Listen to Your Story' }}
-                    </button>
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                        <button
+                            v-if="episodes.length > 0"
+                            type="button"
+                            @click="toggleFullStory"
+                            class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer"
+                            :class="storyPlaying
+                                ? 'border-2 border-[#F5A000]/40 bg-amber-50 text-[#F5A000]'
+                                : 'bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A] hover:opacity-90'"
+                        >
+                            <Square v-if="storyPlaying" class="w-4 h-4 fill-current" />
+                            <Headphones v-else class="w-4 h-4" />
+                            {{ storyPlaying ? 'Stop Listening' : 'Listen to Your Story' }}
+                        </button>
+
+                        <Link
+                            v-if="!isDemo"
+                            :href="route('stories.answers', story.id)"
+                            class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm bg-white text-[#1A1A1A] border border-[#DDDDDD] transition-all duration-200 hover:bg-[#FAFAF8]"
+                        >
+                            <ClipboardList class="w-4 h-4" />
+                            View My Answers
+                        </Link>
+                    </div>
                 </div>
 
                 <!-- Bulk AI Refine -->

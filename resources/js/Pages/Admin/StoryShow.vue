@@ -77,8 +77,8 @@ const formatLabel = (format) => {
                     </div>
                     <Link
                         :href="route('grill.show', story.id)"
-                        class="flex items-center gap-1.5 text-xs font-bold hover:underline"
-                        style="color: #F5A000;"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition hover:bg-amber-50"
+                        style="border: 1.5px solid #F5A000; color: #F5A000;"
                     >
                         <ClipboardList class="w-3.5 h-3.5" />
                         View Answers

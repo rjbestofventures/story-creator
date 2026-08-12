@@ -18,6 +18,11 @@ const props = defineProps({
 const openFaq = ref(null);
 const learnMorePack = ref(null);
 
+// FAQ reveals 4 at a time; "See more" loads the next 4 until all are shown.
+const faqVisible = ref(4);
+const visibleFaqs = computed(() => faqs.slice(0, faqVisible.value));
+const showMoreFaqs = () => { faqVisible.value += 4; };
+
 // Pay to Play pricing is hidden for now per stakeholder feedback.
 const showPayToPlay = false;
 
@@ -137,7 +142,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
         <AnnouncementBar />
 
         <!-- Nav -->
-        <header class="bg-white flex items-center justify-between px-6 md:px-8 py-4">
+        <header class="bg-white flex items-center justify-between px-6 md:px-8 py-2.5">
             <a href="/" class="flex items-center text-xl font-bold tracking-tight">
                 <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">StoryCreator</span>
                 <span style="color: #1A1A1A;">.Bot</span>
@@ -194,36 +199,8 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
             </h1>
 
             <!-- Tagline -->
-            <p class="text-lg font-bold max-w-xl mb-6" style="color: #1A1A1A;">
+            <p class="text-lg font-bold max-w-xl mb-10" style="color: #1A1A1A;">
                 Technology Changes. Human Nature Doesn't.
-            </p>
-
-            <!-- Subheading -->
-            <p class="max-w-3xl text-lg leading-relaxed mb-4" style="color: #555555;">
-                Word of mouth, always counted on by local service businesses to sustain and
-                grow, now moves at the speed of digital on social media. A recommendation that
-                once traveled one conversation at a time now reaches thousands of neighbors in
-                real time, not over time. At the same time, stars, reviews, and rankings are now
-                bought and sold, so they can't be trusted.
-            </p>
-            <p class="max-w-3xl text-lg leading-relaxed mb-4" style="color: #555555;">
-                In this new environment customers still choose the professionals they get to know
-                and trust. That's why your own story has become the most important distinction. No
-                two companies, even in the same trade, are built on the same values and principles.
-                Yours are as unique as your thumbprint, and sharing authenticity is what engages
-                customers in the social sphere.
-            </p>
-            <p class="max-w-3xl text-lg leading-relaxed mb-4" style="color: #555555;">
-                Most owners have come to understand this, but the problem is now a practical one.
-                Approved content, effective or not, is a huge monthly expense, or requires time and
-                attention you don't have.
-            </p>
-            <p class="max-w-3xl text-lg leading-relaxed font-bold mb-10" style="color: #1A1A1A;">
-                We've built <strong>StoryCreator.Bot</strong> to fix both with one 30-minute
-                conversation. You dictate honest answers to simple business questions and
-                immediately receive ready-to-publish content in your voice, whether you're new and
-                building trust or established and protecting the great reputation you spent years
-                earning.
             </p>
 
             <!-- CTAs -->
@@ -533,9 +510,9 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 <!-- Accordion -->
                 <div class="bg-white rounded-2xl overflow-hidden" style="border: 1px solid #DDDDDD;">
                     <div
-                        v-for="(faq, i) in faqs"
+                        v-for="(faq, i) in visibleFaqs"
                         :key="i"
-                        :class="i < faqs.length - 1 ? 'border-b' : ''"
+                        :class="i < visibleFaqs.length - 1 ? 'border-b' : ''"
                         style="border-color: #DDDDDD;"
                     >
                         <button
@@ -552,6 +529,19 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                             {{ faq.a }}
                         </div>
                     </div>
+                </div>
+
+                <!-- See more -->
+                <div v-if="faqVisible < faqs.length" class="mt-6 text-center">
+                    <button
+                        type="button"
+                        @click="showMoreFaqs"
+                        class="inline-flex items-center gap-2 px-6 py-2.5 rounded-lg font-bold text-sm transition hover:bg-amber-50 cursor-pointer"
+                        style="border: 2px solid #F5A000; color: #1A1A1A;"
+                    >
+                        See more
+                        <ChevronDown class="w-4 h-4" :stroke-width="2.5" />
+                    </button>
                 </div>
 
             </div>

@@ -10,6 +10,10 @@ const open = defineModel('open', { default: false });
 
 const submitted = ref(false);
 
+// "Subscribe now" sends ready-to-join visitors straight to hosted checkout,
+// opened in a new page so they keep this tab.
+const CHECKOUT_URL = 'https://link.bestofventures.com/payment-link/6a6b5cbc7b99151a5404158c';
+
 const form = useForm({
     first_name: '',
     last_name: '',
@@ -50,8 +54,31 @@ watch(open, (isOpen) => {
             <template v-else>
                 <DialogHeader>
                     <DialogTitle class="text-[#1A1A1A]">Become a Verified Partner</DialogTitle>
-                    <DialogDescription class="text-[#555555]">Tell us how to reach you and we'll follow up about joining the program.</DialogDescription>
+                    <DialogDescription class="text-[#555555]">Share how to reach you and our team will follow up with everything you need to know about joining.</DialogDescription>
                 </DialogHeader>
+
+                <!-- Ready to join now — straight to checkout -->
+                <div class="rounded-2xl p-6 mb-2" style="background-color: #1A1A1A;">
+                    <h3 class="text-lg font-black text-white mb-1">Ready to join now</h3>
+                    <p class="text-sm mb-5" style="color: #AAAAAA;">If you already know this is right for you, go straight to checkout and get set up today.</p>
+                    <a
+                        :href="CHECKOUT_URL"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm transition hover:opacity-90"
+                        style="background-color: #FFFFFF; color: #1A1A1A;"
+                    >
+                        Subscribe now <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                    </a>
+                    <p class="text-center text-xs mt-3" style="color: #888888;">Secure checkout.</p>
+                </div>
+
+                <!-- Divider -->
+                <div class="flex items-center gap-3 my-2">
+                    <span class="h-px flex-1" style="background-color: #DDDDDD;" />
+                    <span class="text-xs font-bold tracking-widest uppercase" style="color: #AAAAAA;">Want to learn more first</span>
+                    <span class="h-px flex-1" style="background-color: #DDDDDD;" />
+                </div>
 
                 <form @submit.prevent="submit" class="space-y-4" novalidate>
                     <div>
@@ -138,7 +165,7 @@ watch(open, (isOpen) => {
                     >
                         <span v-if="form.processing">Submitting…</span>
                         <template v-else>
-                            Submit Application <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                            Send my info <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </template>
                     </button>
                 </form>
