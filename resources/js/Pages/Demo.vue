@@ -165,6 +165,11 @@ const fetchMsgAudio = async (text, idx) => {
     let url = speakMsgAudioUrls[idx];
     if (!url) {
         loadingMsgIdx.value = idx;
+        // Bound the request: TTS is a nice-to-have, so a slow or hung backend
+        // must never block the interview from playing. On timeout we abort and
+        // fall back to silent typing.
+        const controller = new AbortController();
+        const timeout = setTimeout(() => controller.abort(), 8000);
         try {
             const res = await fetch(route('demo.speak'), {
                 method: 'POST',
@@ -173,6 +178,7 @@ const fetchMsgAudio = async (text, idx) => {
                     'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
                 },
                 body: JSON.stringify({ text }),
+                signal: controller.signal,
             });
             if (!res.ok) throw new Error('Text-to-speech failed.');
             url = URL.createObjectURL(await res.blob());
@@ -180,18 +186,30 @@ const fetchMsgAudio = async (text, idx) => {
         } catch {
             return null; // preview feature — fail silently, the demo still works fine without audio
         } finally {
+            clearTimeout(timeout);
             loadingMsgIdx.value = null;
         }
     }
 
     const audio = new Audio(url);
-    await new Promise(resolve => {
+    // Wait for metadata, but never indefinitely — if it never loads, proceed
+    // and let typeOut pace itself without an audio duration.
+    await withTimeout(new Promise(resolve => {
         if (audio.readyState >= 1) resolve();
         else audio.addEventListener('loadedmetadata', resolve, { once: true });
-    });
+    }), 2000);
     await ensureFiniteDuration(audio);
     return audio;
 };
+
+// Resolves when `promise` settles or after `ms`, whichever comes first — used to
+// keep audio preparation from ever stalling the typing animation.
+const withTimeout = (promise, ms) => new Promise((resolve) => {
+    let settled = false;
+    const done = () => { if (!settled) { settled = true; resolve(); } };
+    const timer = setTimeout(done, ms);
+    promise.then(() => { clearTimeout(timer); done(); });
+});
 
 // Blob-sourced MP3s often report duration as Infinity on loadedmetadata (no
 // duration header until the browser scans the whole stream). Left alone, the
@@ -201,11 +219,18 @@ const fetchMsgAudio = async (text, idx) => {
 // near the end forces Chrome/Firefox to resolve the real duration immediately.
 const ensureFiniteDuration = (audio) => new Promise((resolve) => {
     if (Number.isFinite(audio.duration)) { resolve(); return; }
-    const onTimeUpdate = () => {
+    let done = false;
+    const finish = () => {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
         audio.removeEventListener('timeupdate', onTimeUpdate);
-        audio.currentTime = 0;
         resolve();
     };
+    const onTimeUpdate = () => { audio.currentTime = 0; finish(); };
+    // Some browsers never emit `timeupdate` for a seek on a paused blob audio,
+    // which would otherwise hang the interview — cap the wait and move on.
+    const timer = setTimeout(finish, 1500);
     audio.addEventListener('timeupdate', onTimeUpdate);
     audio.currentTime = 1e101;
 });
