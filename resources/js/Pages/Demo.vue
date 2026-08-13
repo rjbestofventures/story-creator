@@ -192,23 +192,27 @@ const fetchMsgAudio = async (text, idx) => {
     }
 
     const audio = new Audio(url);
-    // Wait for metadata, but never indefinitely — if it never loads, proceed
-    // and let typeOut pace itself without an audio duration.
-    await withTimeout(new Promise(resolve => {
-        if (audio.readyState >= 1) resolve();
-        else audio.addEventListener('loadedmetadata', resolve, { once: true });
+    // Wait for metadata, but never indefinitely. If the source is undecodable
+    // (an 'error' fires) or never loads, treat it as failed and fall back to
+    // silent typing rather than handing back an element that can't be played.
+    const loaded = await withTimeout(new Promise(resolve => {
+        if (audio.readyState >= 1) { resolve(true); return; }
+        audio.addEventListener('loadedmetadata', () => resolve(true), { once: true });
+        audio.addEventListener('error', () => resolve(false), { once: true });
     }), 2000);
+    if (!loaded || audio.error || audio.readyState < 1) return null;
+
     await ensureFiniteDuration(audio);
     return audio;
 };
 
-// Resolves when `promise` settles or after `ms`, whichever comes first — used to
-// keep audio preparation from ever stalling the typing animation.
+// Resolves with the promise's value, or `undefined` after `ms` — used to keep
+// audio preparation from ever stalling the typing animation.
 const withTimeout = (promise, ms) => new Promise((resolve) => {
     let settled = false;
-    const done = () => { if (!settled) { settled = true; resolve(); } };
-    const timer = setTimeout(done, ms);
-    promise.then(() => { clearTimeout(timer); done(); });
+    const done = (val) => { if (!settled) { settled = true; resolve(val); } };
+    const timer = setTimeout(() => done(undefined), ms);
+    promise.then((val) => { clearTimeout(timer); done(val); });
 });
 
 // Blob-sourced MP3s often report duration as Infinity on loadedmetadata (no
@@ -241,7 +245,7 @@ const playMsgAudio = async (msg, idx) => {
     speakingMsgIdx.value = idx;
     speakMsgAudio = audio;
     speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
-    speakMsgAudio.play();
+    speakMsgAudio.play().catch(() => {});
 };
 
 const toggleSpeakMessage = (msg, idx) => {
@@ -273,7 +277,7 @@ const playEpisodeAndAwaitEnd = (ep) => new Promise(async (resolve) => {
     speakingMsgIdx.value = key;
     speakMsgAudio = audio;
     speakMsgAudio.onended = () => { if (speakingMsgIdx.value === key) speakingMsgIdx.value = null; resolve(); };
-    speakMsgAudio.play();
+    speakMsgAudio.play().catch(() => {});
 });
 
 const toggleFullStory = async () => {
@@ -313,7 +317,7 @@ const typeWithSpeech = async (text, idx) => {
     speakingMsgIdx.value = idx;
     speakMsgAudio = audio;
     speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
-    speakMsgAudio.play();
+    speakMsgAudio.play().catch(() => {});
     await typeOut(text, audio.duration * 1000);
 };
 
@@ -460,7 +464,7 @@ const typeOutInput = async (text, idx = null) => {
     speakingMsgIdx.value = key;
     speakMsgAudio = audio;
     speakMsgAudio.onended = () => { if (speakingMsgIdx.value === key) speakingMsgIdx.value = null; };
-    speakMsgAudio.play();
+    speakMsgAudio.play().catch(() => {});
     return revealInput(text, audio.duration * 1000);
 };
 
