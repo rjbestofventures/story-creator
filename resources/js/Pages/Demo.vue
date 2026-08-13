@@ -144,6 +144,13 @@ const loadingMsgIdx  = ref(null);
 let speakMsgAudio     = null;
 const speakMsgAudioUrls = {}; // idx -> cached object URL
 
+// A single reusable narration element. Browsers only "bless" a media element for
+// unprompted playback the first time it plays from a user gesture; a brand-new
+// Audio() per line would need its own gesture and go silent after the first one.
+// Reusing this element — unlocked once by unlockAudio() on the Start click — keeps
+// every later line (questions, answers, episodes) playing on a fresh browser.
+const narrationEl = typeof Audio !== 'undefined' ? new Audio() : null;
+
 // Global mute — persisted so it stays off/on across visits, same as the actual interview.
 const speechMuted = ref(typeof localStorage !== 'undefined' && localStorage.getItem('sc_tts_muted') === '1');
 const toggleMute = () => {
@@ -153,57 +160,66 @@ const toggleMute = () => {
 };
 
 const stopMsgSpeaking = () => {
-    speakMsgAudio?.pause();
+    narrationEl?.pause();
     speakMsgAudio = null;
     speakingMsgIdx.value = null;
 };
 
-// Fetches (or reuses the cached) TTS audio for a message without playing it.
-// Returns an Audio element with metadata already loaded (so .duration is known
-// for pacing the typing animation), or null if synthesis failed.
-const fetchMsgAudio = async (text, idx) => {
-    let url = speakMsgAudioUrls[idx];
-    if (!url) {
-        loadingMsgIdx.value = idx;
-        // Bound the request: TTS is a nice-to-have, so a slow or hung backend
-        // must never block the interview from playing. On timeout we abort and
-        // fall back to silent typing.
-        const controller = new AbortController();
-        const timeout = setTimeout(() => controller.abort(), 8000);
-        try {
-            const res = await fetch(route('demo.speak'), {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
-                },
-                body: JSON.stringify({ text }),
-                signal: controller.signal,
-            });
-            if (!res.ok) throw new Error('Text-to-speech failed.');
-            url = URL.createObjectURL(await res.blob());
-            speakMsgAudioUrls[idx] = url;
-        } catch {
-            return null; // preview feature — fail silently, the demo still works fine without audio
-        } finally {
-            clearTimeout(timeout);
-            loadingMsgIdx.value = null;
-        }
+// Fetches (or reuses the cached) TTS audio blob URL for a line, without touching
+// the shared player. Safe to call for pre-warming while another line is playing.
+// Returns the object URL, or null if synthesis failed.
+const cacheAudioUrl = async (text, idx) => {
+    if (speakMsgAudioUrls[idx]) return speakMsgAudioUrls[idx];
+
+    loadingMsgIdx.value = idx;
+    // Bound the request: TTS is a nice-to-have, so a slow or hung backend must
+    // never block the interview. On timeout we abort and fall back to silent typing.
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+        const res = await fetch(route('demo.speak'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            },
+            body: JSON.stringify({ text }),
+            signal: controller.signal,
+        });
+        if (!res.ok) throw new Error('Text-to-speech failed.');
+        const url = URL.createObjectURL(await res.blob());
+        speakMsgAudioUrls[idx] = url;
+        return url;
+    } catch {
+        return null; // preview feature — fail silently, the demo still works fine without audio
+    } finally {
+        clearTimeout(timeout);
+        loadingMsgIdx.value = null;
+    }
+};
+
+// Loads a line's audio into the shared narration element and returns it ready to
+// play (metadata + finite duration resolved, playhead reset to the start), or null
+// if synthesis failed or the source is undecodable — in which case callers fall
+// back to silent typing.
+const prepareNarration = async (text, idx) => {
+    if (!narrationEl) return null;
+    const url = await cacheAudioUrl(text, idx);
+    if (!url) return null;
+
+    if (narrationEl.src !== url) {
+        narrationEl.src = url;
+        const loaded = await withTimeout(new Promise(resolve => {
+            narrationEl.addEventListener('loadedmetadata', () => resolve(true), { once: true });
+            narrationEl.addEventListener('error', () => resolve(false), { once: true });
+            if (narrationEl.readyState >= 1) resolve(true);
+        }), 2000);
+        if (!loaded || narrationEl.error || narrationEl.readyState < 1) return null;
     }
 
-    const audio = new Audio(url);
-    // Wait for metadata, but never indefinitely. If the source is undecodable
-    // (an 'error' fires) or never loads, treat it as failed and fall back to
-    // silent typing rather than handing back an element that can't be played.
-    const loaded = await withTimeout(new Promise(resolve => {
-        if (audio.readyState >= 1) { resolve(true); return; }
-        audio.addEventListener('loadedmetadata', () => resolve(true), { once: true });
-        audio.addEventListener('error', () => resolve(false), { once: true });
-    }), 2000);
-    if (!loaded || audio.error || audio.readyState < 1) return null;
-
-    await ensureFiniteDuration(audio);
-    return audio;
+    await ensureFiniteDuration(narrationEl);
+    narrationEl.currentTime = 0; // probing the duration may have left the head at the end
+    return narrationEl;
 };
 
 // Resolves with the promise's value, or `undefined` after `ms` — used to keep
@@ -240,12 +256,12 @@ const ensureFiniteDuration = (audio) => new Promise((resolve) => {
 });
 
 const playMsgAudio = async (msg, idx) => {
-    const audio = await fetchMsgAudio(msg.content, idx);
+    const audio = await prepareNarration(msg.content, idx);
     if (!audio) return;
     speakingMsgIdx.value = idx;
     speakMsgAudio = audio;
-    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
-    speakMsgAudio.play().catch(() => {});
+    audio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+    audio.play().catch(() => {});
 };
 
 const toggleSpeakMessage = (msg, idx) => {
@@ -272,12 +288,12 @@ let storyPlayAbort = false;
 
 const playEpisodeAndAwaitEnd = (ep) => new Promise(async (resolve) => {
     const key = `episode-${ep.episode_number}`;
-    const audio = await fetchMsgAudio(`${ep.title}. ${ep.content}`, key);
+    const audio = await prepareNarration(`${ep.title}. ${ep.content}`, key);
     if (!audio || storyPlayAbort) { resolve(); return; }
     speakingMsgIdx.value = key;
     speakMsgAudio = audio;
-    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === key) speakingMsgIdx.value = null; resolve(); };
-    speakMsgAudio.play().catch(() => {});
+    audio.onended = () => { if (speakingMsgIdx.value === key) speakingMsgIdx.value = null; resolve(); };
+    audio.play().catch(() => resolve()); // if playback is refused, don't strand the sequence
 });
 
 const toggleFullStory = async () => {
@@ -305,24 +321,24 @@ const toggleFullStory = async () => {
 // of the actual (non-demo) interview.
 const typeWithSpeech = async (text, idx) => {
     if (speechMuted.value) {
-        fetchMsgAudio(text, idx); // pre-warm the cache in the background so a later manual play is instant
+        cacheAudioUrl(text, idx); // pre-warm the cache in the background so a later manual play is instant
         await typeOut(text);
         return;
     }
 
     stopMsgSpeaking();
-    const audio = await fetchMsgAudio(text, idx);
+    const audio = await prepareNarration(text, idx);
     if (!audio) { await typeOut(text); return; }
 
     speakingMsgIdx.value = idx;
     speakMsgAudio = audio;
-    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
-    speakMsgAudio.play().catch(() => {});
-    await typeOut(text, audio.duration * 1000);
+    audio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+    audio.play().catch(() => {});
+    await typeOut(text, audio.duration * 1000, audio);
 };
 
 onUnmounted(() => {
-    speakMsgAudio?.pause();
+    narrationEl?.pause();
     storyPlayAbort = true;
     for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
     if (silenceUrl) URL.revokeObjectURL(silenceUrl);
@@ -342,14 +358,14 @@ const weighTextForTyping = (text) => {
     return { weights, total };
 };
 
-// durationMs, when given, paces the reveal to finish alongside audio of that length
-// (e.g. TTS narration) instead of the fixed default speed.
-const typeOut = (text, durationMs = null) => new Promise((resolve) => {
-    typingText.value = '';
-    isTyping.value = true;
-    typingSkip.value = false;
-
-    if (!text) { isTyping.value = false; resolve(); return; }
+// Core reveal loop shared by the question and answer sides. When an `audio`
+// element is supplied and actually playing, the reveal position is driven by the
+// audio's real currentTime, so the text can never drift from the voice and the two
+// always finish together. Until the audio starts (or if it never does, e.g. muted
+// or autoplay-blocked), it falls back to a wall-clock estimate paced to durationMs.
+const AUDIO_START_GRACE_MS = 800;
+const pacedReveal = ({ text, durationMs, audio, apply, shouldSkip, onSkip }) => new Promise((resolve) => {
+    if (!text) { resolve(); return; }
 
     const { weights, total: totalWeight } = weighTextForTyping(text);
     const prefix = new Array(text.length + 1).fill(0);
@@ -357,7 +373,7 @@ const typeOut = (text, durationMs = null) => new Promise((resolve) => {
     const avgWeight = totalWeight / text.length;
 
     const DEFAULT_CPS = 110;
-    const MIN_CPS = 12; // floor so long narration doesn't crawl unreadably slow
+    const MIN_CPS = 12;  // floor so long narration doesn't crawl unreadably slow
     const MAX_CPS = 110; // ceiling so short narration doesn't flash the text instantly
     const CPS = durationMs
         ? Math.min(MAX_CPS, Math.max(MIN_CPS, text.length / (durationMs / 1000)))
@@ -367,28 +383,54 @@ const typeOut = (text, durationMs = null) => new Promise((resolve) => {
     let i = 0;
     let elapsedWeight = 0;
     let lastTime = null;
+    let audioStarted = false;
+    const startedAt = performance.now();
 
     const tick = (ts) => {
-        if (typingSkip.value) {
-            typingText.value = text;
-            isTyping.value = false;
-            typingSkip.value = false;
-            scrollDown();
-            resolve();
-            return;
-        }
-        if (lastTime !== null) {
-            elapsedWeight += ((ts - lastTime) / 1000) * weightPerSec;
+        if (shouldSkip()) { apply(text); onSkip?.(); resolve(); return; }
+
+        if (audio && audio.currentTime > 0) audioStarted = true;
+        const audioUsable = audio && Number.isFinite(audio.duration) && audio.duration > 0;
+
+        if (audioStarted && audioUsable) {
+            // Follow the real playback clock, revealing characters linearly with
+            // elapsed audio — the voice itself supplies the pauses and rhythm, so
+            // the text stays locked to it without any punctuation weighting.
+            const target = Math.round((audio.currentTime / audio.duration) * text.length);
+            if (target > i) i = Math.min(target, text.length);
+        } else if (audio && (ts - startedAt) < AUDIO_START_GRACE_MS) {
+            // Briefly hold at the start, giving the narration a moment to begin so
+            // the text doesn't sprint ahead of a voice that's about to play.
+        } else {
+            // No audio, or it never started — pace by wall clock (with punctuation
+            // weighting to fake rhythm) so nothing stalls.
+            if (lastTime !== null) elapsedWeight += ((ts - lastTime) / 1000) * weightPerSec;
             while (i < text.length && prefix[i + 1] <= elapsedWeight) i++;
-            typingText.value = text.slice(0, i);
-            scrollDown();
         }
         lastTime = ts;
+
+        apply(text.slice(0, i));
+
         if (i < text.length) requestAnimationFrame(tick);
-        else { isTyping.value = false; resolve(); }
+        else resolve();
     };
     requestAnimationFrame(tick);
 });
+
+// durationMs, when given, paces the reveal to finish alongside audio of that length
+// (e.g. TTS narration) instead of the fixed default speed. Pass the audio element
+// too to lock the reveal to the voice's real playback clock.
+const typeOut = (text, durationMs = null, audio = null) => {
+    typingText.value = '';
+    isTyping.value = true;
+    typingSkip.value = false;
+    return pacedReveal({
+        text, durationMs, audio,
+        apply: (s) => { typingText.value = s; scrollDown(); },
+        shouldSkip: () => typingSkip.value,
+        onSkip: () => { typingSkip.value = false; },
+    }).then(() => { isTyping.value = false; });
+};
 
 // 8s of "thinking" dots in the input box before the answer starts auto-typing — skippable.
 const thinkAnswer = () => new Promise((resolve) => {
@@ -398,75 +440,41 @@ const thinkAnswer = () => new Promise((resolve) => {
     setTimeout(() => { if (isThinkingAnswer.value) finish(); }, 8000);
 });
 
-// Reveals `text` into the input box. durationMs, when given, paces the reveal to
-// finish alongside audio of that length, using the same punctuation weighting as
-// typeOut so the answer and the question sides feel identical.
-const revealInput = (text, durationMs = null) => new Promise((resolve) => {
+// Reveals `text` into the input box, using the same audio-locked pacing as
+// typeOut so the answer and question sides feel identical.
+const revealInput = (text, durationMs = null, audio = null) => {
     currentInput.value = '';
     isTypingAnswer.value = true;
     answerTypingSkip.value = false;
-
-    if (!text) { isTypingAnswer.value = false; resolve(); return; }
-
-    const { weights, total: totalWeight } = weighTextForTyping(text);
-    const prefix = new Array(text.length + 1).fill(0);
-    for (let i = 0; i < text.length; i++) prefix[i + 1] = prefix[i] + weights[i];
-    const avgWeight = totalWeight / text.length;
-
-    const DEFAULT_CPS = 110;
-    const MIN_CPS = 12;
-    const MAX_CPS = 110;
-    const CPS = durationMs
-        ? Math.min(MAX_CPS, Math.max(MIN_CPS, text.length / (durationMs / 1000)))
-        : DEFAULT_CPS;
-    const weightPerSec = CPS * avgWeight;
-
-    let i = 0;
-    let elapsedWeight = 0;
-    let lastTime = null;
-
-    const tick = (ts) => {
-        if (answerTypingSkip.value) {
-            currentInput.value = text;
-            isTypingAnswer.value = false;
-            answerTypingSkip.value = false;
-            stopMsgSpeaking(); // skipping the text skips the narration with it
-            resolve();
-            return;
-        }
-        if (lastTime !== null) {
-            elapsedWeight += ((ts - lastTime) / 1000) * weightPerSec;
-            while (i < text.length && prefix[i + 1] <= elapsedWeight) i++;
-            currentInput.value = text.slice(0, i);
-        }
-        lastTime = ts;
-        if (i < text.length) requestAnimationFrame(tick);
-        else { isTypingAnswer.value = false; resolve(); }
-    };
-    requestAnimationFrame(tick);
-});
+    return pacedReveal({
+        text, durationMs, audio,
+        apply: (s) => { currentInput.value = s; },
+        shouldSkip: () => answerTypingSkip.value,
+        onSkip: () => { answerTypingSkip.value = false; stopMsgSpeaking(); }, // skipping the text skips the narration with it
+    }).then(() => { isTypingAnswer.value = false; });
+};
 
 // Auto-types the customer's answer while narrating it in the customer voice,
 // pacing the reveal to the audio — same sync behavior as the assistant's turns.
 const typeOutInput = async (text, idx = null) => {
     const key = idx === null ? null : `answer-${idx}`;
 
-    // Warm the audio during the "thinking" pause so playback starts promptly.
-    const audioPromise = key && !speechMuted.value ? fetchMsgAudio(text, key) : null;
+    // Warm the cache during the "thinking" pause so playback starts promptly.
+    if (key && !speechMuted.value) cacheAudioUrl(text, key);
 
     await thinkAnswer();
 
-    if (!audioPromise) return revealInput(text);
+    if (!key || speechMuted.value) return revealInput(text);
 
     stopMsgSpeaking();
-    const audio = await audioPromise;
+    const audio = await prepareNarration(text, key);
     if (!audio) return revealInput(text);
 
     speakingMsgIdx.value = key;
     speakMsgAudio = audio;
-    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === key) speakingMsgIdx.value = null; };
-    speakMsgAudio.play().catch(() => {});
-    return revealInput(text, audio.duration * 1000);
+    audio.onended = () => { if (speakingMsgIdx.value === key) speakingMsgIdx.value = null; };
+    audio.play().catch(() => {});
+    return revealInput(text, audio.duration * 1000, audio);
 };
 
 const nextMode = () => {
@@ -518,12 +526,14 @@ const makeSilenceUrl = () => {
     return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
 };
 const unlockAudio = () => {
-    if (audioUnlocked) return;
+    if (audioUnlocked || !narrationEl) return;
     audioUnlocked = true;
     try {
         if (!silenceUrl) silenceUrl = makeSilenceUrl();
-        const primer = new Audio(silenceUrl);
-        primer.play().then(() => primer.pause()).catch(() => {});
+        // Unlock the very element we reuse for narration, so every later line is
+        // allowed to play without its own gesture.
+        narrationEl.src = silenceUrl;
+        narrationEl.play().then(() => { narrationEl.pause(); narrationEl.currentTime = 0; }).catch(() => {});
     } catch { /* best effort — falls back to tap-to-play */ }
 };
 
