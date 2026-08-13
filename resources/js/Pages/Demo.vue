@@ -325,6 +325,7 @@ onUnmounted(() => {
     speakMsgAudio?.pause();
     storyPlayAbort = true;
     for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
+    if (silenceUrl) URL.revokeObjectURL(silenceUrl);
 });
 
 // Punctuation gets extra "weight" so the reveal briefly holds after sentence/clause
@@ -497,7 +498,37 @@ const playAssistantTurn = async (assistantMsg) => {
     chatLog.value.push(assistantMsg);
 };
 
+// Browsers block programmatic audio until the page has played something from a
+// user gesture. The first narration play() happens several awaits after the Start
+// click, so on a fresh profile (no prior media engagement) it is blocked and the
+// demo stays silent until the user manually taps a speaker. Playing a short silent
+// clip synchronously inside the Start gesture unlocks playback for the session.
+let audioUnlocked = false;
+let silenceUrl = null;
+const makeSilenceUrl = () => {
+    const rate = 8000, samples = 800; // ~0.1s of 8-bit silence
+    const buf = new ArrayBuffer(44 + samples);
+    const view = new DataView(buf);
+    const put = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+    put(0, 'RIFF'); view.setUint32(4, 36 + samples, true); put(8, 'WAVE'); put(12, 'fmt ');
+    view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+    view.setUint32(24, rate, true); view.setUint32(28, rate, true);
+    view.setUint16(32, 1, true); view.setUint16(34, 8, true); put(36, 'data'); view.setUint32(40, samples, true);
+    for (let i = 0; i < samples; i++) view.setUint8(44 + i, 128); // 128 = silence for unsigned 8-bit
+    return URL.createObjectURL(new Blob([buf], { type: 'audio/wav' }));
+};
+const unlockAudio = () => {
+    if (audioUnlocked) return;
+    audioUnlocked = true;
+    try {
+        if (!silenceUrl) silenceUrl = makeSilenceUrl();
+        const primer = new Audio(silenceUrl);
+        primer.play().then(() => primer.pause()).catch(() => {});
+    } catch { /* best effort — falls back to tap-to-play */ }
+};
+
 const startInterview = async () => {
+    unlockAudio(); // runs inside the click gesture — grants autoplay for the session
     phase.value = 1;
     chatLog.value = [];
     answerCount.value = 0;
