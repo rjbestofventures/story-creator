@@ -1,6 +1,7 @@
 <script setup>
-import { ref, computed, nextTick, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
+import { runTour, runTourWhenReady } from '@/lib/tour';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -9,7 +10,7 @@ import { Badge } from '@/Components/ui/badge';
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2, Headphones, Square } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2, Headphones, Square, CircleHelp } from 'lucide-vue-next';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
 import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
@@ -384,6 +385,8 @@ const pacedReveal = ({ text, durationMs, audio, apply, shouldSkip, onSkip }) => 
     let elapsedWeight = 0;
     let lastTime = null;
     let audioStarted = false;
+    let lastCt = -1;        // last observed audio.currentTime
+    let lastProgress = 0;   // ts of the last currentTime advance
     const startedAt = performance.now();
 
     const tick = (ts) => {
@@ -392,18 +395,25 @@ const pacedReveal = ({ text, durationMs, audio, apply, shouldSkip, onSkip }) => 
         if (audio && audio.currentTime > 0) audioStarted = true;
         const audioUsable = audio && Number.isFinite(audio.duration) && audio.duration > 0;
 
-        if (audioStarted && audioUsable) {
+        // Watch for a playback stall: if the audio starts but its clock stops
+        // advancing (buffering, a paused/broken element), the reveal must not
+        // freeze with it — fall back to wall-clock pacing after a short grace.
+        if (audioStarted && audio.currentTime !== lastCt) { lastCt = audio.currentTime; lastProgress = ts; }
+        const stalled = audioStarted && !audio.ended && lastProgress > 0 && (ts - lastProgress) > 1500;
+
+        if (audioStarted && audioUsable && !stalled) {
             // Follow the real playback clock, revealing characters linearly with
             // elapsed audio — the voice itself supplies the pauses and rhythm, so
             // the text stays locked to it without any punctuation weighting.
             const target = Math.round((audio.currentTime / audio.duration) * text.length);
             if (target > i) i = Math.min(target, text.length);
-        } else if (audio && (ts - startedAt) < AUDIO_START_GRACE_MS) {
+            elapsedWeight = prefix[i]; // keep the wall-clock cursor in sync for a possible fallback
+        } else if (audio && !audioStarted && (ts - startedAt) < AUDIO_START_GRACE_MS) {
             // Briefly hold at the start, giving the narration a moment to begin so
             // the text doesn't sprint ahead of a voice that's about to play.
         } else {
-            // No audio, or it never started — pace by wall clock (with punctuation
-            // weighting to fake rhythm) so nothing stalls.
+            // No audio, it never started, or it stalled — pace by wall clock (with
+            // punctuation weighting to fake rhythm) so the reveal always completes.
             if (lastTime !== null) elapsedWeight += ((ts - lastTime) / 1000) * weightPerSec;
             while (i < text.length && prefix[i + 1] <= elapsedWeight) i++;
         }
@@ -599,6 +609,27 @@ const goBack = () => {
     if (phase.value === 1) phase.value = 0;
     else if (phase.value === 3) phase.value = 1;
 };
+
+// ─── Guided tour of the demo form (TourGuide.js) ──────────────────────────────
+const demoTourSteps = [
+    { target: '#demo-tour-name', title: 'Business name', content: "The business you're telling a story about. In this demo it's pre-filled for you.", order: 1 },
+    { target: '#demo-tour-website', title: 'Website', content: 'Your website helps StoryBot learn context about the business.', order: 2 },
+    { target: '#demo-tour-industry', title: 'Industry', content: 'What the business does — this shapes the tone of the story.', order: 3 },
+    { target: '#demo-tour-linkedin', title: 'LinkedIn', content: 'Optional. The more profiles you add, the more StoryBot has to work with.', order: 4 },
+    { target: '#demo-tour-social', title: 'Facebook / Instagram', content: 'Optional social links for extra context.', order: 5 },
+    { target: '#demo-tour-about', title: 'About the business', content: 'A short description of the business and what makes it different.', order: 6 },
+    { target: '#demo-tour-services', title: 'Services', content: 'The products or services the business offers.', order: 7 },
+    { target: '#demo-tour-start', title: 'Start the interview', content: "When you're ready, click here. StoryBot asks a few questions, then generates the story.", order: 8 },
+];
+const markDemoTourSeen = () => { try { localStorage.setItem('sc_demo_tour_seen', '1'); } catch { /* ignore */ } };
+const startDemoTour = () => runTour(demoTourSteps, { onComplete: markDemoTourSeen });
+
+onMounted(() => {
+    if (phase.value !== 0) return;
+    if (typeof localStorage !== 'undefined' && localStorage.getItem('sc_demo_tour_seen') === '1') return;
+    // Start once the form's first field is actually rendered.
+    runTourWhenReady(demoTourSteps, { onComplete: markDemoTourSeen });
+});
 </script>
 
 <template>
@@ -673,11 +704,19 @@ const goBack = () => {
                     </div>
                     <h1 class="text-2xl font-black text-[#1A1A1A] mb-2">See StoryBot in action</h1>
                     <p class="text-[#555555]">Here's a business we've already filled in. Start the interview to watch StoryBot work.</p>
+                    <button
+                        type="button"
+                        @click="startDemoTour"
+                        class="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-[#F5A000] hover:underline cursor-pointer"
+                    >
+                        <CircleHelp class="w-4 h-4" />
+                        Take a quick tour
+                    </button>
                 </div>
 
                 <TooltipProvider :delay-duration="150">
                 <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-5">
-                    <div class="space-y-2">
+                    <div id="demo-tour-name" class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">Business Name</Label>
                         <Tooltip>
                             <TooltipTrigger as-child>
@@ -688,7 +727,7 @@ const goBack = () => {
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-2">
+                        <div id="demo-tour-website" class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">Website</Label>
                             <Tooltip>
                                 <TooltipTrigger as-child>
@@ -697,7 +736,7 @@ const goBack = () => {
                                 <TooltipContent>{{ fieldHints.business_url }}</TooltipContent>
                             </Tooltip>
                         </div>
-                        <div class="space-y-2">
+                        <div id="demo-tour-industry" class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">Industry</Label>
                             <Tooltip>
                                 <TooltipTrigger as-child>
@@ -709,7 +748,7 @@ const goBack = () => {
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
-                        <div class="space-y-2">
+                        <div id="demo-tour-linkedin" class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">LinkedIn</Label>
                             <Tooltip>
                                 <TooltipTrigger as-child>
@@ -718,7 +757,7 @@ const goBack = () => {
                                 <TooltipContent>{{ fieldHints.linkedin_url }}</TooltipContent>
                             </Tooltip>
                         </div>
-                        <div class="space-y-2">
+                        <div id="demo-tour-social" class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">Facebook / Instagram</Label>
                             <Tooltip>
                                 <TooltipTrigger as-child>
@@ -729,7 +768,7 @@ const goBack = () => {
                         </div>
                     </div>
 
-                    <div class="space-y-2">
+                    <div id="demo-tour-about" class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">About the business</Label>
                         <Tooltip>
                             <TooltipTrigger as-child>
@@ -739,7 +778,7 @@ const goBack = () => {
                         </Tooltip>
                     </div>
 
-                    <div class="space-y-2">
+                    <div id="demo-tour-services" class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">Services</Label>
                         <Tooltip>
                             <TooltipTrigger as-child>
@@ -750,6 +789,7 @@ const goBack = () => {
                     </div>
 
                     <Button
+                        id="demo-tour-start"
                         type="button"
                         @click="startInterview"
                         class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-12 rounded-xl transition-all duration-300 cursor-pointer mt-2"
@@ -789,7 +829,7 @@ const goBack = () => {
                             :disabled="loadingMsgIdx === i"
                             :aria-label="speakingMsgIdx === i ? 'Stop reading aloud' : 'Read aloud'"
                             @click="toggleSpeakMessage(msg, i)"
-                            class="mt-1.5 inline-flex items-center justify-center w-6 h-6 rounded-md transition-colors cursor-pointer disabled:cursor-wait"
+                            class="mt-2 flex items-center justify-center w-6 h-6 rounded-md transition-colors cursor-pointer disabled:cursor-wait"
                             :class="speakingMsgIdx === i ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
                         >
                             <Loader2 v-if="loadingMsgIdx === i" class="w-3.5 h-3.5 animate-spin" />

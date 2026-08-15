@@ -1,7 +1,8 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { runTour, runTourWhenReady } from '@/lib/tour';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import {
@@ -62,6 +63,37 @@ const confirmDelete = () => {
         onFinish: () => { deleteOpen.value = false; deletingStory.value = null; },
     });
 };
+
+// ─── First-time onboarding tour ───────────────────────────────────────────────
+let tourMarked = false;
+const markTourDone = () => {
+    if (tourMarked) return;
+    tourMarked = true;
+    fetch(route('tour.complete'), {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            'Content-Type': 'application/json',
+        },
+    }).catch(() => {});
+};
+
+const dashboardTourSteps = [
+    { target: '#tour-demo', title: 'Try the live demo', content: 'See StoryBot in action on a sample business — no credits used.', order: 1 },
+    { target: '#tour-feedback', title: 'Send feedback', content: 'Share an idea or report an issue anytime.', order: 2 },
+    { target: '#tour-new-story', title: 'Create a story', content: 'Start here. Answer a few quick questions and StoryBot writes your episodes.', order: 3 },
+    { target: '#tour-credits', title: 'Your StoryBot credits', content: 'Your credit balance. Credits power episode generation and refinements — and they never expire.', order: 4 },
+    { target: '#tour-credit-info', title: 'How credits are used', content: '1 credit generates 1 episode, and 1 credit refines or redoes one. A 12-episode story uses 12 credits.', order: 5 },
+    { target: '#tour-account', title: 'Your account', content: 'Open this menu for My Stories, Buy Credits, Billing & Packs, and your Profile.', order: 6 },
+];
+const startTour = () => runTour(dashboardTourSteps, { onComplete: markTourDone });
+
+onMounted(() => {
+    const user = usePage().props.auth?.user;
+    if (!user || user.tour_completed_at) return;
+    // Start once the credits card (always present on the dashboard) is rendered.
+    runTourWhenReady(dashboardTourSteps, { onComplete: markTourDone });
+});
 </script>
 
 <template>
@@ -79,9 +111,18 @@ const confirmDelete = () => {
                             <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Storybot Library</span>
                         </h1>
                         <span class="text-xs text-[#555555]">· {{ generatedCount }} {{ generatedCount === 1 ? 'story' : 'stories' }} generated</span>
+                        <button
+                            type="button"
+                            @click="startTour"
+                            class="hidden md:inline-flex items-center gap-1 text-xs font-semibold text-[#AAAAAA] hover:text-[#F5A000] transition-colors cursor-pointer"
+                            title="Take a tour"
+                        >
+                            <CircleHelp class="w-3.5 h-3.5" />
+                            Tour
+                        </button>
                     </div>
 
-                    <div class="flex items-center gap-2">
+                    <div id="tour-new-story" class="flex items-center gap-2">
                         <!-- Has credits (or admin): create a story -->
                         <Link v-if="canCreateStory" :href="route('stories.create')">
                             <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
@@ -106,7 +147,7 @@ const confirmDelete = () => {
                 <!-- Stats row -->
                 <div class="grid grid-cols-1 gap-4">
                     <!-- StoryBot credits -->
-                    <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4 flex items-center justify-between">
+                    <div id="tour-credits" class="bg-white rounded-2xl border border-[#DDDDDD] p-4 flex items-center justify-between">
                         <div>
                             <div class="flex items-center gap-2 mb-1">
                                 <Zap class="w-4 h-4 text-[#F5A000]" />
@@ -127,10 +168,10 @@ const confirmDelete = () => {
                                 </TooltipProvider>
                             </div>
                             <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</div>
-                            <template v-if="!isAdmin">
+                            <div v-if="!isAdmin" id="tour-credit-info">
                                 <div class="text-xs text-[#555555] mt-0.5">1 AI Refine = 1 StoryBot Credit</div>
                                 <div class="text-xs text-[#555555]">1 Episode Generation = 1 StoryBot Credit (ex: 12 episode story = 12 StoryBot Credits)</div>
-                            </template>
+                            </div>
                         </div>
                         <Link v-if="!isAdmin && buyCreditsButtonEnabled" :href="route('shop.index')">
                             <Button class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer">

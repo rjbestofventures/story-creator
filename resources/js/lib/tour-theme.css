@@ -1,0 +1,30 @@
+/* Light brand theming for TourGuide.js — gold accents on the default layout. */
+.tg-dialog {
+    border-radius: 12px;
+}
+.tg-dialog-title {
+    color: #1A1A1A;
+    font-weight: 800;
+}
+.tg-dialog-body {
+    color: #555555;
+}
+.tg-dot-active {
+    background: #F5A000 !important;
+}
+.tg-dialog-progress-bar {
+    background: #F5A000 !important;
+}
+.tg-dialog-btn:hover {
+    border-color: #F5A000;
+    color: #1A1A1A;
+}
+/* The primary (Next / Got it) button is the last one in the footer. */
+.tg-dialog-footer > .tg-dialog-btn:last-child {
+    background: linear-gradient(to right, #FFC837, #F5A000);
+    border-color: #F5A000;
+    color: #1A1A1A;
+}
+.tg-dialog-footer > .tg-dialog-btn:last-child:hover {
+    opacity: 0.92;
+}

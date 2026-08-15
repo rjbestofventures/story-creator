@@ -476,7 +476,7 @@ class StoryController extends Controller
         abort_unless($story->user_id === $request->user()->id, 403);
         abort_unless($episode->story_id === $story->id, 404);
 
-        $audio = Tts::speak(trim("{$episode->title}. {$episode->content}"));
+        $audio = Tts::speak(trim("{$episode->title}. {$episode->content}"), 'episode');
 
         return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
     }

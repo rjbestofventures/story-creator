@@ -7,6 +7,7 @@ use App\Http\Controllers\PartnerApplicationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StoryController;
+use App\Http\Controllers\TourController;
 use App\Http\Middleware\CheckLandingLock;
 use App\Models\CreditPack;
 use Illuminate\Support\Facades\Route;
@@ -101,6 +102,7 @@ Route::middleware(['auth'])->group(function () {
 
 Route::middleware('auth')->group(function () {
     Route::post('/impersonate/stop', [AdminController::class, 'stopImpersonating'])->name('impersonate.stop');
+    Route::post('/tour/complete', [TourController::class, 'complete'])->name('tour.complete');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

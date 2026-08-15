@@ -1096,7 +1096,7 @@ const formats = [
                                 :disabled="loadingMsgIdx === i"
                                 :aria-label="speakingMsgIdx === i ? 'Stop reading aloud' : 'Read aloud'"
                                 @click="toggleSpeakMessage(msg, i)"
-                                class="mt-1.5 inline-flex items-center justify-center w-6 h-6 rounded-md transition-colors cursor-pointer disabled:cursor-wait"
+                                class="mt-2 flex items-center justify-center w-6 h-6 rounded-md transition-colors cursor-pointer disabled:cursor-wait"
                                 :class="speakingMsgIdx === i ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
                             >
                                 <Loader2 v-if="loadingMsgIdx === i" class="w-3.5 h-3.5 animate-spin" />

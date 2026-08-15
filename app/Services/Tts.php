@@ -7,9 +7,10 @@ use App\Models\SiteSetting;
 /**
  * Routes every text-to-speech call through whichever provider is configured
  * in Settings > Voice, so call sites don't each need their own provider
- * branching. "Role" selects which pair of voice settings applies — the main
- * voice (episodes, interview chat) is distinct from the demo's bot/customer
- * voices so the two sides of a demo conversation don't sound identical.
+ * branching. "Role" selects which set of voice settings applies — the main
+ * voice (interview chat), the episode-playback voice, and the demo's bot/customer
+ * voices are each configurable so the different surfaces can sound distinct. Each
+ * falls back to the main voice when left unset.
  */
 class Tts
 {
@@ -24,6 +25,7 @@ class Tts
             return match ($role) {
                 'demo_bot' => SiteSetting::get('elevenlabs_demo_bot_voice') ?: SiteSetting::get('elevenlabs_voice', ElevenLabsService::DEFAULT_VOICE),
                 'demo_customer' => SiteSetting::get('elevenlabs_demo_customer_voice', ElevenLabsService::DEFAULT_CUSTOMER_VOICE),
+                'episode' => SiteSetting::get('elevenlabs_episode_voice') ?: SiteSetting::get('elevenlabs_voice', ElevenLabsService::DEFAULT_VOICE),
                 default => SiteSetting::get('elevenlabs_voice', ElevenLabsService::DEFAULT_VOICE),
             };
         }
@@ -31,6 +33,7 @@ class Tts
         return match ($role) {
             'demo_bot' => SiteSetting::get('demo_bot_voice') ?: SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE),
             'demo_customer' => SiteSetting::get('demo_customer_voice', TextToSpeechService::DEFAULT_CUSTOMER_VOICE),
+            'episode' => SiteSetting::get('tts_episode_voice') ?: SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE),
             default => SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE),
         };
     }

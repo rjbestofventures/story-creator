@@ -28,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'tour_completed_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
             'credits' => 'integer',

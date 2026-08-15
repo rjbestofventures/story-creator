@@ -10,6 +10,7 @@ const props = defineProps({
     tts_instructions: String,
     demo_bot_voice: String,
     demo_customer_voice: String,
+    episode_voice: String,
     voices: Array,
     elevenlabs_api_key: String,
     elevenlabs_env_key_set: Boolean,
@@ -17,6 +18,7 @@ const props = defineProps({
     elevenlabs_voice: String,
     elevenlabs_demo_bot_voice: String,
     elevenlabs_demo_customer_voice: String,
+    elevenlabs_episode_voice: String,
     elevenlabs_tier: String,
 });
 
@@ -25,11 +27,13 @@ const form = useForm({
     tts_instructions: props.tts_instructions,
     demo_bot_voice: props.demo_bot_voice,
     demo_customer_voice: props.demo_customer_voice,
+    episode_voice: props.episode_voice,
     elevenlabs_api_key: props.elevenlabs_api_key,
     tts_provider: props.tts_provider,
     elevenlabs_voice: props.elevenlabs_voice,
     elevenlabs_demo_bot_voice: props.elevenlabs_demo_bot_voice,
     elevenlabs_demo_customer_voice: props.elevenlabs_demo_customer_voice,
+    elevenlabs_episode_voice: props.elevenlabs_episode_voice,
 });
 
 const showElevenKey = ref(false);
@@ -44,8 +48,10 @@ watch(() => form.recentlySuccessful, v => {
     if (v) { saved.value = true; setTimeout(() => saved.value = false, 2500); }
 });
 
-// The demo narrates two sides of the interview, each in its own voice.
-const demoPickers = [
+// Additional per-surface voices. The episode voice reads generated episodes aloud
+// ("Listen to Your Story"); the two demo voices narrate each side of the demo.
+const extraPickers = [
+    { key: 'episode_voice', elevenKey: 'elevenlabs_episode_voice', title: 'Episode Playback', desc: 'Reads the actual generated episodes aloud in a story.' },
     { key: 'demo_bot_voice', elevenKey: 'elevenlabs_demo_bot_voice', title: 'StoryBot Questions & Responses', desc: "The assistant's side of the demo interview." },
     { key: 'demo_customer_voice', elevenKey: 'elevenlabs_demo_customer_voice', title: 'Customer Answers', desc: 'The answers that auto-type into the demo input box.' },
 ];
@@ -220,7 +226,7 @@ onUnmounted(stopEleven);
                     </div>
                     <div>
                         <h2 class="text-sm font-black" style="color:#1A1A1A;">Voice</h2>
-                        <p class="text-xs" style="color:#555555;">Powers text-to-speech for episodes and interview chat bubbles. Click play to preview.</p>
+                        <p class="text-xs" style="color:#555555;">The main voice — powers the interview chat bubbles, and any surface below left unset. Click play to preview.</p>
                     </div>
                 </div>
 
@@ -260,9 +266,9 @@ onUnmounted(stopEleven);
                 />
             </div>
 
-            <!-- ─── Demo voices — one per side of the demo interview ──────── -->
+            <!-- ─── Episode playback + demo voices ───────────────────────── -->
             <div
-                v-for="picker in demoPickers"
+                v-for="picker in extraPickers"
                 :key="picker.key"
                 class="bg-white rounded-2xl p-6"
                 style="border:1px solid #DDDDDD;"

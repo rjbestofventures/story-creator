@@ -377,6 +377,7 @@ class AdminController extends Controller
             'tts_instructions' => SiteSetting::get('tts_instructions', TextToSpeechService::DEFAULT_INSTRUCTIONS),
             'demo_bot_voice' => SiteSetting::get('demo_bot_voice', $ttsVoice),
             'demo_customer_voice' => SiteSetting::get('demo_customer_voice', TextToSpeechService::DEFAULT_CUSTOMER_VOICE),
+            'episode_voice' => SiteSetting::get('tts_episode_voice', $ttsVoice),
             'voices' => self::TTS_VOICES,
             'elevenlabs_api_key' => SiteSetting::get('elevenlabs_api_key', ''),
             'elevenlabs_env_key_set' => (bool) env('ELEVENLABS_API_KEY'),
@@ -384,6 +385,7 @@ class AdminController extends Controller
             'elevenlabs_voice' => SiteSetting::get('elevenlabs_voice', ElevenLabsService::DEFAULT_VOICE),
             'elevenlabs_demo_bot_voice' => SiteSetting::get('elevenlabs_demo_bot_voice', ElevenLabsService::DEFAULT_VOICE),
             'elevenlabs_demo_customer_voice' => SiteSetting::get('elevenlabs_demo_customer_voice', ElevenLabsService::DEFAULT_CUSTOMER_VOICE),
+            'elevenlabs_episode_voice' => SiteSetting::get('elevenlabs_episode_voice', ElevenLabsService::DEFAULT_VOICE),
             'elevenlabs_tier' => $this->elevenlabsTier(),
         ]);
     }
@@ -412,22 +414,26 @@ class AdminController extends Controller
             'tts_instructions' => 'required|string|max:1000',
             'demo_bot_voice' => $voiceRule,
             'demo_customer_voice' => $voiceRule,
+            'episode_voice' => $voiceRule,
             'elevenlabs_api_key' => 'nullable|string|max:255',
             'tts_provider' => ['required', 'string', Rule::in(['openai', 'elevenlabs'])],
             'elevenlabs_voice' => 'nullable|string|max:255',
             'elevenlabs_demo_bot_voice' => 'nullable|string|max:255',
             'elevenlabs_demo_customer_voice' => 'nullable|string|max:255',
+            'elevenlabs_episode_voice' => 'nullable|string|max:255',
         ]);
 
         SiteSetting::set('tts_voice', $data['tts_voice']);
         SiteSetting::set('tts_instructions', $data['tts_instructions']);
         SiteSetting::set('demo_bot_voice', $data['demo_bot_voice']);
         SiteSetting::set('demo_customer_voice', $data['demo_customer_voice']);
+        SiteSetting::set('tts_episode_voice', $data['episode_voice']);
         SiteSetting::set('elevenlabs_api_key', $data['elevenlabs_api_key'] ?? '');
         SiteSetting::set('tts_provider', $data['tts_provider']);
         SiteSetting::set('elevenlabs_voice', $data['elevenlabs_voice'] ?? '');
         SiteSetting::set('elevenlabs_demo_bot_voice', $data['elevenlabs_demo_bot_voice'] ?? '');
         SiteSetting::set('elevenlabs_demo_customer_voice', $data['elevenlabs_demo_customer_voice'] ?? '');
+        SiteSetting::set('elevenlabs_episode_voice', $data['elevenlabs_episode_voice'] ?? '');
 
         return back();
     }

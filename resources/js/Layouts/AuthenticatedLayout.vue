@@ -66,7 +66,7 @@ const feedbackOpen = ref(false);
                             size="sm"
                             class="hidden md:flex items-center gap-2 h-8 rounded-lg border-[#DDDDDD] font-semibold cursor-pointer"
                         >
-                            <Link :href="route('demo')" style="color: #1A1A1A;">
+                            <Link id="tour-demo" :href="route('demo')" style="color: #1A1A1A;">
                                 <PlayCircle class="w-4 h-4" />
                                 Try Live Demo
                             </Link>
@@ -75,6 +75,7 @@ const feedbackOpen = ref(false);
                         <!-- Feedback -->
                         <Button
                             v-if="!isAdmin"
+                            id="tour-feedback"
                             variant="outline"
                             size="sm"
                             @click="feedbackOpen = true"
@@ -87,6 +88,7 @@ const feedbackOpen = ref(false);
                         <!-- User menu -->
                         <div class="relative">
                             <button
+                                id="tour-account"
                                 type="button"
                                 @click="menuOpen = !menuOpen"
                                 class="flex items-center gap-2 h-9 px-3 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
