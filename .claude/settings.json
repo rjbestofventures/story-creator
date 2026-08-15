@@ -1,0 +1,30 @@
+{
+  "autoMode": {
+    "environment": [
+      "$defaults",
+      "### Org-wide",
+      "**Organization**: rjbestofventures (from remote github.com:rjbestofventures/story-creator.git)",
+      "**Cloud provider(s)**: AWS referenced in .env.example (config placeholders only, unconfigured)",
+      "**Repository visibility**: not queryable here — assume private unless a visibility check shows otherwise",
+      "**Internal sharing / snippet hosting**: None configured — treat public paste/gist services as outside the trust boundary",
+      "**Secrets management**: Laravel .env files (git-ignored: .env, .env.backup, .env.production, /storage/*.key); CI references SSH_PRIVATE_KEY",
+      "**Default / protected branches**: default branch main; Rulesets none listed, Protected branches none listed (not authoritative — rulesets may still apply)",
+      "**CI/CD deploy targets**: .github/workflows present; CI references a deploy key (SSH_PRIVATE_KEY)",
+      "**Network posture**: None configured",
+      "**Source control**: github.com:rjbestofventures/story-creator only (no additional orgs configured)",
+      "**Trusted internal domains**: None configured",
+      "**Trusted cloud buckets**: None configured",
+      "**Key internal services**: None configured",
+      "**Internal package registry**: None configured",
+      "**Sensitive data locations & audiences**: .env, .env.backup, .env.production, /storage/*.key (git-ignored credentials); any file or store holding personal data, confidential business data, credentials, regulated data, or similarly sensitive material",
+      "**Data retention / declassification**: None configured",
+      "**Sensitive remote targets**: any namespace, host, or container whose name carries prod or production as a whole word or name segment",
+      "**Protected deployment namespaces / environments**: None configured — fall back to the Sensitive remote targets heuristic",
+      "**Protected IaC scopes**: IAM, RBAC, networking, quota, and node-pool resources; anything whose name or tag carries prod or production as a whole word or name segment",
+      "### User-specific",
+      "**Primary use of Claude Code**: software development (Laravel 13 / Vue 3 / Inertia web app)",
+      "**Trusted repo**: github.com:rjbestofventures/story-creator (the working directory and its origin remote)",
+      "**Org-specific CLIs**: None configured (php, composer, npm, artisan, vite are standard toolchain)"
+    ]
+  }
+}
