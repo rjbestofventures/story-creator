@@ -74,6 +74,7 @@ class GrillController extends Controller
                 'business_url' => $profile?->business_url,
                 'linkedin_url' => $profile?->linkedin_url,
                 'social_url' => $profile?->social_url,
+                'instagram_url' => $profile?->instagram_url,
                 'biography' => $profile?->biography,
                 'services' => $profile?->services,
                 'user' => [

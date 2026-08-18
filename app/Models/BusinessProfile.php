@@ -20,6 +20,7 @@ class BusinessProfile extends Model
         'services',
         'linkedin_url',
         'social_url',
+        'instagram_url',
         'website_content',
         'answers',
     ];

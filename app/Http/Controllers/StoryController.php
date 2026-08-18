@@ -163,6 +163,7 @@ class StoryController extends Controller
             'services' => 'nullable|string|max:1000',
             'linkedin_url' => 'nullable|string|max:255',
             'social_url' => 'nullable|string|max:255',
+            'instagram_url' => 'nullable|string|max:255',
         ]);
 
         $user = $request->user();
@@ -194,6 +195,7 @@ class StoryController extends Controller
             'services' => $data['services'] ?? null,
             'linkedin_url' => $data['linkedin_url'] ?? null,
             'social_url' => $data['social_url'] ?? null,
+            'instagram_url' => $data['instagram_url'] ?? null,
             'website_content' => $websiteContent,
             'answers' => [],
         ]);
@@ -449,6 +451,7 @@ class StoryController extends Controller
                 'business_url' => $profile?->business_url,
                 'linkedin_url' => $profile?->linkedin_url,
                 'social_url' => $profile?->social_url,
+                'instagram_url' => $profile?->instagram_url,
                 'biography' => $profile?->biography,
                 'services' => $profile?->services,
                 'pairs' => $profile?->interviewQaPairs() ?? [],

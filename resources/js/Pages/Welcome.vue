@@ -139,7 +139,7 @@ const payToPlayPacks = computed(() =>
 );
 const payToPlayPopularSlug = computed(() => popularSlugIn(payToPlayPacks.value.filter((p) => !isAddon(p))));
 
-const partnerFeatures = ['12 complimentary episodes', 'Saves time and lowers costs', 'Story credits never expire', 'Verified partner badge', 'Priority guidance', 'Episodes for every story'];
+const partnerFeatures = ['enough episode up to year', 'Saves time and lowers costs', 'Story credits never expire', 'Verified partner badge', 'Priority guidance', 'Episodes for every story'];
 const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customizable output', 'Limited commitment', 'Tech support', 'Your story in episodes'];
 </script>
 
@@ -240,7 +240,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
         <section class="px-6 py-20" style="background-color: #FFFFFF;">
             <div class="max-w-6xl mx-auto text-center">
 
-                <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #8A8F98;">Why This Matters</p>
+                <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #8A8F98;">Because Trust Matters</p>
                 <h2 class="text-4xl md:text-5xl font-black mb-16" style="color: #15171C;">
                     Every business has its own
                     <span style="color: #F5A623;">story</span> to tell
@@ -354,10 +354,9 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         </div>
                         <div>
                             <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">StoryCreator.Bot Partnership Program</span>
-                            <h3 class="text-3xl md:text-4xl font-black text-white">Verified Business Partners Pricing Plans</h3>
-                            <p class="text-base mb-1" style="color: #888888;">Six months
-                                <span class="font-bold uppercase" style="color: #F5A000;">free content</span> for
-                                <span class="font-bold text-2xl" style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Verified Local Businesses</span>
+                            <h3 class="text-3xl md:text-4xl font-black text-white">VBP Pricing Plans</h3>
+                            <p class="text-base mb-1" style="color: #888888;">Verified Local Businesses get upto 1 year
+                                <span class="font-bold uppercase" style="color: #F5A000;">FREE CONTENT</span>
                             </p>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1.5 mt-4">
                                 <span v-for="f in partnerFeatures"

@@ -69,9 +69,7 @@ TURN 2 — user clicks the button (says "[Ready to begin]"):
   complete: false
 
 TURN 3 — user submits their answer to Q1:
-  message: Genuine 1–2 sentence reaction to their specific answer. Sound like a real person — react to the actual detail they shared, not generic encouragement. Keep it casual and warm. The message must be a statement, never a question. Do not ask for more detail, clarification, or a follow-up, even if you are genuinely curious. Save that curiosity for how you react, not for a new question.
-  Wrong: "Got it. What company was that, and what was your role there?"
-  Correct: "Got it, that kind of day-to-day grind is exactly the sort of detail that makes a story feel real."
+  message: Use this exact reaction, word for word: "Okay, that's a start! Just remember your answers can be long and detailed as you want. For the best result make sure your answers are honest and authentic."
   question: "" (empty)
   button_text: "Next question" (or similar — you choose)
   show_input: false
@@ -119,7 +117,11 @@ INTERVIEW RULES:
 - Never combine two questions in one turn.
 - Every turn is either a reaction turn (message filled in, question empty, show_input false, waits for a button click) or a question turn (message empty, question filled in, show_input true). Never fill in both message and question in the same turn — that skips the button-click step the user is supposed to take between them, which breaks the interview flow.
 - Never ask follow-up questions. The reaction message in the "message" field must never contain a question mark or ask the user for anything else. It only reacts to what was already said. Any curiosity about missing detail gets left unresolved — the next turn always moves to the next pre-defined question, never a clarifying one.
-- React genuinely to each answer — respond to the specific moment, detail, or emotion the user shared.
+- React genuinely to each answer (Questions 2 through 15) — respond to the specific moment, detail, or emotion the user shared. The reaction must be a statement, never a question, and must never ask for more detail or a follow-up.
+- Keep every reaction SHORT: one sentence, warm and casual. Shorter is better.
+- Never quote or repeat the user's own words back to them. Do not copy phrases or sentences from their answer. Always paraphrase in your own words and reference the idea, not the exact wording.
+  Wrong (quotes the answer): "I love that you said 'I just wanted to help people feel confident again.'"
+  Correct (paraphrases, short): "That drive to rebuild people's confidence really comes through."
 - If the user goes off topic: set message to "That is noted. Let us keep moving through the questions so we can build your full story." and show the button again.
 - Plain text only. No markdown, no asterisks, no bold, no bullet points.
 - Never use em dashes or en dashes (— or –) in the message field. Use a comma or period instead.
@@ -170,7 +172,10 @@ PROMPT;
             $context .= " | LinkedIn: {$profile['linkedin_url']}";
         }
         if (! empty($profile['social_url'])) {
-            $context .= " | Social: {$profile['social_url']}";
+            $context .= " | Facebook: {$profile['social_url']}";
+        }
+        if (! empty($profile['instagram_url'])) {
+            $context .= " | Instagram: {$profile['instagram_url']}";
         }
         if (! empty($profile['biography'])) {
             $context .= "\n\nOwner bio: {$profile['biography']}";

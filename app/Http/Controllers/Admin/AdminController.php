@@ -595,6 +595,27 @@ class AdminController extends Controller
         return back();
     }
 
+    /** Gift a dynamic number of StoryBot credits to a user, recorded in the ledger. */
+    public function giftCredits(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'credits' => 'required|integer|min:1|max:100000',
+        ]);
+
+        UserCredit::create([
+            'user_id' => $user->id,
+            'credit_pack_id' => null,
+            'credits_granted' => $validated['credits'],
+            'amount_paid' => 0,
+            'source' => 'gift',
+            'purchased_at' => now(),
+        ]);
+
+        $user->increment('credits', $validated['credits']);
+
+        return back();
+    }
+
     public function update(Request $request, User $user)
     {
         $validated = $request->validate([

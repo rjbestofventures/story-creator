@@ -133,6 +133,23 @@ const getGrantForm = (user) => {
     return grantForms.value[user.id];
 };
 
+const giftForms = ref({});
+const getGiftForm = (user) => {
+    if (!giftForms.value[user.id]) {
+        giftForms.value[user.id] = useForm({ credits: null });
+    }
+    return giftForms.value[user.id];
+};
+
+const giftCredits = (user) => {
+    const form = getGiftForm(user);
+    if (!form.credits || form.credits < 1) return;
+    form.post(route('admin.users.gift-credits', user.id), {
+        preserveScroll: true,
+        onSuccess: () => { form.reset(); flash(user.id); },
+    });
+};
+
 const saveRole = (user) => {
     getTierForm(user).patch(route('admin.users.update', user.id), {
         preserveScroll: true,
@@ -471,6 +488,28 @@ const impersonate = (userId) => {
                                 <Gift class="w-3.5 h-3.5" /> Grant
                             </Button>
 
+                            <div class="space-y-1.5 w-[9rem]">
+                                <Label class="text-xs text-[#555555]">Gift Credits (any amount)</Label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    placeholder="e.g. 25"
+                                    :value="getGiftForm(user).credits"
+                                    @input="e => getGiftForm(user).credits = e.target.value ? parseInt(e.target.value, 10) : null"
+                                    class="h-9 w-full px-3 rounded-lg text-sm outline-none bg-white"
+                                    style="border: 1px solid #DDDDDD; color: #1A1A1A;"
+                                />
+                            </div>
+                            <Button
+                                variant="outline"
+                                :disabled="!getGiftForm(user).credits || getGiftForm(user).processing"
+                                class="shrink-0 gap-1.5 font-semibold border-[#F5A000] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
+                                @click="giftCredits(user)"
+                            >
+                                <Gift class="w-3.5 h-3.5" /> Gift
+                            </Button>
+
                             <button
                                 type="button"
                                 class="h-9 inline-flex items-center gap-2 text-xs font-semibold px-3 rounded-lg border transition-all cursor-pointer"
@@ -483,7 +522,7 @@ const impersonate = (userId) => {
                                 {{ user.is_verified_partner ? 'Verified Partner ✓' : 'Mark as Partner' }}
                             </button>
                         </div>
-                        <p class="text-[10px] text-muted-foreground">Granting adds the pack's credits to the user's wallet (free). Partner status unlocks discounted partner pricing in the shop.</p>
+                        <p class="text-[10px] text-muted-foreground">Granting adds the pack's credits to the user's wallet (free). Gifting adds any number of credits directly. Partner status unlocks discounted partner pricing in the shop.</p>
                     </div>
 
                     <!-- Credits / usage section -->

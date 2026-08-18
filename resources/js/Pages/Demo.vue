@@ -35,6 +35,7 @@ const basics = {
     business_url: 'barnaclebusters.com',
     linkedin_url: 'linkedin.com/in/barnaclebusters',
     social_url: 'facebook.com/barnaclebusters',
+    instagram_url: 'instagram.com/barnaclebusters',
     biography: 'Barnacle Busters offers Yacht Maintenance services Palm Beach, Broward, and Martin Counties with fully trained, experienced, and certified professional divers. Our large fleet of service vehicles will service your vessel right at your dock or marina.',
     services: 'Services include Underwater Inspections and Photography and one time boat bottom cleanings.',
 };
@@ -47,6 +48,7 @@ const fieldHints = {
     industry:      DEMO_LOCK_HINT,
     linkedin_url:  DEMO_LOCK_HINT,
     social_url:    DEMO_LOCK_HINT,
+    instagram_url: DEMO_LOCK_HINT,
     biography:     'You will add a short bio about you and your business here.',
     services:      'You will add the services or products your business offers here.',
 };
@@ -616,10 +618,11 @@ const demoTourSteps = [
     { target: '#demo-tour-website', title: 'Website', content: 'Your website helps StoryBot learn context about the business.', order: 2 },
     { target: '#demo-tour-industry', title: 'Industry', content: 'What the business does — this shapes the tone of the story.', order: 3 },
     { target: '#demo-tour-linkedin', title: 'LinkedIn', content: 'Optional. The more profiles you add, the more StoryBot has to work with.', order: 4 },
-    { target: '#demo-tour-social', title: 'Facebook / Instagram', content: 'Optional social links for extra context.', order: 5 },
-    { target: '#demo-tour-about', title: 'About the business', content: 'A short description of the business and what makes it different.', order: 6 },
-    { target: '#demo-tour-services', title: 'Services', content: 'The products or services the business offers.', order: 7 },
-    { target: '#demo-tour-start', title: 'Start the interview', content: "When you're ready, click here. StoryBot asks a few questions, then generates the story.", order: 8 },
+    { target: '#demo-tour-social', title: 'Facebook', content: 'Optional. Your Facebook page adds extra context.', order: 5 },
+    { target: '#demo-tour-instagram', title: 'Instagram', content: 'Optional. Your Instagram profile adds extra context.', order: 6 },
+    { target: '#demo-tour-about', title: 'About the business', content: 'A short description of the business and what makes it different.', order: 7 },
+    { target: '#demo-tour-services', title: 'Services', content: 'The products or services the business offers.', order: 8 },
+    { target: '#demo-tour-start', title: 'Start the demo', content: "When you're ready, click here. StoryBot asks a few questions, then generates the story.", order: 9 },
 ];
 const markDemoTourSeen = () => { try { localStorage.setItem('sc_demo_tour_seen', '1'); } catch { /* ignore */ } };
 const startDemoTour = () => runTour(demoTourSteps, { onComplete: markDemoTourSeen });
@@ -758,7 +761,7 @@ onMounted(() => {
                             </Tooltip>
                         </div>
                         <div id="demo-tour-social" class="space-y-2">
-                            <Label class="text-[#1A1A1A] font-semibold">Facebook / Instagram</Label>
+                            <Label class="text-[#1A1A1A] font-semibold">Facebook</Label>
                             <Tooltip>
                                 <TooltipTrigger as-child>
                                     <Input :model-value="basics.social_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
@@ -766,6 +769,16 @@ onMounted(() => {
                                 <TooltipContent>{{ fieldHints.social_url }}</TooltipContent>
                             </Tooltip>
                         </div>
+                    </div>
+
+                    <div id="demo-tour-instagram" class="space-y-2">
+                        <Label class="text-[#1A1A1A] font-semibold">Instagram</Label>
+                        <Tooltip>
+                            <TooltipTrigger as-child>
+                                <Input :model-value="basics.instagram_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
+                            </TooltipTrigger>
+                            <TooltipContent>{{ fieldHints.instagram_url }}</TooltipContent>
+                        </Tooltip>
                     </div>
 
                     <div id="demo-tour-about" class="space-y-2">
@@ -794,7 +807,7 @@ onMounted(() => {
                         @click="startInterview"
                         class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-12 rounded-xl transition-all duration-300 cursor-pointer mt-2"
                     >
-                        Start the Interview
+                        Start the Demo
                         <ArrowRight class="w-4 h-4" />
                     </Button>
                 </div>
@@ -870,8 +883,7 @@ onMounted(() => {
 
             <!-- Action area -->
             <div class="flex-shrink-0 mt-2">
-                <div v-if="complete" class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex items-center justify-between gap-3">
-                    <p class="text-sm text-[#555555]">Thank you for completing the interview. Ready to see the story library.</p>
+                <div v-if="complete" class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex items-center justify-end gap-3">
                     <button
                         type="button"
                         @click="generate"

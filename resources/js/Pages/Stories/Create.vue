@@ -257,11 +257,13 @@ const basics = ref({
     services:      props.profile?.services       ?? '',
     linkedin_url:  props.profile?.linkedin_url   ?? '',
     social_url:    props.profile?.social_url     ?? '',
+    instagram_url: props.profile?.instagram_url  ?? '',
 });
 const hasOneUrl = computed(() =>
     basics.value.business_url.trim().length > 0 ||
     basics.value.linkedin_url.trim().length > 0 ||
-    basics.value.social_url.trim().length > 0
+    basics.value.social_url.trim().length > 0 ||
+    basics.value.instagram_url.trim().length > 0
 );
 const canStartInterview = computed(() =>
     basics.value.business_name.trim().length > 0 &&
@@ -271,7 +273,7 @@ const canStartInterview = computed(() =>
 const formErrors = computed(() => {
     const e = [];
     if (!basics.value.industry.trim()) e.push('Industry is required.');
-    if (!hasOneUrl.value) e.push('Please add at least one of: Website, LinkedIn, or Facebook/Instagram.');
+    if (!hasOneUrl.value) e.push('Please add at least one of: Website, LinkedIn, Facebook, or Instagram.');
     return e;
 });
 
@@ -702,6 +704,7 @@ const startInterview = async () => {
                     services:      basics.value.services,
                     linkedin_url:  basics.value.linkedin_url,
                     social_url:    basics.value.social_url,
+                    instagram_url: basics.value.instagram_url,
                 }),
             });
             const data = await res.json();
@@ -996,15 +999,27 @@ const formats = [
                             </div>
                             <div class="space-y-2">
                                 <Label for="social_url" class="text-[#1A1A1A] font-semibold">
-                                    Facebook / Instagram
+                                    Facebook
                                 </Label>
                                 <Input
                                     id="social_url"
                                     v-model="basics.social_url"
-                                    placeholder="instagram.com/..."
+                                    placeholder="facebook.com/..."
                                     class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                 />
                             </div>
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label for="instagram_url" class="text-[#1A1A1A] font-semibold">
+                                Instagram
+                            </Label>
+                            <Input
+                                id="instagram_url"
+                                v-model="basics.instagram_url"
+                                placeholder="instagram.com/..."
+                                class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                            />
                         </div>
 
                         <div class="space-y-2">

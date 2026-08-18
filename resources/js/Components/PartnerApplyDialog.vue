@@ -53,14 +53,14 @@ watch(open, (isOpen) => {
 
             <template v-else>
                 <DialogHeader>
-                    <DialogTitle class="text-[#1A1A1A]">Become a Verified Partner</DialogTitle>
+                    <DialogTitle class="text-[#1A1A1A]">Become a Best of Local Verified Business Partner</DialogTitle>
                     <DialogDescription class="text-[#555555]">Share how to reach you and our team will follow up with everything you need to know about joining.</DialogDescription>
                 </DialogHeader>
 
                 <!-- Ready to join now — straight to checkout -->
                 <div class="rounded-2xl p-6 mb-2" style="background-color: #1A1A1A;">
-                    <h3 class="text-lg font-black text-white mb-1">Ready to join now</h3>
-                    <p class="text-sm mb-5" style="color: #AAAAAA;">If you already know this is right for you, go straight to checkout and get set up today.</p>
+                    <h3 class="text-lg font-black text-white mb-1">Ready to join now?</h3>
+                    <p class="text-sm mb-5" style="color: #AAAAAA;">Go straight to checkout and start today</p>
                     <a
                         :href="CHECKOUT_URL"
                         target="_blank"
@@ -76,9 +76,10 @@ watch(open, (isOpen) => {
                 <!-- Divider -->
                 <div class="flex items-center gap-3 my-2">
                     <span class="h-px flex-1" style="background-color: #DDDDDD;" />
-                    <span class="text-xs font-bold tracking-widest uppercase" style="color: #AAAAAA;">Want to learn more first</span>
+                    <span class="text-xs font-bold tracking-widest uppercase" style="color: #AAAAAA;">OR</span>
                     <span class="h-px flex-1" style="background-color: #DDDDDD;" />
                 </div>
+                <p class="text-center text-sm font-black uppercase tracking-wide mb-1" style="color: #1A1A1A;">Provide your details below to learn more</p>
 
                 <form @submit.prevent="submit" class="space-y-4" novalidate>
                     <div>
@@ -165,7 +166,7 @@ watch(open, (isOpen) => {
                     >
                         <span v-if="form.processing">Submitting…</span>
                         <template v-else>
-                            Send my info <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                            Enquire Now <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </template>
                     </button>
                 </form>

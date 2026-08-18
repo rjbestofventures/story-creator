@@ -92,8 +92,12 @@ const hasProfile = props.interview.business_name || props.interview.industry
                     <a :href="normalizeUrl(interview.linkedin_url)" target="_blank" rel="noopener" class="text-sm hover:underline break-all" style="color: #F5A000;">{{ interview.linkedin_url }}</a>
                 </div>
                 <div v-if="interview.social_url">
-                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Facebook / Instagram</p>
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Facebook</p>
                     <a :href="normalizeUrl(interview.social_url)" target="_blank" rel="noopener" class="text-sm hover:underline break-all" style="color: #F5A000;">{{ interview.social_url }}</a>
+                </div>
+                <div v-if="interview.instagram_url">
+                    <p class="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Instagram</p>
+                    <a :href="normalizeUrl(interview.instagram_url)" target="_blank" rel="noopener" class="text-sm hover:underline break-all" style="color: #F5A000;">{{ interview.instagram_url }}</a>
                 </div>
             </div>
 

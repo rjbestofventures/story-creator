@@ -148,6 +148,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::post('/users/{user}/toggle-partner', [AdminController::class, 'togglePartner'])->name('users.toggle-partner');
     Route::post('/users/{user}/password', [AdminController::class, 'resetPassword'])->name('users.password');
     Route::post('/users/{user}/grant-pack', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
+    Route::post('/users/{user}/gift-credits', [AdminController::class, 'giftCredits'])->name('users.gift-credits');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/impersonate', [AdminController::class, 'impersonate'])->name('users.impersonate');
     Route::get('/users/{user}/invoices', [AdminController::class, 'userInvoices'])->name('users.invoices');
