@@ -12,7 +12,7 @@ import {
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2, Volume2, VolumeX, CircleHelp } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2, Volume2, VolumeX } from 'lucide-vue-next';
 
 const props = defineProps({
     profile:         Object,
@@ -261,6 +261,17 @@ const fieldHints = {
     biography:     'By providing your biography or company history we can generate the most authentic outcomes.',
     services:      'Please include a short description of your primary services.',
 };
+// The hint shows while the field is hovered or while the cursor sits in it, so
+// the tooltip is driven by us rather than the trigger's default hover-only logic.
+const hoveredHint = ref(null);
+const focusedHint = ref(null);
+const hintOpen = key => hoveredHint.value === key || focusedHint.value === key;
+const hintEvents = key => ({
+    onMouseenter: () => { hoveredHint.value = key; },
+    onMouseleave: () => { if (hoveredHint.value === key) hoveredHint.value = null; },
+    onFocus:      () => { focusedHint.value = key; },
+    onBlur:       () => { if (focusedHint.value === key) focusedHint.value = null; },
+});
 const basics = ref({
     business_name: props.profile?.business_name ?? '',
     business_url:  props.profile?.business_url  ?? '',
@@ -974,135 +985,135 @@ const formats = [
                         <p class="text-xs text-[#AAAAAA]">When adding a link, please make sure it is set to public access so the system can properly fetch and process it.</p>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <Label for="business_url" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
+                                <Label for="business_url" class="text-[#1A1A1A] font-semibold">
                                     Website
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" class="max-w-xs">{{ fieldHints.business_url }}</TooltipContent>
-                                    </Tooltip>
                                 </Label>
-                                <Input
-                                    id="business_url"
-                                    v-model="basics.business_url"
-                                    placeholder="https://..."
-                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                />
+                                <Tooltip :open="hintOpen('business_url')">
+                                    <TooltipTrigger as-child>
+                                        <Input
+                                            id="business_url"
+                                            v-model="basics.business_url"
+                                            placeholder="https://..."
+                                            class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                            v-bind="hintEvents('business_url')"
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.business_url }}</TooltipContent>
+                                </Tooltip>
                             </div>
                             <div class="space-y-2">
-                                <Label for="industry" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
+                                <Label for="industry" class="text-[#1A1A1A] font-semibold">
                                     Industry
-                                    <span class="text-red-500">*</span>
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" class="max-w-xs">{{ fieldHints.industry }}</TooltipContent>
-                                    </Tooltip>
+                                    <span class="text-red-500 ml-0.5">*</span>
                                 </Label>
-                                <Input
-                                    id="industry"
-                                    v-model="basics.industry"
-                                    placeholder="e.g. Landscaping"
-                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                />
+                                <Tooltip :open="hintOpen('industry')">
+                                    <TooltipTrigger as-child>
+                                        <Input
+                                            id="industry"
+                                            v-model="basics.industry"
+                                            placeholder="e.g. Landscaping"
+                                            class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                            v-bind="hintEvents('industry')"
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.industry }}</TooltipContent>
+                                </Tooltip>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <Label for="linkedin_url" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
+                                <Label for="linkedin_url" class="text-[#1A1A1A] font-semibold">
                                     LinkedIn
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" class="max-w-xs">{{ fieldHints.linkedin_url }}</TooltipContent>
-                                    </Tooltip>
                                 </Label>
-                                <Input
-                                    id="linkedin_url"
-                                    v-model="basics.linkedin_url"
-                                    placeholder="linkedin.com/in/..."
-                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                />
+                                <Tooltip :open="hintOpen('linkedin_url')">
+                                    <TooltipTrigger as-child>
+                                        <Input
+                                            id="linkedin_url"
+                                            v-model="basics.linkedin_url"
+                                            placeholder="linkedin.com/in/..."
+                                            class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                            v-bind="hintEvents('linkedin_url')"
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.linkedin_url }}</TooltipContent>
+                                </Tooltip>
                             </div>
                             <div class="space-y-2">
-                                <Label for="social_url" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
+                                <Label for="social_url" class="text-[#1A1A1A] font-semibold">
                                     Facebook
-                                    <Tooltip>
-                                        <TooltipTrigger as-child>
-                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="top" class="max-w-xs">{{ fieldHints.social_url }}</TooltipContent>
-                                    </Tooltip>
                                 </Label>
-                                <Input
-                                    id="social_url"
-                                    v-model="basics.social_url"
-                                    placeholder="facebook.com/..."
-                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                />
+                                <Tooltip :open="hintOpen('social_url')">
+                                    <TooltipTrigger as-child>
+                                        <Input
+                                            id="social_url"
+                                            v-model="basics.social_url"
+                                            placeholder="facebook.com/..."
+                                            class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                            v-bind="hintEvents('social_url')"
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.social_url }}</TooltipContent>
+                                </Tooltip>
                             </div>
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="instagram_url" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
+                            <Label for="instagram_url" class="text-[#1A1A1A] font-semibold">
                                 Instagram
-                                <Tooltip>
-                                    <TooltipTrigger as-child>
-                                        <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.instagram_url }}</TooltipContent>
-                                </Tooltip>
                             </Label>
-                            <Input
-                                id="instagram_url"
-                                v-model="basics.instagram_url"
-                                placeholder="instagram.com/..."
-                                class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                            />
+                            <Tooltip :open="hintOpen('instagram_url')">
+                                <TooltipTrigger as-child>
+                                    <Input
+                                        id="instagram_url"
+                                        v-model="basics.instagram_url"
+                                        placeholder="instagram.com/..."
+                                        class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                        v-bind="hintEvents('instagram_url')"
+                                    />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" class="max-w-xs">{{ fieldHints.instagram_url }}</TooltipContent>
+                            </Tooltip>
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="biography" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
+                            <Label for="biography" class="text-[#1A1A1A] font-semibold">
                                 About you and your business
                                 <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
-                                <Tooltip>
-                                    <TooltipTrigger as-child>
-                                        <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.biography }}</TooltipContent>
-                                </Tooltip>
                             </Label>
-                            <Textarea
-                                id="biography"
-                                v-model="basics.biography"
-                                placeholder="Tell us about yourself, your background, what drives you, your journey into this business..."
-                                rows="3"
-                                class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
-                            />
+                            <Tooltip :open="hintOpen('biography')">
+                                <TooltipTrigger as-child>
+                                    <Textarea
+                                        id="biography"
+                                        v-model="basics.biography"
+                                        placeholder="Tell us about yourself, your background, what drives you, your journey into this business..."
+                                        rows="3"
+                                        class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
+                                        v-bind="hintEvents('biography')"
+                                    />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" class="max-w-xs">{{ fieldHints.biography }}</TooltipContent>
+                            </Tooltip>
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="services" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
+                            <Label for="services" class="text-[#1A1A1A] font-semibold">
                                 Your Business Services
                                 <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
-                                <Tooltip>
-                                    <TooltipTrigger as-child>
-                                        <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
-                                    </TooltipTrigger>
-                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.services }}</TooltipContent>
-                                </Tooltip>
                             </Label>
-                            <Textarea
-                                id="services"
-                                v-model="basics.services"
-                                placeholder="e.g. Espresso drinks, in-house roasting, catering for local events..."
-                                rows="3"
-                                class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
-                            />
+                            <Tooltip :open="hintOpen('services')">
+                                <TooltipTrigger as-child>
+                                    <Textarea
+                                        id="services"
+                                        v-model="basics.services"
+                                        placeholder="e.g. Espresso drinks, in-house roasting, catering for local events..."
+                                        rows="3"
+                                        class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
+                                        v-bind="hintEvents('services')"
+                                    />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" class="max-w-xs">{{ fieldHints.services }}</TooltipContent>
+                            </Tooltip>
                         </div>
 
                         <div v-if="formErrors.length > 0 && basics.business_name.trim()" class="space-y-1">
