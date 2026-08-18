@@ -12,7 +12,7 @@ import {
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2, Volume2, VolumeX } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2, Volume2, VolumeX, CircleHelp } from 'lucide-vue-next';
 
 const props = defineProps({
     profile:         Object,
@@ -249,6 +249,18 @@ const advanceDemoReplay = async () => {
 };
 
 // ─── Basics ──────────────────────────────────────────────────────────────────
+// Help-icon tooltip copy per field. Website, Industry, LinkedIn, Facebook, and
+// Instagram share the same line; About and Services keep their own.
+const ACCURATE_STORIES_HINT = 'By including this we can generate the most accurate stories.';
+const fieldHints = {
+    business_url:  ACCURATE_STORIES_HINT,
+    industry:      ACCURATE_STORIES_HINT,
+    linkedin_url:  ACCURATE_STORIES_HINT,
+    social_url:    ACCURATE_STORIES_HINT,
+    instagram_url: ACCURATE_STORIES_HINT,
+    biography:     'By providing your biography or company history we can generate the most authentic outcomes.',
+    services:      'Please include a short description of your primary services.',
+};
 const basics = ref({
     business_name: props.profile?.business_name ?? '',
     business_url:  props.profile?.business_url  ?? '',
@@ -944,6 +956,7 @@ const formats = [
                         <p class="text-[#555555]">Tell us a bit about your business, then StoryBot will interview you.</p>
                     </div>
 
+                    <TooltipProvider :delay-duration="150">
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-5">
                         <div class="space-y-2">
                             <Label for="business_name" class="text-[#1A1A1A] font-semibold">
@@ -961,8 +974,14 @@ const formats = [
                         <p class="text-xs text-[#AAAAAA]">When adding a link, please make sure it is set to public access so the system can properly fetch and process it.</p>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <Label for="business_url" class="text-[#1A1A1A] font-semibold">
+                                <Label for="business_url" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
                                     Website
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" class="max-w-xs">{{ fieldHints.business_url }}</TooltipContent>
+                                    </Tooltip>
                                 </Label>
                                 <Input
                                     id="business_url"
@@ -972,9 +991,15 @@ const formats = [
                                 />
                             </div>
                             <div class="space-y-2">
-                                <Label for="industry" class="text-[#1A1A1A] font-semibold">
+                                <Label for="industry" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
                                     Industry
-                                    <span class="text-red-500 ml-0.5">*</span>
+                                    <span class="text-red-500">*</span>
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" class="max-w-xs">{{ fieldHints.industry }}</TooltipContent>
+                                    </Tooltip>
                                 </Label>
                                 <Input
                                     id="industry"
@@ -987,8 +1012,14 @@ const formats = [
 
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
-                                <Label for="linkedin_url" class="text-[#1A1A1A] font-semibold">
+                                <Label for="linkedin_url" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
                                     LinkedIn
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" class="max-w-xs">{{ fieldHints.linkedin_url }}</TooltipContent>
+                                    </Tooltip>
                                 </Label>
                                 <Input
                                     id="linkedin_url"
@@ -998,8 +1029,14 @@ const formats = [
                                 />
                             </div>
                             <div class="space-y-2">
-                                <Label for="social_url" class="text-[#1A1A1A] font-semibold">
+                                <Label for="social_url" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
                                     Facebook
+                                    <Tooltip>
+                                        <TooltipTrigger as-child>
+                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
+                                        </TooltipTrigger>
+                                        <TooltipContent side="top" class="max-w-xs">{{ fieldHints.social_url }}</TooltipContent>
+                                    </Tooltip>
                                 </Label>
                                 <Input
                                     id="social_url"
@@ -1011,8 +1048,14 @@ const formats = [
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="instagram_url" class="text-[#1A1A1A] font-semibold">
+                            <Label for="instagram_url" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
                                 Instagram
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.instagram_url }}</TooltipContent>
+                                </Tooltip>
                             </Label>
                             <Input
                                 id="instagram_url"
@@ -1023,9 +1066,15 @@ const formats = [
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="biography" class="text-[#1A1A1A] font-semibold">
+                            <Label for="biography" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
                                 About you and your business
                                 <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.biography }}</TooltipContent>
+                                </Tooltip>
                             </Label>
                             <Textarea
                                 id="biography"
@@ -1037,9 +1086,15 @@ const formats = [
                         </div>
 
                         <div class="space-y-2">
-                            <Label for="services" class="text-[#1A1A1A] font-semibold">
+                            <Label for="services" class="text-[#1A1A1A] font-semibold inline-flex items-center gap-1">
                                 Your Business Services
                                 <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                                <Tooltip>
+                                    <TooltipTrigger as-child>
+                                        <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help" />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.services }}</TooltipContent>
+                                </Tooltip>
                             </Label>
                             <Textarea
                                 id="services"
@@ -1064,6 +1119,7 @@ const formats = [
                             <ArrowRight class="w-4 h-4" />
                         </Button>
                     </div>
+                    </TooltipProvider>
                 </div>
             </div>
 

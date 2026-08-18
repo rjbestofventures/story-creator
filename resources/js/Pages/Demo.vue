@@ -41,15 +41,17 @@ const basics = {
 
 // Hover tooltips describing each locked demo field, matching the live form.
 const DEMO_LOCK_HINT = 'This is a pre-filled example for Barnacle Busters. The fields are locked - just click through to see how StoryBot works.';
+// Website, Industry, LinkedIn, Facebook, and Instagram all share the same copy.
+const ACCURATE_STORIES_HINT = 'By including this we can generate the most accurate stories.';
 const fieldHints = {
     business_name: DEMO_LOCK_HINT,
-    business_url:  DEMO_LOCK_HINT,
-    industry:      DEMO_LOCK_HINT,
-    linkedin_url:  DEMO_LOCK_HINT,
-    social_url:    DEMO_LOCK_HINT,
-    instagram_url: DEMO_LOCK_HINT,
-    biography:     'You will add a short bio about you and your business here.',
-    services:      'You will add the services or products your business offers here.',
+    business_url:  ACCURATE_STORIES_HINT,
+    industry:      ACCURATE_STORIES_HINT,
+    linkedin_url:  ACCURATE_STORIES_HINT,
+    social_url:    ACCURATE_STORIES_HINT,
+    instagram_url: ACCURATE_STORIES_HINT,
+    biography:     'By providing your biography or company history we can generate the most authentic outcomes.',
+    services:      'Please include a short description of your primary services.',
 };
 
 // Chat transcript: alternating user/assistant, with synthetic "[…]" button markers
