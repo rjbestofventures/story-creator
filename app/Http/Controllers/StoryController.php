@@ -504,11 +504,11 @@ class StoryController extends Controller
     public const DEMO_LINES = [
         "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! I'll ask you a few quick questions about Barnacle Busters, then turn your answers into a library of stories worth sharing. Ready?",
         "How did you get into this business? You don't need to make it polished. Just tell it like you would explain it to someone over coffee.",
-        "There's something real about starting young, cleaning boats for coffee or a beer while everyone else was off partying. That kind of scrappy, hands-on beginning is exactly the origin story customers connect with.",
+        'I totally relate. I remember Brady Baxter started a lawnmowing business that he turned into a big landscaping firm. The guy seemed like a mogul by senior year. Hands on responsibility at a young age is all about natural character and work ethic.',
         'What is one experience that changed the way you run your business today? Think of one specific customer, mistake, problem, mentor, job, opportunity, or turning point that taught you something you still use now.',
         "That's a real turning point, understanding that going overboard for your customers meant the business had to grow beyond just you. And handing it to your son makes it a family story people will remember.",
         'What is something you believe about your business that you learned from experience?',
-        'That is everything I need. Take care of people first and everything comes from that, that belief runs through your whole story. Give me a moment while I put your story library together.',
+        "Customers first. Short and sweet. I think you've given me everything I need. I thank you for these thoughtful and revealing responses. Now, if you give me a moment, I'll process your stories! Are You Ready?",
     ];
 
     /**
@@ -516,8 +516,8 @@ class StoryController extends Controller
      * each side can be narrated in its own voice.
      */
     public const DEMO_ANSWER_LINES = [
-        "I started cleaning boats for extra money while I was young in northeast. For coffee or a beer. And so while my friends were, you know, partying during the summer, I was cleaning boats. And, and yeah, that's how I started it.",
-        "I realized that if I wanted to clean as many bottoms as I could and truly go overboard for my customers, that I would have to grow the business beyond myself. That it couldn't be me doing it. And then, as I got older and I got my family involved, it became even bigger. And now I'm proud to say my son, Rayan Danielle, is running it. And I think that answers that.",
+        "I started cleaning boats for extra money while I was young in Northeast. For coffee or a beer. And so while my friends were, you know, partying during the summer, I was cleaning boats. And, and yeah, that's how I started it.",
+        "My early success as a one man band, doing all the work myself,didn't live up the promise I made to go \"overboard\" for my customers…when i saw one of my first customers's boat getting scrubbed at a neighboring spit, as briny as the water was it was painfully clear that the busier i got the more my customers would be pissed.",
         'If you take care of people first everything comes from that.',
     ];
 
@@ -527,9 +527,9 @@ class StoryController extends Controller
      * business owner's voice, same as those answers.
      */
     public const DEMO_EPISODE_LINES = [
-        "It Started With a Bucket and a Beer. I was just a kid up northeast, cleaning boats for extra money. Nothing glamorous. I'd do it for coffee, or a beer, whatever someone wanted to hand me.\n\nAnd while my friends were off partying all summer, I was in the water, scrubbing hulls.\n\nI didn't know it at the time, but that was the beginning of Barnacle Busters. No business plan, no big vision. Just a kid who didn't mind getting in the water and doing the work nobody else wanted to do.\n\nThat's really how it started.\n\nWhat's something you started just to make a little extra money that turned into something bigger?",
+        "It Started With a Bucket and a Beer. I was just a kid growing up in the northeast, cleaning boats for extra money. Nothing glamorous. I'd do it for coffee, or a beer, whatever someone wanted to hand me.\n\nAnd while my friends were off partying all summer, I was in the water, scrubbing hulls.\n\nI didn't know it at the time, but that was the beginning of Barnacle Busters. No business plan, no big vision. Just a kid who didn't mind getting in the water and doing the work nobody else wanted to do.\n\nThat's really how it started.\n\nWhat's something you started just to make a little extra money that turned into something bigger? (bet you know people who started like me, I was all hard work, wanting to make people happy and pride).",
         "Going Overboard Meant Growing Beyond Myself. At some point I realized something. If I wanted to clean as many bottoms as I could and truly go overboard for my customers, it couldn't just be me anymore.\n\nOne person only has so many hours, so many dives in a day.\n\nSo I started to grow the business beyond myself. And as I got older, I got my family involved, and it became even bigger than I ever pictured back when I was that kid with a bucket.\n\nNow I'm proud to say my son, Rayan Danielle, is running it.\n\nThat's the part I'm most proud of. Not the fleet, not the counties we cover. The family.\n\nWhat would it take for your business to grow beyond just you?",
-        "Take Care of People First. After all these years, all the boats, all the divers, all the growth, here's what I believe more than anything.\n\nIf you take care of people first, everything comes from that.\n\nThe customers, the crew, my own family. Take care of them first, do right by them, and the rest follows. The vessels get serviced right at the dock. The work gets done by people who are trained and certified and actually care.\n\nThat's not a slogan. That's just how we've always done it, since the beginning.\n\nWhen you put people first, what have you seen come back to you?",
+        "Take Care of People First. After all these years, all the boats, all the divers, all the growth, here's what I believe more than anything.\n\nIf you take care of people first, everything comes from that.\n\nThe customers, the crew, my own family. Take care of them first, do right by them, and the rest follows. The vessels get serviced right at the dock. The work gets done by people who are trained and certified and actually care.\n\nThat's not a slogan. That's just how we've always done it, since the beginning.\n\nI'm not jaded. I feel really lucky and maybe I'm a bit old fashioned but I still believe when you put people first it all comes back around. How about you?",
     ];
 
     public function speakDemo(Request $request)

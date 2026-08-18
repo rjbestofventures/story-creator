@@ -25,9 +25,9 @@ const showMoreFaqs = () => { faqVisible.value += 4; };
 
 // "Why this matters" cards clamp their body to 2 lines until expanded.
 const whyCards = [
-    { title: 'Starting out', bg: '#FFF8EC', body: "Let's face it. There are already companies out there offering the same services you do. Every buyer, every single one, gets their services from the people and companies they trusted most at one time. You are not competing on what you offer. You are competing on whether they trust you enough to try you out." },
-    { title: 'Holding ground', bg: '#FDEFD6', body: "The big players already have the relationships and the client base. There is always someone new who can move faster, charge less, and take risks you have learned not to take. You do good work every day. Some days that is still not enough to be seen." },
-    { title: 'Staying on top', bg: '#FBE0A8', body: "You built this by holding to high standards, delivering on them, and adapting when the ground shifted under you. That is what got you here, and word of mouth used to carry it forward for you. Now, in social media, an algorithm decides who gets recommended, and it might not have ever heard of you or your company. You have not lost customers. You have lost the thing that used to bring them." },
+    { title: 'Starting out', bg: '#FFF8EC', body: "Let's face it. There are likely many companies out there offering the exact same services as your new company. Being new is always scary, but the gap has never been easier to close. Consumers now search and discover who they want to work with on the same established platforms, whether a company opened last month or thirty years ago. That opportunity, to stand next to an established competitor and look just as trustworthy, has never been better than it is right now with social media. It comes down to your story. It is the story that portrays your character, and it is your story that engenders trust." },
+    { title: 'Holding ground', bg: '#FDEFD6', body: "The big outfits have the relationships and the gravitational pull that comes from scale. The upstarts move fast, work for less, and take risks you learned long ago not to take. Squeezed from both sides, you need something scale cannot buy and hustle cannot fake. The same platforms giving new businesses their opening are giving your established competitors a louder microphone too. Standing still is how ground gets lost. It comes down to your story, the one that already earned trust once and now has to be told loud enough to continue to earn it." },
+    { title: 'Staying on top', bg: '#FBE0A8', body: "You built your market share by holding to high standards, delivering on them, and adapting when the ground shifted under you. That is what got you here, when word of mouth reliably turned into growth. Now word of mouth has moved to digital platforms, where a startup or a company a fraction your size can look just as credible as you. Anonymous search engine recommendations are losing trust, and the algorithms replacing them do not care about your tenure. You are not losing customers. You are losing the advantage that used to be free with your legacy. It comes down to your story, the trust you spent years earning, told with the same reach and precision your newest competitors already have, but with the wisdom that only comes from experience." },
 ];
 const expandedCards = ref([false, false, false]);
 const toggleCard = (i) => { expandedCards.value[i] = !expandedCards.value[i]; };
@@ -276,9 +276,12 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     <p class="text-xs font-bold tracking-widest uppercase mb-2.5" style="color: #FFF2DF;">The Tool</p>
                     <p class="text-3xl font-black mb-3.5" style="color: #15171C;">StoryCreator.Bot</p>
                     <p class="text-[15px] leading-relaxed max-w-2xl" style="color: #3A2A12;">
-                        One conversation, thirty minutes, in your own voice. Whether you're introducing yourself,
-                        proving reliability, or protecting a legacy, this is the tool that turns your story into
-                        content you actually own.
+                        Whether you are new and building trust, caught in the middle and defending it, or established
+                        and protecting a legacy, the answer is the same. Your story is unique. Your story defines your
+                        business. Your story is all important. StoryCreator.Bot asks you simple questions in one thirty
+                        minute conversation, then turns your answers into content ready to publish, in your own voice,
+                        saving you marketing expenditure and, maybe more important, the time you need to devote to
+                        running your company, not promoting it.
                     </p>
                 </div>
 

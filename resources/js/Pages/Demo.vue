@@ -1,7 +1,6 @@
 <script setup>
-import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
+import { ref, computed, nextTick, onUnmounted } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
-import { runTour, runTourWhenReady } from '@/lib/tour';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
@@ -10,7 +9,7 @@ import { Badge } from '@/Components/ui/badge';
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2, Headphones, Square, CircleHelp } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2, Headphones, Square } from 'lucide-vue-next';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
 import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
@@ -41,7 +40,7 @@ const basics = {
 };
 
 // Hover tooltips describing each locked demo field, matching the live form.
-const DEMO_LOCK_HINT = 'This is a pre-filled example for Barnacle Busters. The fields are locked — just click through to see how StoryBot works.';
+const DEMO_LOCK_HINT = 'This is a pre-filled example for Barnacle Busters. The fields are locked - just click through to see how StoryBot works.';
 const fieldHints = {
     business_name: DEMO_LOCK_HINT,
     business_url:  DEMO_LOCK_HINT,
@@ -60,23 +59,23 @@ const demoMessages = [
     { role: 'assistant', content: "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! I'll ask you a few quick questions about Barnacle Busters, then turn your answers into a library of stories worth sharing. Ready?" },
     { role: 'user',      content: '[Ready to begin]' },
     { role: 'assistant', isQuestion: true, content: "How did you get into this business? You don't need to make it polished. Just tell it like you would explain it to someone over coffee." },
-    { role: 'user',      content: "I started cleaning boats for extra money while I was young in northeast. For coffee or a beer. And so while my friends were, you know, partying during the summer, I was cleaning boats. And, and yeah, that's how I started it." },
-    { role: 'assistant', content: "There's something real about starting young, cleaning boats for coffee or a beer while everyone else was off partying. That kind of scrappy, hands-on beginning is exactly the origin story customers connect with." },
+    { role: 'user',      content: "I started cleaning boats for extra money while I was young in Northeast. For coffee or a beer. And so while my friends were, you know, partying during the summer, I was cleaning boats. And, and yeah, that's how I started it." },
+    { role: 'assistant', content: "I totally relate. I remember Brady Baxter started a lawnmowing business that he turned into a big landscaping firm. The guy seemed like a mogul by senior year. Hands on responsibility at a young age is all about natural character and work ethic." },
     { role: 'user',      content: '[Ready for next question]' },
     { role: 'assistant', isQuestion: true, content: 'What is one experience that changed the way you run your business today? Think of one specific customer, mistake, problem, mentor, job, opportunity, or turning point that taught you something you still use now.' },
-    { role: 'user',      content: "I realized that if I wanted to clean as many bottoms as I could and truly go overboard for my customers, that I would have to grow the business beyond myself. That it couldn't be me doing it. And then, as I got older and I got my family involved, it became even bigger. And now I'm proud to say my son, Rayan Danielle, is running it. And I think that answers that." },
+    { role: 'user',      content: "My early success as a one man band, doing all the work myself,didn't live up the promise I made to go \"overboard\" for my customers…when i saw one of my first customers's boat getting scrubbed at a neighboring spit, as briny as the water was it was painfully clear that the busier i got the more my customers would be pissed." },
     { role: 'assistant', content: "That's a real turning point, understanding that going overboard for your customers meant the business had to grow beyond just you. And handing it to your son makes it a family story people will remember." },
     { role: 'user',      content: '[Ready for next question]' },
     { role: 'assistant', isQuestion: true, content: "What is something you believe about your business that you learned from experience?" },
     { role: 'user',      content: "If you take care of people first everything comes from that." },
-    { role: 'assistant', content: "That is everything I need. Take care of people first and everything comes from that, that belief runs through your whole story. Give me a moment while I put your story library together." },
+    { role: 'assistant', content: "Customers first. Short and sweet. I think you've given me everything I need. I thank you for these thoughtful and revealing responses. Now, if you give me a moment, I'll process your stories! Are You Ready?" },
 ];
 
 const demoEpisodes = [
     {
         episode_number: 1,
         title: 'It Started With a Bucket and a Beer',
-        content: "I was just a kid up northeast, cleaning boats for extra money. Nothing glamorous. I'd do it for coffee, or a beer, whatever someone wanted to hand me.\n\nAnd while my friends were off partying all summer, I was in the water, scrubbing hulls.\n\nI didn't know it at the time, but that was the beginning of Barnacle Busters. No business plan, no big vision. Just a kid who didn't mind getting in the water and doing the work nobody else wanted to do.\n\nThat's really how it started.\n\nWhat's something you started just to make a little extra money that turned into something bigger?",
+        content: "I was just a kid growing up in the northeast, cleaning boats for extra money. Nothing glamorous. I'd do it for coffee, or a beer, whatever someone wanted to hand me.\n\nAnd while my friends were off partying all summer, I was in the water, scrubbing hulls.\n\nI didn't know it at the time, but that was the beginning of Barnacle Busters. No business plan, no big vision. Just a kid who didn't mind getting in the water and doing the work nobody else wanted to do.\n\nThat's really how it started.\n\nWhat's something you started just to make a little extra money that turned into something bigger? (bet you know people who started like me, I was all hard work, wanting to make people happy and pride).",
     },
     {
         episode_number: 2,
@@ -86,7 +85,7 @@ const demoEpisodes = [
     {
         episode_number: 3,
         title: 'Take Care of People First',
-        content: "After all these years, all the boats, all the divers, all the growth, here's what I believe more than anything.\n\nIf you take care of people first, everything comes from that.\n\nThe customers, the crew, my own family. Take care of them first, do right by them, and the rest follows. The vessels get serviced right at the dock. The work gets done by people who are trained and certified and actually care.\n\nThat's not a slogan. That's just how we've always done it, since the beginning.\n\nWhen you put people first, what have you seen come back to you?",
+        content: "After all these years, all the boats, all the divers, all the growth, here's what I believe more than anything.\n\nIf you take care of people first, everything comes from that.\n\nThe customers, the crew, my own family. Take care of them first, do right by them, and the rest follows. The vessels get serviced right at the dock. The work gets done by people who are trained and certified and actually care.\n\nThat's not a slogan. That's just how we've always done it, since the beginning.\n\nI'm not jaded. I feel really lucky and maybe I'm a bit old fashioned but I still believe when you put people first it all comes back around. How about you?",
     },
 ];
 
@@ -611,28 +610,6 @@ const goBack = () => {
     if (phase.value === 1) phase.value = 0;
     else if (phase.value === 3) phase.value = 1;
 };
-
-// ─── Guided tour of the demo form (TourGuide.js) ──────────────────────────────
-const demoTourSteps = [
-    { target: '#demo-tour-name', title: 'Business name', content: "The business you're telling a story about. In this demo it's pre-filled for you.", order: 1 },
-    { target: '#demo-tour-website', title: 'Website', content: 'Your website helps StoryBot learn context about the business.', order: 2 },
-    { target: '#demo-tour-industry', title: 'Industry', content: 'What the business does — this shapes the tone of the story.', order: 3 },
-    { target: '#demo-tour-linkedin', title: 'LinkedIn', content: 'Optional. The more profiles you add, the more StoryBot has to work with.', order: 4 },
-    { target: '#demo-tour-social', title: 'Facebook', content: 'Optional. Your Facebook page adds extra context.', order: 5 },
-    { target: '#demo-tour-instagram', title: 'Instagram', content: 'Optional. Your Instagram profile adds extra context.', order: 6 },
-    { target: '#demo-tour-about', title: 'About the business', content: 'A short description of the business and what makes it different.', order: 7 },
-    { target: '#demo-tour-services', title: 'Services', content: 'The products or services the business offers.', order: 8 },
-    { target: '#demo-tour-start', title: 'Start the demo', content: "When you're ready, click here. StoryBot asks a few questions, then generates the story.", order: 9 },
-];
-const markDemoTourSeen = () => { try { localStorage.setItem('sc_demo_tour_seen', '1'); } catch { /* ignore */ } };
-const startDemoTour = () => runTour(demoTourSteps, { onComplete: markDemoTourSeen });
-
-onMounted(() => {
-    if (phase.value !== 0) return;
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('sc_demo_tour_seen') === '1') return;
-    // Start once the form's first field is actually rendered.
-    runTourWhenReady(demoTourSteps, { onComplete: markDemoTourSeen });
-});
 </script>
 
 <template>
@@ -698,7 +675,7 @@ onMounted(() => {
             <div class="w-full max-w-lg">
                 <div class="mb-6 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-[#555555]">
                     <span class="font-bold text-[#1A1A1A]">Demo mode.</span>
-                    This is a pre-filled example for Barnacle Busters. The fields are locked — just click through to see how StoryBot works.
+                    This is a pre-filled example for Barnacle Busters. The fields are locked - just click through to see how StoryBot works.
                 </div>
 
                 <div class="mb-8 text-center">
@@ -707,14 +684,6 @@ onMounted(() => {
                     </div>
                     <h1 class="text-2xl font-black text-[#1A1A1A] mb-2">See StoryBot in action</h1>
                     <p class="text-[#555555]">Here's a business we've already filled in. Start the interview to watch StoryBot work.</p>
-                    <button
-                        type="button"
-                        @click="startDemoTour"
-                        class="mt-4 inline-flex items-center gap-1.5 text-sm font-bold text-[#F5A000] hover:underline cursor-pointer"
-                    >
-                        <CircleHelp class="w-4 h-4" />
-                        Take a quick tour
-                    </button>
                 </div>
 
                 <TooltipProvider :delay-duration="150">
