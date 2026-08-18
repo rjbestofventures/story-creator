@@ -275,7 +275,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 <div class="rounded-2xl p-9 md:p-10 text-left" style="background: linear-gradient(90deg, #F0951C 0%, #F7C948 100%);">
                     <p class="text-xs font-bold tracking-widest uppercase mb-2.5" style="color: #FFF2DF;">The Tool</p>
                     <p class="text-3xl font-black mb-3.5" style="color: #15171C;">StoryCreator.Bot</p>
-                    <p class="text-[15px] leading-relaxed max-w-2xl" style="color: #3A2A12;">
+                    <p class="text-[15px] leading-relaxed" style="color: #3A2A12;">
                         Whether you are new and building trust, caught in the middle and defending it, or established
                         and protecting a legacy, the answer is the same. Your story is unique. Your story defines your
                         business. Your story is all important. StoryCreator.Bot asks you simple questions in one thirty

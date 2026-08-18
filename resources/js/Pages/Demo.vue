@@ -6,9 +6,6 @@ import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
 import { Badge } from '@/Components/ui/badge';
-import {
-    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
-} from '@/Components/ui/tooltip';
 import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2, Headphones, Square } from 'lucide-vue-next';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
@@ -37,21 +34,6 @@ const basics = {
     instagram_url: 'instagram.com/barnaclebusters',
     biography: 'Barnacle Busters offers Yacht Maintenance services Palm Beach, Broward, and Martin Counties with fully trained, experienced, and certified professional divers. Our large fleet of service vehicles will service your vessel right at your dock or marina.',
     services: 'Services include Underwater Inspections and Photography and one time boat bottom cleanings.',
-};
-
-// Hover tooltips describing each locked demo field, matching the live form.
-const DEMO_LOCK_HINT = 'This is a pre-filled example for Barnacle Busters. The fields are locked - just click through to see how StoryBot works.';
-// Website, Industry, LinkedIn, Facebook, and Instagram all share the same copy.
-const ACCURATE_STORIES_HINT = 'By including this we can generate the most accurate stories.';
-const fieldHints = {
-    business_name: DEMO_LOCK_HINT,
-    business_url:  ACCURATE_STORIES_HINT,
-    industry:      ACCURATE_STORIES_HINT,
-    linkedin_url:  ACCURATE_STORIES_HINT,
-    social_url:    ACCURATE_STORIES_HINT,
-    instagram_url: ACCURATE_STORIES_HINT,
-    biography:     'By providing your biography or company history we can generate the most authentic outcomes.',
-    services:      'Please include a short description of your primary services.',
 };
 
 // Chat transcript: alternating user/assistant, with synthetic "[…]" button markers
@@ -688,88 +670,47 @@ const goBack = () => {
                     <p class="text-[#555555]">Here's a business we've already filled in. Start the interview to watch StoryBot work.</p>
                 </div>
 
-                <TooltipProvider :delay-duration="150">
                 <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-5">
                     <div id="demo-tour-name" class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">Business Name</Label>
-                        <Tooltip>
-                            <TooltipTrigger as-child>
-                                <Input :model-value="basics.business_name" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
-                            </TooltipTrigger>
-                            <TooltipContent>{{ fieldHints.business_name }}</TooltipContent>
-                        </Tooltip>
+                        <Input :model-value="basics.business_name" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div id="demo-tour-website" class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">Website</Label>
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <Input :model-value="basics.business_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
-                                </TooltipTrigger>
-                                <TooltipContent>{{ fieldHints.business_url }}</TooltipContent>
-                            </Tooltip>
+                            <Input :model-value="basics.business_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
                         </div>
                         <div id="demo-tour-industry" class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">Industry</Label>
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <Input :model-value="basics.industry" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
-                                </TooltipTrigger>
-                                <TooltipContent>{{ fieldHints.industry }}</TooltipContent>
-                            </Tooltip>
+                            <Input :model-value="basics.industry" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
                         </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
                         <div id="demo-tour-linkedin" class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">LinkedIn</Label>
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <Input :model-value="basics.linkedin_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
-                                </TooltipTrigger>
-                                <TooltipContent>{{ fieldHints.linkedin_url }}</TooltipContent>
-                            </Tooltip>
+                            <Input :model-value="basics.linkedin_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
                         </div>
                         <div id="demo-tour-social" class="space-y-2">
                             <Label class="text-[#1A1A1A] font-semibold">Facebook</Label>
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <Input :model-value="basics.social_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
-                                </TooltipTrigger>
-                                <TooltipContent>{{ fieldHints.social_url }}</TooltipContent>
-                            </Tooltip>
+                            <Input :model-value="basics.social_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
                         </div>
                     </div>
 
                     <div id="demo-tour-instagram" class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">Instagram</Label>
-                        <Tooltip>
-                            <TooltipTrigger as-child>
-                                <Input :model-value="basics.instagram_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
-                            </TooltipTrigger>
-                            <TooltipContent>{{ fieldHints.instagram_url }}</TooltipContent>
-                        </Tooltip>
+                        <Input :model-value="basics.instagram_url" disabled class="h-11 bg-gray-100 text-[#555555] border-[#DDDDDD] cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
                     </div>
 
                     <div id="demo-tour-about" class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">About the business</Label>
-                        <Tooltip>
-                            <TooltipTrigger as-child>
-                                <Textarea :model-value="basics.biography" disabled rows="3" class="bg-gray-100 text-[#555555] border-[#DDDDDD] resize-none cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
-                            </TooltipTrigger>
-                            <TooltipContent>{{ fieldHints.biography }}</TooltipContent>
-                        </Tooltip>
+                        <Textarea :model-value="basics.biography" disabled rows="3" class="bg-gray-100 text-[#555555] border-[#DDDDDD] resize-none cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
                     </div>
 
                     <div id="demo-tour-services" class="space-y-2">
                         <Label class="text-[#1A1A1A] font-semibold">Services</Label>
-                        <Tooltip>
-                            <TooltipTrigger as-child>
-                                <Textarea :model-value="basics.services" disabled rows="2" class="bg-gray-100 text-[#555555] border-[#DDDDDD] resize-none cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
-                            </TooltipTrigger>
-                            <TooltipContent>{{ fieldHints.services }}</TooltipContent>
-                        </Tooltip>
+                        <Textarea :model-value="basics.services" disabled rows="2" class="bg-gray-100 text-[#555555] border-[#DDDDDD] resize-none cursor-not-allowed transition-colors hover:border-[#F5A000] hover:text-[#B87800]" />
                     </div>
 
                     <Button
@@ -782,7 +723,6 @@ const goBack = () => {
                         <ArrowRight class="w-4 h-4" />
                     </Button>
                 </div>
-                </TooltipProvider>
             </div>
         </div>
 
