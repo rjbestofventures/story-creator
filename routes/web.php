@@ -97,6 +97,7 @@ Route::middleware(['auth'])->group(function () {
     Route::get('/stories/{story}/resume', [StoryController::class, 'resume'])->name('stories.resume');
     Route::get('/stories/{story}/status', [StoryController::class, 'status'])->name('stories.status');
     Route::post('/stories/{story}/episodes/{episode}/speak', [StoryController::class, 'speakEpisode'])->name('stories.episode.speak');
+    Route::post('/stories/{story}/answers/speak', [StoryController::class, 'speakAnswer'])->name('stories.answers.speak');
     Route::post('/speak', [StoryController::class, 'speakText'])->name('speak');
 });
 

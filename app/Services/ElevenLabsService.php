@@ -17,6 +17,11 @@ class ElevenLabsService
     /** "Sarah" — distinct from the default so bot/customer narration doesn't sound identical. */
     public const DEFAULT_CUSTOMER_VOICE = 'EXAVITQu4vr4xnSDxMaL';
 
+    /** The two options behind the Male/Female toggle on the "My Answers" page — "George" and "Sarah". */
+    public const ANSWER_MALE_VOICE = 'JBFqnCBsd6RMkjVDRZzb';
+
+    public const ANSWER_FEMALE_VOICE = 'EXAVITQu4vr4xnSDxMaL';
+
     public function synthesize(string $text, string $voiceId): string
     {
         $response = Http::withHeaders([

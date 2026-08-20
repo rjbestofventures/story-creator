@@ -208,6 +208,66 @@ onUnmounted(() => {
 const storyPlaying = ref(false);
 let storyPlayAbort = false;
 
+// The whole story opens in a modal that karaokes along with the narration —
+// every word is tagged with the position it's spoken in ("<title>. <content>"),
+// so the player can light up whichever one the voice has reached.
+const storyModalOpen = ref(false);
+const karaokeIndex   = ref(-1);
+
+const splitWords = (text) => (text ?? '').split(/\s+/).filter(Boolean);
+
+const karaokeDocs = computed(() => {
+    const docs = {};
+    for (const ep of episodes.value) {
+        let i = 0;
+        const tag = (words) => words.map((text) => ({ text, i: i++ }));
+        const title = tag(splitWords(ep.title));
+        const paras = (ep.content ?? '').split(/\n{2,}/).map((p) => tag(splitWords(p))).filter((p) => p.length);
+
+        // Longer words take longer to say, so weight each one by its length to
+        // spread the audio's duration across the text more evenly than a flat split.
+        const weights = [];
+        let total = 0;
+        for (const word of [...title, ...paras.flat()]) {
+            total += word.text.length + 1;
+            weights.push(total);
+        }
+
+        docs[ep.id] = { title, paras, weights, total };
+    }
+    return docs;
+});
+
+const trackKaraoke = (ep) => {
+    const doc = karaokeDocs.value[ep.id];
+    const duration = speakAudio?.duration;
+    if (!doc?.total || !duration || !isFinite(duration)) return;
+
+    const target = (speakAudio.currentTime / duration) * doc.total;
+    const idx = doc.weights.findIndex((w) => w > target);
+    karaokeIndex.value = idx === -1 ? doc.weights.length - 1 : idx;
+};
+
+const wordClass = (ep, index) => {
+    if (speakingId.value !== ep.id) return 'text-[#555555]';
+    if (index === karaokeIndex.value) return 'bg-[#FFE9B8] text-[#1A1A1A] rounded px-0.5';
+    return index < karaokeIndex.value ? 'text-[#1A1A1A]' : 'text-[#999999]';
+};
+
+// Episode blocks inside the modal, so narration can scroll them into view there
+// instead of on the page behind it.
+const modalEpisodeEls = {};
+const registerModalEpisode = (el, ep) => { if (el) modalEpisodeEls[ep.id] = el; };
+
+const openStoryPlayer = () => {
+    storyModalOpen.value = true;
+    toggleFullStory();
+};
+
+watch(storyModalOpen, (open) => {
+    if (!open && storyPlaying.value) toggleFullStory();
+});
+
 const playEpisodeAndAwaitEnd = (ep) => new Promise(async (resolve) => {
     let url = speakAudioUrls[ep.id];
     if (!url) {
@@ -220,8 +280,10 @@ const playEpisodeAndAwaitEnd = (ep) => new Promise(async (resolve) => {
         resolve();
         return;
     }
+    karaokeIndex.value = -1;
     speakingId.value = ep.id;
     speakAudio = new Audio(url);
+    speakAudio.ontimeupdate = () => trackKaraoke(ep);
     speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; resolve(); };
     speakAudio.play();
 });
@@ -240,7 +302,8 @@ const toggleFullStory = async () => {
 
     for (const ep of episodes.value) {
         if (storyPlayAbort) break;
-        episodeCardEls[ep.id]?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        const target = storyModalOpen.value ? modalEpisodeEls[ep.id] : episodeCardEls[ep.id];
+        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         await playEpisodeAndAwaitEnd(ep);
     }
 
@@ -712,7 +775,7 @@ const restoreRevision = async (ep) => {
                         <button
                             v-if="episodes.length > 0"
                             type="button"
-                            @click="toggleFullStory"
+                            @click="storyPlaying ? toggleFullStory() : openStoryPlayer()"
                             class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer"
                             :class="storyPlaying
                                 ? 'border-2 border-[#F5A000]/40 bg-amber-50 text-[#F5A000]'
@@ -1118,6 +1181,59 @@ const restoreRevision = async (ep) => {
         </div>
 
         <!-- Refine confirmation — non-modal so the episode you're editing stays interactive -->
+        <!-- Full-story player — the whole story, karaoke-highlighted as it's read -->
+        <Dialog v-model:open="storyModalOpen">
+            <DialogContent class="max-w-3xl p-0 gap-0">
+                <DialogHeader class="px-6 pt-6 pb-4 border-b border-[#EEEEEE] text-left">
+                    <DialogTitle class="text-[#1A1A1A]">{{ storyTitle }}</DialogTitle>
+                    <DialogDescription class="text-[#555555]">Follow along — each word lights up as it's read.</DialogDescription>
+                </DialogHeader>
+
+                <div class="max-h-[60vh] overflow-y-auto px-6 py-5 space-y-8">
+                    <div
+                        v-for="ep in episodes"
+                        :key="ep.id"
+                        :ref="(el) => registerModalEpisode(el, ep)"
+                    >
+                        <p class="text-[10px] font-black uppercase tracking-widest mb-2 text-[#F5A000]">Episode {{ ep.episode_number }}</p>
+                        <h3 class="text-lg font-black mb-3 leading-snug">
+                            <span
+                                v-for="w in karaokeDocs[ep.id].title"
+                                :key="`t-${w.i}`"
+                                :class="wordClass(ep, w.i)"
+                            >{{ w.text }} </span>
+                        </h3>
+                        <p
+                            v-for="(para, pi) in karaokeDocs[ep.id].paras"
+                            :key="pi"
+                            class="text-sm leading-relaxed mb-3"
+                        >
+                            <span
+                                v-for="w in para"
+                                :key="`p-${w.i}`"
+                                :class="wordClass(ep, w.i)"
+                            >{{ w.text }} </span>
+                        </p>
+                    </div>
+                </div>
+
+                <DialogFooter class="px-6 py-4 border-t border-[#EEEEEE]">
+                    <button
+                        type="button"
+                        @click="toggleFullStory"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer"
+                        :class="storyPlaying
+                            ? 'border-2 border-[#F5A000]/40 bg-amber-50 text-[#F5A000]'
+                            : 'bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A] hover:opacity-90'"
+                    >
+                        <Square v-if="storyPlaying" class="w-4 h-4 fill-current" />
+                        <Headphones v-else class="w-4 h-4" />
+                        {{ storyPlaying ? 'Stop Listening' : 'Listen to Your Story' }}
+                    </button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
         <Dialog v-model:open="confirmRefineOpen" :modal="false">
             <DialogContent class="max-w-md" @interact-outside="(e) => e.preventDefault()">
                 <DialogHeader>

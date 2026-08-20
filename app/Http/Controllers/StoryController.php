@@ -484,6 +484,36 @@ class StoryController extends Controller
         return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
     }
 
+    /**
+     * Read one interview question or answer aloud on the "My Answers" page.
+     * Questions keep the interview bot's own voice; answers follow the reader's
+     * Male/Female toggle. The text is always resolved server-side from the stored
+     * interview so the endpoint can't be used to narrate arbitrary input.
+     */
+    public function speakAnswer(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'number' => 'required|integer|min:1',
+            'part' => ['required', Rule::in(['question', 'answer'])],
+            'voice' => ['required', Rule::in(['male', 'female'])],
+        ]);
+
+        $pair = collect($story->businessProfile?->interviewQaPairs() ?? [])
+            ->firstWhere('number', $data['number']);
+
+        $text = trim((string) ($pair[$data['part']] ?? ''));
+
+        abort_if($text === '', 404);
+
+        $role = $data['part'] === 'question' ? 'main' : 'answer_'.$data['voice'];
+
+        $audio = Tts::speak($text, $role);
+
+        return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
     /** Read arbitrary text aloud — used for individual chat bubbles in the interview. */
     public function speakText(Request $request)
     {

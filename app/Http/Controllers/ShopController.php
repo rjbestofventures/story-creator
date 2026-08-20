@@ -45,7 +45,7 @@ class ShopController extends Controller
             ->get()
             ->map(fn (UserCredit $purchase) => [
                 'id' => $purchase->id,
-                'pack_label' => $purchase->creditPack?->label ?? 'Unknown pack',
+                'pack_label' => $purchase->creditPack?->label ?? 'Bonus Pack',
                 'pack_type' => $purchase->creditPack?->type,
                 'credits_granted' => $purchase->credits_granted,
                 'amount_paid' => $purchase->amount_paid,

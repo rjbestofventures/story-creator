@@ -12,7 +12,7 @@ const formatAmount = (cents) => {
     return `$${(cents / 100).toFixed(2)}`;
 };
 
-const sourceLabel = (source) => (source === 'grant' ? 'Granted by admin' : 'Purchased online');
+const sourceLabel = (source) => (source === 'online' ? 'Purchased online' : 'Granted by admin');
 </script>
 
 <template>

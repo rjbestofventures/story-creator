@@ -3,7 +3,7 @@ import { ref, watch } from 'vue';
 import { useForm } from '@inertiajs/vue3';
 import { ArrowRight, Check } from 'lucide-vue-next';
 import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+    Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/Components/ui/dialog';
 
 const open = defineModel('open', { default: false });
@@ -54,7 +54,6 @@ watch(open, (isOpen) => {
             <template v-else>
                 <DialogHeader>
                     <DialogTitle class="text-[#1A1A1A]">Become a Best of Local Verified Business Partner</DialogTitle>
-                    <DialogDescription class="text-[#555555]">Share how to reach you and our team will follow up with everything you need to know about joining.</DialogDescription>
                 </DialogHeader>
 
                 <!-- Ready to join now — straight to checkout -->

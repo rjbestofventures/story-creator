@@ -642,7 +642,7 @@ class AdminController extends Controller
             ->get()
             ->map(fn ($p) => [
                 'id' => $p->id,
-                'pack_label' => $p->creditPack?->label ?? 'Credits',
+                'pack_label' => $p->creditPack?->label ?? 'Bonus Pack',
                 'credits' => $p->credits_granted,
                 'date' => optional($p->purchased_at)->format('M j, Y'),
                 'source' => $p->source,
