@@ -12,7 +12,9 @@ class RequiresCredits
     {
         $user = $request->user();
 
-        if ($user?->isAdmin() || ($user && $user->credits > 0)) {
+        // Trial members hold no credits by definition — locks, not the credit
+        // balance, are what gate them.
+        if ($user?->isAdmin() || $user?->is_trial || ($user && $user->credits > 0)) {
             return $next($request);
         }
 

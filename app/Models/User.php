@@ -16,12 +16,15 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'is_active', 'credits', 'is_verified_partner'])]
+#[Fillable(['name', 'email', 'password', 'is_active', 'credits', 'is_verified_partner', 'is_trial', 'trial_allowance'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use Billable, HasFactory, HasRoles, Notifiable;
+
+    /** Stories a newly provisioned Trial Member may generate before converting. */
+    public const DEFAULT_TRIAL_ALLOWANCE = 1;
 
     protected function casts(): array
     {
@@ -33,6 +36,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_active' => 'boolean',
             'credits' => 'integer',
             'is_verified_partner' => 'boolean',
+            'is_trial' => 'boolean',
+            'trial_allowance' => 'integer',
         ];
     }
 

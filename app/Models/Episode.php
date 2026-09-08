@@ -47,6 +47,16 @@ class Episode extends Model
         return $this->belongsTo(Story::class);
     }
 
+    /**
+     * A locked episode is written and stored but withheld: its owner may not
+     * read, edit, refine, or hear it until the story stops locking episodes.
+     */
+    public function isLocked(): bool
+    {
+        return $this->story->locksEpisodes()
+            && $this->episode_number > Story::TRIAL_UNLOCKED_EPISODES;
+    }
+
     public function versions(): HasMany
     {
         return $this->hasMany(EpisodeVersion::class)->orderByDesc('version');

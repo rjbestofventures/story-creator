@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\DB;
 
 class CreditPack extends Model
 {
@@ -23,23 +24,52 @@ class CreditPack extends Model
         return $this->hasMany(UserCredit::class);
     }
 
+    /** A pack bought as a primary purchase, as opposed to a top-up add-on. */
+    public function isMainPack(): bool
+    {
+        return $this->type !== 'addon';
+    }
+
     /**
-     * Grant this pack to a user: record a ledger entry and add its credits
-     * to the user's wallet.
+     * The single funnel through which acquiring a pack takes effect: it records
+     * the ledger entry, adds the credits, confers partner status where the pack
+     * is partner-priced, and ends any running trial. Purchase, checkout success,
+     * admin grant, and provisioning all route through here, so no caller needs
+     * its own handling and none can drift from the others.
+     *
+     * Ending a trial unlocks the member's whole library, because lock state is
+     * derived from trial state rather than stored on each episode.
      */
     public function grantTo(User $user, ?string $stripeSessionId = null, ?int $amountPaid = null): void
     {
-        UserCredit::create([
-            'user_id' => $user->id,
-            'credit_pack_id' => $this->id,
-            'credits_granted' => $this->credits,
-            'amount_paid' => $amountPaid,
-            'source' => $stripeSessionId ? 'online' : 'grant',
-            'stripe_checkout_session_id' => $stripeSessionId,
-            'purchased_at' => now(),
-        ]);
+        DB::transaction(function () use ($user, $stripeSessionId, $amountPaid) {
+            UserCredit::create([
+                'user_id' => $user->id,
+                'credit_pack_id' => $this->id,
+                'credits_granted' => $this->credits,
+                'amount_paid' => $amountPaid,
+                'source' => $stripeSessionId ? 'online' : 'grant',
+                'stripe_checkout_session_id' => $stripeSessionId,
+                'purchased_at' => now(),
+            ]);
 
-        $user->increment('credits', $this->credits);
+            $user->increment('credits', $this->credits);
+
+            $changes = [];
+
+            if ($this->type === 'partner') {
+                $changes['is_verified_partner'] = true;
+            }
+
+            if ($this->isMainPack() && $user->is_trial) {
+                $changes['is_trial'] = false;
+                $changes['trial_allowance'] = 0;
+            }
+
+            if ($changes !== []) {
+                $user->forceFill($changes)->save();
+            }
+        });
     }
 
     public function formattedPrice(): string

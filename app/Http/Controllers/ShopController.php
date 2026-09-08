@@ -32,7 +32,7 @@ class ShopController extends Controller
         return Inertia::render('Shop/Index', [
             'packs' => $packs,
             'addon' => $addon,
-            'canBuyAddon' => $user->is_verified_partner || $user->hasBoughtMainPack(),
+            'canBuyAddon' => $this->canBuyAddon($user),
             'credits' => $user->isAdmin() ? null : $user->credits,
             'notice' => session('notice'),
         ]);
@@ -70,7 +70,7 @@ class ShopController extends Controller
         // Add-on can only be bought once the user holds a main pack
         // (verified partners qualify automatically).
         abort_if(
-            $pack->type === 'addon' && ! $user->is_verified_partner && ! $user->hasBoughtMainPack(),
+            $pack->type === 'addon' && ! $this->canBuyAddon($user),
             422,
             'Buy a story pack first — the Credit Boost is a top-up add-on.'
         );
@@ -146,6 +146,21 @@ class ShopController extends Controller
     }
 
     // -------------------------------------------------------------------------
+
+    /**
+     * The add-on tops up a main pack, so it needs one. Trial members are excluded
+     * outright: a vetted trial member satisfies the partner condition on its own,
+     * and an add-on is not a main pack, so buying one would leave them holding
+     * credits with a library still locked.
+     */
+    private function canBuyAddon(User $user): bool
+    {
+        if ($user->is_trial) {
+            return false;
+        }
+
+        return $user->is_verified_partner || $user->hasBoughtMainPack();
+    }
 
     private function handleCheckoutCompleted(object $session): void
     {

@@ -47,6 +47,8 @@ class AdminController extends Controller
                 'tier' => $user->roles->first()?->name ?? 'user',
                 'is_active' => $user->is_active,
                 'is_verified_partner' => $user->is_verified_partner,
+                'is_trial' => $user->is_trial,
+                'trial_allowance' => $user->trial_allowance,
                 'credits' => $user->credits,
                 'stories_total' => $user->stories_count,
                 'created_at' => $user->created_at->format('n/j/Y'),
@@ -539,10 +541,13 @@ class AdminController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make(Str::random(32)),
-            'email_verified_at' => now(),
             'is_active' => $validated['is_active'],
             'is_verified_partner' => $validated['is_verified_partner'],
         ]);
+
+        // Not mass-assignable — an admin-created account is verified by the admin
+        // creating it, so it must not be left waiting on a confirmation email.
+        $user->markEmailAsVerified();
 
         $user->assignRole($validated['tier']);
 
@@ -612,6 +617,27 @@ class AdminController extends Controller
         ]);
 
         $user->increment('credits', $validated['credits']);
+
+        return back();
+    }
+
+    /**
+     * Set how many stories a trial member may still generate. Sales uses this to
+     * give a promising lead another run; setting it on a member who is not in
+     * trial puts them into one.
+     */
+    public function setTrialAllowance(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'trial_allowance' => 'required|integer|min:0|max:20',
+        ]);
+
+        $allowance = (int) $validated['trial_allowance'];
+
+        $user->update([
+            'trial_allowance' => $allowance,
+            'is_trial' => $allowance > 0,
+        ]);
 
         return back();
     }

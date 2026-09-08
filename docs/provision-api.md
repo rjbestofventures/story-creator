@@ -29,6 +29,7 @@ Creates a new user account, optionally grants the specified credit pack, and sen
 | `name` | string | Yes | Full name of the user |
 | `email` | string | Yes | Email address (must be unique) |
 | `pack` | string | No | Credit pack slug — see [Packs](#packs). Omit to create the account with 0 credits and no pack. |
+| `trial` | boolean | No | Create the account as a Trial Member. Defaults to `false`. Cannot be combined with `pack`. |
 
 ### Example Request
 
@@ -54,6 +55,8 @@ Accept: application/json
         "name": "Jane Smith",
         "email": "jane@example.com",
         "is_verified_partner": true,
+        "is_trial": false,
+        "trial_allowance": 0,
         "credits": 48
     },
     "pack": "partner-basic"
@@ -78,6 +81,96 @@ Accept: application/json
     }
 }
 ```
+
+---
+
+## Create a Trial Member
+
+Pass `trial: true` to create the account as a **Trial Member**. They complete the full interview and receive a complete 12-episode story generated from their own answers, of which the first 3 are readable — the rest are locked until they buy a pack.
+
+**`POST /api/provision/user`**
+
+```http
+POST /api/provision/user
+Authorization: Bearer your-secret-token
+Content-Type: application/json
+Accept: application/json
+
+{
+    "name": "Jane Smith",
+    "email": "jane@example.com",
+    "trial": true
+}
+```
+
+```json
+{
+    "user": {
+        "id": 43,
+        "name": "Jane Smith",
+        "email": "jane@example.com",
+        "is_verified_partner": false,
+        "is_trial": true,
+        "trial_allowance": 1,
+        "credits": 0
+    },
+    "pack": null
+}
+```
+
+- A Trial Member holds no credits and generates without spending any. `trial_allowance` bounds how many stories they may generate before converting; it starts at 1 and an admin can adjust it.
+- Trial members see **retail** pack pricing by default. To trial a prospective partner at partner pricing, provision the trial and then call [Verify Partner](#verify-partner) — the two are independent.
+- `trial` and `pack` are mutually exclusive and returning both yields `422`. A pack grants credits and ends a trial, so asking for both asks for opposite things.
+
+---
+
+## Verify Partner
+
+Marks an existing account as a verified business partner, which governs **pack pricing only**. It grants no credits, unlocks no episodes, and leaves a running trial untouched. Safe to call more than once.
+
+**`POST /api/provision/verify-partner`**
+
+### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | Yes | Email address of an existing account |
+
+### Example Request
+
+```http
+POST /api/provision/verify-partner
+Authorization: Bearer your-secret-token
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "jane@example.com"
+}
+```
+
+### Success Response — `200 OK`
+
+```json
+{
+    "user": {
+        "id": 43,
+        "name": "Jane Smith",
+        "email": "jane@example.com",
+        "is_verified_partner": true,
+        "is_trial": true,
+        "credits": 0
+    }
+}
+```
+
+### Error Responses
+
+| Status | Cause |
+|---|---|
+| `401` | Missing or invalid bearer token |
+| `404` | No account with that email |
+| `422` | Validation failed |
 
 ---
 

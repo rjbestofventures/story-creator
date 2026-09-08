@@ -19,6 +19,9 @@ const props = defineProps({
     story:           Object,
     credits:         { type: Number, default: null },
     max_episodes:    { type: Number, default: null },
+    is_trial:                 { type: Boolean, default: false },
+    trial_episode_count:      { type: Number,  default: 12 },
+    trial_unlocked_episodes:  { type: Number,  default: 3 },
     episode_options: {
         type: Array,
         default: () => [12, 18, 24].map((count) => ({ count, locked: false, unlock_label: null })),
@@ -520,12 +523,15 @@ const initEpisodeChoice = () => {
     selectedEpisodes.value = best?.count ?? 12;
 };
 
+const isTrial = computed(() => props.is_trial);
+
 const episodeCount = computed(() => {
     if (isDemoMode.value) return 3;
+    if (isTrial.value) return props.trial_episode_count;
     return selectedEpisodes.value ?? episodeOptions.value[0]?.count ?? 12;
 });
 
-const canAffordSelected = computed(() => isUnlimited.value || creditBalance.value >= episodeCount.value);
+const canAffordSelected = computed(() => isUnlimited.value || isTrial.value || creditBalance.value >= episodeCount.value);
 
 const storeForm = useForm({
     format:        'social',
@@ -1401,8 +1407,19 @@ const formats = [
 
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-8">
 
+                        <!-- Trial members get a fixed library, so there is nothing to choose -->
+                        <div v-if="isTrial" class="rounded-xl p-4 border" style="background:#FEF9EC; border-color:#F5A000;">
+                            <p class="text-sm font-bold text-[#1A1A1A]">
+                                Your {{ trial_episode_count }}-episode library
+                            </p>
+                            <p class="text-xs text-[#555555] mt-1">
+                                StoryBot writes all {{ trial_episode_count }} episodes from your interview. The first
+                                {{ trial_unlocked_episodes }} are yours to read straight away, and the rest unlock when you buy a pack.
+                            </p>
+                        </div>
+
                         <!-- Episode count chooser -->
-                        <div v-if="!isDemoMode" class="space-y-3">
+                        <div v-if="!isDemoMode && !isTrial" class="space-y-3">
                             <div class="flex items-center justify-between">
                                 <Label class="text-[#1A1A1A] font-bold text-base block">How many episodes?</Label>
                                 <span v-if="!isUnlimited" class="text-xs font-semibold text-[#555555]">
@@ -1495,7 +1512,8 @@ const formats = [
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
                             <p class="text-xs text-[#555555] mt-1">
-                                <template v-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes up to 3 minutes
+                                <template v-if="isTrial">Free while you are on trial · </template>
+                                <template v-else-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes up to 3 minutes
                             </p>
                         </div>
 
@@ -1551,14 +1569,20 @@ const formats = [
                             <strong class="text-[#1A1A1A]">{{ episodeCount }} episodes</strong>
                             for <strong class="text-[#1A1A1A]">{{ basics.business_name }}</strong>.
                         </p>
-                        <ul v-if="!isUnlimited" class="mt-2 space-y-1 list-disc list-inside">
+                        <ul v-if="isTrial" class="mt-2 space-y-1 list-disc list-inside">
+                            <li>This uses your trial and costs no credits.</li>
+                            <li>The first <strong class="text-[#1A1A1A]">{{ trial_unlocked_episodes }}</strong> episodes are readable right away.</li>
+                            <li>The rest unlock when you buy any pack — they are written either way.</li>
+                        </ul>
+                        <ul v-else-if="!isUnlimited" class="mt-2 space-y-1 list-disc list-inside">
                             <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditBalance }}</strong></li>
                             <li>Cost: <strong class="text-[#1A1A1A]">{{ episodeCount }} credit{{ episodeCount === 1 ? '' : 's' }}</strong> (1 credit per episode)</li>
                             <li>Remaining Balance After Generation: <strong class="text-[#1A1A1A]">{{ creditBalance - episodeCount }} credits</strong></li>
                         </ul>
                         <p class="mt-2 text-xs">
                             Once confirmed, StoryBot will immediately begin generating your episodes.
-                            <template v-if="!isUnlimited"> Credits used are non-refundable.</template>
+                            <template v-if="isTrial"> This uses your trial, so double-check your answers first.</template>
+                            <template v-else-if="!isUnlimited"> Credits used are non-refundable.</template>
                         </p>
                     </DialogDescription>
                 </DialogHeader>

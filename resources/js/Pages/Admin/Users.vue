@@ -4,7 +4,7 @@ import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import {
     Users, BookOpen, Activity, Package, Coins,
     Search, UserPlus, CircleUser, KeyRound, Trash2, Mail,
-    ChevronDown, Check, LogIn, Gift,
+    ChevronDown, Check, LogIn, Gift, Lock,
     Receipt, ExternalLink,
 } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
@@ -147,6 +147,21 @@ const giftCredits = (user) => {
     form.post(route('admin.users.gift-credits', user.id), {
         preserveScroll: true,
         onSuccess: () => { form.reset(); flash(user.id); },
+    });
+};
+
+const trialForms = ref({});
+const getTrialForm = (user) => {
+    if (!trialForms.value[user.id]) {
+        trialForms.value[user.id] = useForm({ trial_allowance: user.trial_allowance ?? 0 });
+    }
+    return trialForms.value[user.id];
+};
+
+const saveTrialAllowance = (user) => {
+    getTrialForm(user).post(route('admin.users.trial-allowance', user.id), {
+        preserveScroll: true,
+        onSuccess: () => flash(user.id),
     });
 };
 
@@ -310,6 +325,13 @@ const impersonate = (userId) => {
                                 class="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0"
                             >
                                 Verified Partner
+                            </Badge>
+                            <Badge
+                                v-if="user.is_trial"
+                                variant="outline"
+                                class="bg-purple-50 text-purple-700 border-purple-200 text-[10px] px-1.5 py-0"
+                            >
+                                Trial · {{ user.trial_allowance }} left
                             </Badge>
                             <Badge
                                 v-if="user.current_pack"
@@ -521,8 +543,29 @@ const impersonate = (userId) => {
                                 <Package class="w-3.5 h-3.5" />
                                 {{ user.is_verified_partner ? 'Verified Partner ✓' : 'Mark as Partner' }}
                             </button>
+
+                            <div class="flex-1 min-w-[130px]">
+                                <label class="block text-[10px] font-semibold text-[#555555] mb-1">Trial allowance</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    :value="getTrialForm(user).trial_allowance"
+                                    @input="e => getTrialForm(user).trial_allowance = e.target.value === '' ? 0 : parseInt(e.target.value, 10)"
+                                    class="h-9 w-full px-3 rounded-lg text-sm outline-none bg-white"
+                                    style="border: 1px solid #DDDDDD; color: #1A1A1A;"
+                                />
+                            </div>
+                            <Button
+                                variant="outline"
+                                :disabled="getTrialForm(user).processing"
+                                class="shrink-0 gap-1.5 font-semibold border-[#DDDDDD] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
+                                @click="saveTrialAllowance(user)"
+                            >
+                                <Lock class="w-3.5 h-3.5" /> Set
+                            </Button>
                         </div>
-                        <p class="text-[10px] text-muted-foreground">Granting adds the pack's credits to the user's wallet (free). Gifting adds any number of credits directly. Partner status unlocks discounted partner pricing in the shop.</p>
+                        <p class="text-[10px] text-muted-foreground">Granting adds the pack's credits to the user's wallet (free). Gifting adds any number of credits directly. Partner status unlocks discounted partner pricing in the shop. Trial allowance is how many stories a trial member may still generate — setting it above zero puts the account into trial, and buying any main pack ends the trial and unlocks their library.</p>
                     </div>
 
                     <!-- Credits / usage section -->

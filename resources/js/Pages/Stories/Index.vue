@@ -22,6 +22,8 @@ const props = defineProps({
     credits:   { type: Number, default: null },
     isAdmin:   Boolean,
     adminRole: String,
+    is_trial:        { type: Boolean, default: false },
+    trial_allowance: { type: Number,  default: 0 },
 });
 
 const buyCreditsButtonEnabled = computed(() => usePage().props.features?.buyCreditsButtonEnabled ?? true);
@@ -33,7 +35,17 @@ const generatedCount = computed(() =>
 );
 // Smallest story is 12 episodes (1 credit each), so below 12 a new story can't be afforded.
 const MIN_STORY_CREDITS = 12;
-const canCreateStory = computed(() => props.isAdmin || creditBalance.value >= MIN_STORY_CREDITS);
+// A trial member spends trial allowance rather than credits, so the credit floor
+// does not apply to them — their allowance does.
+const canCreateStory = computed(() => {
+    if (props.is_trial) return props.trial_allowance > 0;
+    return props.isAdmin || creditBalance.value >= MIN_STORY_CREDITS;
+});
+
+// A trial member who has spent their allowance already has their story; point
+// them at it rather than refusing them blankly.
+const trialStory = computed(() => props.stories.find(s => s.status !== 'interviewing' && s.status !== 'interview_complete'));
+const trialSpent = computed(() => props.is_trial && props.trial_allowance < 1);
 
 // Format labels
 const formatLabel = {
@@ -182,9 +194,36 @@ onMounted(() => {
                     </div>
                 </div>
 
+                <!-- Trial spent: their story already exists, so point at it -->
+                <div
+                    v-if="trialSpent && trialStory"
+                    class="rounded-2xl border p-6 sm:p-8 text-center mb-6"
+                    style="background:#FEF9EC; border-color:#F5A000;"
+                >
+                    <h2 class="text-lg font-black text-[#1A1A1A] mb-2">Your trial story is already made</h2>
+                    <p class="text-[#555555] mb-5 max-w-lg mx-auto text-sm">
+                        You have used your trial, so there is no second interview to run — but your full library
+                        is written and waiting. Buy any pack to open all of it.
+                    </p>
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                        <Link :href="route('stories.show', trialStory.id)">
+                            <Button variant="outline" class="font-bold h-10 px-5 rounded-xl border-[#DDDDDD] text-[#1A1A1A] bg-white cursor-pointer">
+                                <BookOpen class="w-4 h-4 mr-2 text-[#F5A000]" />
+                                Go to my story
+                            </Button>
+                        </Link>
+                        <Link :href="route('shop.index')">
+                            <Button class="font-bold h-10 px-5 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer">
+                                <Sparkles class="w-4 h-4 mr-2" />
+                                Unlock My Full Library
+                            </Button>
+                        </Link>
+                    </div>
+                </div>
+
                 <!-- Empty state: no credits → buy first -->
                 <div
-                    v-if="stories.length === 0 && !canCreateStory"
+                    v-if="stories.length === 0 && !canCreateStory && !trialSpent"
                     class="bg-white rounded-2xl border border-[#DDDDDD] p-12 text-center"
                 >
                     <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
@@ -361,6 +400,9 @@ onMounted(() => {
                     <DialogDescription class="text-[#555555]">
                         "<span class="font-semibold text-[#1A1A1A]">{{ deletingStory?.title }}</span>"
                         and all its episodes will be permanently deleted. This cannot be undone.
+                        <span v-if="is_trial" class="block mt-2 font-semibold text-[#1A1A1A]">
+                            This is your trial story. Deleting it does not give your trial back, and it cannot be generated again.
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">

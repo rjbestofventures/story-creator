@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Episode;
 use App\Models\SiteSetting;
+use App\Policies\EpisodePolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
         $this->overrideStripeConfig();
+
+        Gate::policy(Episode::class, EpisodePolicy::class);
     }
 
     private function overrideStripeConfig(): void

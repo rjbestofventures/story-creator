@@ -10,18 +10,25 @@ import {
 import {
     ArrowLeft, Copy, Check, Sparkles, Loader2, Plus,
     Wand2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, RotateCcw, ArrowRight, Pencil, RefreshCcw,
-    Volume2, VolumeX, Headphones, Square, ClipboardList,
+    Volume2, VolumeX, Headphones, Square, ClipboardList, Lock,
 } from 'lucide-vue-next';
 
 const props = defineProps({
     story: Object,
     isAdmin: Boolean,
     credits: { type: Number, default: null },
+    is_trial: { type: Boolean, default: false },
+    unlocked_episodes: { type: Number, default: 3 },
 });
 
 const isDemo       = props.story.is_demo ?? false;
 const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
+
+// Locked episodes are written and stored, but the server sends only their number
+// and title. Everything that reads episode text works from the unlocked ones.
+const unlockedEpisodes = computed(() => episodes.value.filter((ep) => !ep.locked));
+const lockedEpisodes   = computed(() => episodes.value.filter((ep) => ep.locked));
 const storyTitle   = computed(() => props.story.title ?? `The Story of ${businessName}`);
 
 // Local, mutable copy of the credit balance so it updates immediately after a
@@ -218,7 +225,7 @@ const splitWords = (text) => (text ?? '').split(/\s+/).filter(Boolean);
 
 const karaokeDocs = computed(() => {
     const docs = {};
-    for (const ep of episodes.value) {
+    for (const ep of unlockedEpisodes.value) {
         let i = 0;
         const tag = (words) => words.map((text) => ({ text, i: i++ }));
         const title = tag(splitWords(ep.title));
@@ -827,7 +834,7 @@ const restoreRevision = async (ep) => {
                                 <p class="text-xs font-bold uppercase tracking-wide text-[#888888] mb-3">1. Choose Episodes</p>
                                 <div class="grid grid-cols-3 gap-2">
                                     <label
-                                        v-for="ep in episodes"
+                                        v-for="ep in unlockedEpisodes"
                                         :key="ep.id"
                                         class="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold cursor-pointer transition-colors"
                                         :class="bulkSelected.includes(ep.id) ? 'border-[#F5A000] bg-amber-50 text-[#1A1A1A]' : 'border-[#DDDDDD] text-[#555555] hover:border-[#F5A000]/40'"
@@ -907,9 +914,31 @@ const restoreRevision = async (ep) => {
 
                 <!-- Episodes -->
                 <div class="space-y-6">
+                  <template v-for="ep in episodes" :key="ep.id">
+
+                    <!-- Locked: written and waiting. Only the number and title
+                         ever reach the browser — there is no content to reveal. -->
                     <article
-                        v-for="ep in episodes"
-                        :key="ep.id"
+                        v-if="ep.locked"
+                        class="rounded-2xl border border-dashed px-4 sm:px-6 py-5 flex items-center gap-4"
+                        style="background:#FAFAF8; border-color:#DDDDDD;"
+                    >
+                        <div class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
+                            <Lock class="w-4 h-4" style="color:#F5A000;" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-[#AAAAAA]">
+                                Episode {{ ep.episode_number }}
+                            </p>
+                            <h2 class="text-base sm:text-lg font-black text-[#1A1A1A] truncate">{{ ep.title }}</h2>
+                        </div>
+                        <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md" style="background:#FEF9EC; color:#F5A000;">
+                            Locked
+                        </span>
+                    </article>
+
+                    <article
+                        v-else
                         :ref="el => registerEpisodeCard(el, ep)"
                         class="bg-white rounded-2xl border transition-all duration-200 overflow-hidden relative"
                         :class="focusedId === ep.id || speakingId === ep.id
@@ -1147,6 +1176,32 @@ const restoreRevision = async (ep) => {
                             </div>
                         </div>
                     </article>
+                  </template>
+                </div>
+
+                <!-- One unlock message for the whole library, not one per card -->
+                <div
+                    v-if="lockedEpisodes.length"
+                    class="mt-8 rounded-2xl border p-6 sm:p-8 text-center"
+                    style="background:#FEF9EC; border-color:#F5A000;"
+                >
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white mb-4">
+                        <Lock class="w-6 h-6" style="color:#F5A000;" />
+                    </div>
+                    <h3 class="text-xl font-black text-[#1A1A1A] mb-2">
+                        {{ lockedEpisodes.length }} more episodes are already written
+                    </h3>
+                    <p class="text-[#555555] mb-6 max-w-lg mx-auto">
+                        Your whole library was written from your interview — you are reading the first
+                        {{ unlocked_episodes }}. Buy any pack and the rest open straight away. Nothing is regenerated,
+                        and nothing changes.
+                    </p>
+                    <Link :href="route('shop.index')">
+                        <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
+                            <Sparkles class="w-4 h-4" />
+                            Unlock My Full Library
+                        </Button>
+                    </Link>
                 </div>
 
                 <!-- Bottom CTA -->
@@ -1191,7 +1246,7 @@ const restoreRevision = async (ep) => {
 
                 <div class="max-h-[60vh] overflow-y-auto px-6 py-5 space-y-8">
                     <div
-                        v-for="ep in episodes"
+                        v-for="ep in unlockedEpisodes"
                         :key="ep.id"
                         :ref="(el) => registerModalEpisode(el, ep)"
                     >
