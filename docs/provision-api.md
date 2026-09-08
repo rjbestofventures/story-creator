@@ -122,11 +122,82 @@ Accept: application/json
 - Trial members see **retail** pack pricing by default. To trial a prospective partner at partner pricing, provision the trial and then call [Verify Partner](#verify-partner) — the two are independent.
 - `trial` and `pack` are mutually exclusive and returning both yields `422`. A pack grants credits and ends a trial, so asking for both asks for opposite things.
 
+### How a trial ends
+
+Three ways, all of which unlock the member's whole library in the same moment. Nothing is regenerated — the locked episodes were written during the trial and simply become readable.
+
+| | What ends the trial | Credits granted |
+|---|---|---|
+| The member buys a main pack in the shop | Purchase | Yes, the pack's credits |
+| An admin grants a main pack | Grant | Yes, the pack's credits |
+| You call [Convert to Partner](#convert-to-partner) | Vetting | **No** |
+
+Add-ons never end a trial, and trial members cannot buy them.
+
+Setting `trial_allowance` to `0` in the admin panel is **not** a conversion — it stops the member starting another story but leaves their existing episodes locked. It is a brake.
+
+---
+
+## Convert to Partner
+
+Converts a vetted trial member into a verified business partner: they get partner pricing **and their trial ends**, which unlocks their whole library immediately. No credits are granted — they hold none until they buy a pack, so they can read and copy all 12 episodes but cannot refine them or start another story until they do.
+
+Use this when someone has trialled the product, passed vetting, and should be given their library as part of onboarding. Use [Verify Partner](#verify-partner) instead when a trial member should keep their locked library and simply see partner prices.
+
+Safe to call more than once, and safe to call on a member who was never in a trial — they just become a verified partner.
+
+**`POST /api/provision/convert-to-partner`**
+
+### Request Body
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `email` | string | Yes | Email address of an existing account |
+
+### Example Request
+
+```http
+POST /api/provision/convert-to-partner
+Authorization: Bearer your-secret-token
+Content-Type: application/json
+Accept: application/json
+
+{
+    "email": "jane@example.com"
+}
+```
+
+### Success Response — `200 OK`
+
+```json
+{
+    "user": {
+        "id": 43,
+        "name": "Jane Smith",
+        "email": "jane@example.com",
+        "is_verified_partner": true,
+        "is_trial": false,
+        "trial_allowance": 0,
+        "credits": 0
+    }
+}
+```
+
+### Error Responses
+
+| Status | Cause |
+|---|---|
+| `401` | Missing or invalid bearer token |
+| `404` | No account with that email |
+| `422` | Validation failed |
+
 ---
 
 ## Verify Partner
 
 Marks an existing account as a verified business partner, which governs **pack pricing only**. It grants no credits, unlocks no episodes, and leaves a running trial untouched. Safe to call more than once.
+
+To also end the trial and unlock the member's library, call [Convert to Partner](#convert-to-partner) instead.
 
 **`POST /api/provision/verify-partner`**
 

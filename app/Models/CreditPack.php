@@ -55,19 +55,12 @@ class CreditPack extends Model
 
             $user->increment('credits', $this->credits);
 
-            $changes = [];
-
             if ($this->type === 'partner') {
-                $changes['is_verified_partner'] = true;
+                $user->forceFill(['is_verified_partner' => true])->save();
             }
 
-            if ($this->isMainPack() && $user->is_trial) {
-                $changes['is_trial'] = false;
-                $changes['trial_allowance'] = 0;
-            }
-
-            if ($changes !== []) {
-                $user->forceFill($changes)->save();
+            if ($this->isMainPack()) {
+                $user->endTrial();
             }
         });
     }

@@ -101,6 +101,20 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
+     * End this member's trial. Because lock state is derived from trial state
+     * rather than stored per episode, this unlocks their whole library at once —
+     * nothing is regenerated and no content changes.
+     */
+    public function endTrial(): void
+    {
+        if (! $this->is_trial) {
+            return;
+        }
+
+        $this->forceFill(['is_trial' => false, 'trial_allowance' => 0])->save();
+    }
+
+    /**
      * True once the user has bought (or been granted) at least one main pack.
      * Used to gate the Credit Boost add-on.
      */

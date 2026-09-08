@@ -1,0 +1,567 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "StoryCreator.Bot Provision API",
+    "version": "1.2.0",
+    "description": "Machine-to-machine API for creating StoryCreator.Bot accounts, granting credit packs, marking accounts as verified business partners, and deactivating accounts.\n\nThere is no user session — every request authenticates with a static bearer token held on the server.\n\n**Trial members.** An account created with `trial: true` completes the full interview and receives a complete 12-episode story generated from their own answers. The first 3 episodes are readable; the remaining 9 are written, stored, and locked. A trial member holds no credits and generates without spending any.\n\n**Trial and partner status are independent.** `is_trial` decides whether a member's episodes are locked. `is_verified_partner` decides which pack prices they are offered. They compose freely — a member may be either, both, or neither.\n\n**Ending a trial unlocks the whole library.** Three things end one: the member buys a main pack, an admin grants a main pack, or you call `POST /api/provision/convert-to-partner`. All three unlock every locked episode in the same moment; nothing is regenerated. Only the first two grant credits. Add-ons never end a trial, and trial members cannot buy them."
+  },
+  "servers": [
+    {
+      "url": "https://{host}",
+      "description": "StoryCreator.Bot instance",
+      "variables": {
+        "host": {
+          "default": "storycreator.bot",
+          "description": "Hostname of the StoryCreator.Bot instance"
+        }
+      }
+    }
+  ],
+  "security": [
+    {
+      "provisionToken": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Accounts",
+      "description": "Creating and deactivating accounts"
+    },
+    {
+      "name": "Status",
+      "description": "Changing an existing account's status"
+    }
+  ],
+  "paths": {
+    "/api/provision/user": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Create an account",
+        "operationId": "createUser",
+        "description": "Creates a new account, optionally grants a credit pack or marks it as a trial, and emails the user a password-setup link.\n\nThe account's email address is marked verified on creation — the user is vetted off-platform before provisioning, so there is nothing for them to confirm.\n\n`pack` and `trial` are mutually exclusive. A pack grants credits and ends a trial, while a trial holds no credits, so requesting both returns `422`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserRequest"
+              },
+              "examples": {
+                "trialMember": {
+                  "summary": "Trial member (retail pricing)",
+                  "description": "Locked episodes, no credits, one story of trial allowance.",
+                  "value": {
+                    "name": "Jane Smith",
+                    "email": "jane@example.com",
+                    "trial": true
+                  }
+                },
+                "partnerWithPack": {
+                  "summary": "Verified partner with a pack",
+                  "description": "Granting a partner-type pack also confers verified partner status.",
+                  "value": {
+                    "name": "Jane Smith",
+                    "email": "jane@example.com",
+                    "pack": "partner-basic"
+                  }
+                },
+                "plainAccount": {
+                  "summary": "Plain account",
+                  "description": "No credits, no trial. The user must buy a pack before creating a story.",
+                  "value": {
+                    "name": "Bob Jones",
+                    "email": "bob@example.com"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created. A password-setup email has been sent.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CreateUserResponse"
+                },
+                "examples": {
+                  "trialMember": {
+                    "summary": "Trial member",
+                    "value": {
+                      "user": {
+                        "id": 43,
+                        "name": "Jane Smith",
+                        "email": "jane@example.com",
+                        "is_verified_partner": false,
+                        "is_trial": true,
+                        "trial_allowance": 1,
+                        "credits": 0
+                      },
+                      "pack": null
+                    }
+                  },
+                  "partnerWithPack": {
+                    "summary": "Verified partner with a pack",
+                    "value": {
+                      "user": {
+                        "id": 42,
+                        "name": "Jane Smith",
+                        "email": "jane@example.com",
+                        "is_verified_partner": true,
+                        "is_trial": false,
+                        "trial_allowance": 0,
+                        "credits": 48
+                      },
+                      "pack": "partner-basic"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "422": {
+            "description": "Validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                },
+                "examples": {
+                  "duplicateEmail": {
+                    "summary": "Email already registered",
+                    "value": {
+                      "message": "The email has already been taken.",
+                      "errors": {
+                        "email": [
+                          "The email has already been taken."
+                        ]
+                      }
+                    }
+                  },
+                  "trialWithPack": {
+                    "summary": "trial and pack sent together",
+                    "value": {
+                      "message": "A trial member cannot be granted a pack. Provision the trial without a pack, or grant the pack without the trial flag.",
+                      "errors": {
+                        "pack": [
+                          "A trial member cannot be granted a pack. Provision the trial without a pack, or grant the pack without the trial flag."
+                        ]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/provision/verify-partner": {
+      "post": {
+        "tags": [
+          "Status"
+        ],
+        "summary": "Mark an account as a verified business partner",
+        "operationId": "verifyPartner",
+        "description": "Marks an existing account as a verified business partner.\n\nPartner status governs **pack pricing only**. This call grants no credits, unlocks no episodes, and does not end a running trial — a vetted trial member keeps their locked library and simply sees partner prices when they come to unlock it.\n\nSafe to call more than once; repeating it leaves the same state.\n\nTo also end the trial and unlock the member's library, call `POST /api/provision/convert-to-partner` instead.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              },
+              "example": {
+                "email": "jane@example.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account is now a verified business partner.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyPartnerResponse"
+                },
+                "example": {
+                  "user": {
+                    "id": 43,
+                    "name": "Jane Smith",
+                    "email": "jane@example.com",
+                    "is_verified_partner": true,
+                    "is_trial": true,
+                    "credits": 0,
+                    "trial_allowance": 1
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "description": "Validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/provision/convert-to-partner": {
+      "post": {
+        "tags": [
+          "Status"
+        ],
+        "summary": "Convert a trial member to a verified business partner",
+        "operationId": "convertToPartner",
+        "description": "Converts a vetted trial member into a verified business partner: they are offered partner pricing **and their trial ends**, which unlocks their whole library immediately. Nothing is regenerated — the locked episodes were written during the trial and simply become readable.\n\nNo credits are granted. The member can read and copy all 12 episodes, but cannot refine them or start another story until they buy a pack.\n\nUse this when someone has trialled the product, passed vetting, and should be given their library as part of onboarding. Use `verify-partner` instead when a trial member should keep their locked library and merely see partner prices.\n\nSafe to repeat, and safe to call on a member who was never in a trial — they simply become a verified partner.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              },
+              "example": {
+                "email": "jane@example.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account is now a verified business partner, its trial has ended, and its library is unlocked.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VerifyPartnerResponse"
+                },
+                "example": {
+                  "user": {
+                    "id": 43,
+                    "name": "Jane Smith",
+                    "email": "jane@example.com",
+                    "is_verified_partner": true,
+                    "is_trial": false,
+                    "trial_allowance": 0,
+                    "credits": 0
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "description": "Validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/provision/deactivate": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Deactivate an account",
+        "operationId": "deactivateAccount",
+        "description": "Deactivates an existing account. The user is signed out on their next request and cannot sign back in. Their stories and episodes are retained.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailRequest"
+              },
+              "example": {
+                "email": "jane@example.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account deactivated.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "email",
+                    "is_active"
+                  ],
+                  "properties": {
+                    "email": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "is_active": {
+                      "type": "boolean",
+                      "const": false
+                    }
+                  }
+                },
+                "example": {
+                  "email": "jane@example.com",
+                  "is_active": false
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "422": {
+            "description": "Validation failed.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "provisionToken": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The static token held on the server as `PROVISION_API_TOKEN`. Send it as `Authorization: Bearer {token}`. A missing or incorrect token returns `401`."
+      }
+    },
+    "schemas": {
+      "CreateUserRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "email"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255,
+            "description": "Full name of the user.",
+            "examples": [
+              "Jane Smith"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email address. Must not already exist on the instance.",
+            "examples": [
+              "jane@example.com"
+            ]
+          },
+          "pack": {
+            "type": "string",
+            "description": "Credit pack slug to grant on creation. Omit for an account with no credits. Cannot be combined with `trial`. Granting a partner-type pack also sets `is_verified_partner`.",
+            "examples": [
+              "partner-basic",
+              "storybot-basic",
+              "credit-boost"
+            ]
+          },
+          "trial": {
+            "type": "boolean",
+            "default": false,
+            "description": "Create the account as a trial member: episodes arrive locked past the first 3, no credits are held or spent, and `trial_allowance` is seeded to 1. Cannot be combined with `pack`."
+          }
+        }
+      },
+      "EmailRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email address of an existing account.",
+            "examples": [
+              "jane@example.com"
+            ]
+          }
+        }
+      },
+      "User": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "email",
+          "is_verified_partner",
+          "is_trial",
+          "credits"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "examples": [
+              43
+            ]
+          },
+          "name": {
+            "type": "string",
+            "examples": [
+              "Jane Smith"
+            ]
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "examples": [
+              "jane@example.com"
+            ]
+          },
+          "is_verified_partner": {
+            "type": "boolean",
+            "description": "Whether the member is offered partner pack pricing. Independent of `is_trial`."
+          },
+          "is_trial": {
+            "type": "boolean",
+            "description": "Whether the member's generated episodes arrive locked past the first 3. Independent of `is_verified_partner`."
+          },
+          "trial_allowance": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many stories the trial member may still generate. Decrements on each generation, and is not restored by deleting a story. Adjustable by an admin."
+          },
+          "credits": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Credits held. 1 credit generates or refines 1 episode. Trial members hold none."
+          }
+        }
+      },
+      "CreateUserResponse": {
+        "type": "object",
+        "required": [
+          "user",
+          "pack"
+        ],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          },
+          "pack": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Slug of the pack granted, or `null` if none was requested.",
+            "examples": [
+              "partner-basic"
+            ]
+          }
+        }
+      },
+      "VerifyPartnerResponse": {
+        "type": "object",
+        "required": [
+          "user"
+        ],
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/User"
+          }
+        }
+      },
+      "ValidationError": {
+        "type": "object",
+        "required": [
+          "message",
+          "errors"
+        ],
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "The first validation message."
+          },
+          "errors": {
+            "type": "object",
+            "description": "Field name to list of messages.",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        }
+      },
+      "Message": {
+        "type": "object",
+        "required": [
+          "message"
+        ],
+        "properties": {
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "Missing or invalid bearer token.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            },
+            "example": {
+              "message": "Unauthorized."
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "No account exists with that email address.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Message"
+            }
+          }
+        }
+      }
+    }
+  }
+}

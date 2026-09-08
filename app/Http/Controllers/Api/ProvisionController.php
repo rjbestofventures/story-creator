@@ -91,14 +91,45 @@ class ProvisionController extends Controller
         $user->update(['is_verified_partner' => true]);
 
         return response()->json([
-            'user' => [
-                'id' => $user->id,
-                'name' => $user->name,
-                'email' => $user->email,
-                'is_verified_partner' => $user->is_verified_partner,
-                'is_trial' => $user->is_trial,
-                'credits' => $user->credits,
-            ],
+            'user' => $this->summarize($user),
+        ]);
+    }
+
+    /** The account shape every status endpoint returns. */
+    private function summarize(User $user): array
+    {
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'is_verified_partner' => $user->is_verified_partner,
+            'is_trial' => $user->is_trial,
+            'trial_allowance' => $user->trial_allowance,
+            'credits' => $user->credits,
+        ];
+    }
+
+    /**
+     * Convert a vetted trial member into a verified business partner: they get
+     * partner pricing and their trial ends, which unlocks their whole library.
+     * No credits are granted — they hold none until they buy a pack.
+     *
+     * Distinct from verifyPartner, which sets pricing alone and is what to call
+     * when a trial member should keep their locked library at partner prices.
+     */
+    public function convertToPartner(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->firstOrFail();
+
+        $user->update(['is_verified_partner' => true]);
+        $user->endTrial();
+
+        return response()->json([
+            'user' => $this->summarize($user->fresh()),
         ]);
     }
 

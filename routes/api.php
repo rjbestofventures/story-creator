@@ -12,5 +12,6 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::middleware(ProvisionToken::class)->prefix('provision')->group(function () {
     Route::post('/user', [ProvisionController::class, 'createUser']);
     Route::post('/verify-partner', [ProvisionController::class, 'verifyPartner']);
+    Route::post('/convert-to-partner', [ProvisionController::class, 'convertToPartner']);
     Route::post('/deactivate', [ProvisionController::class, 'deactivateAccount']);
 });
