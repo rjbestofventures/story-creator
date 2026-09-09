@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import {
@@ -30,6 +31,25 @@ const businessName = props.story.business_profile?.business_name ?? 'Your Busine
 const unlockedEpisodes = computed(() => episodes.value.filter((ep) => !ep.locked));
 const lockedEpisodes   = computed(() => episodes.value.filter((ep) => ep.locked));
 const storyTitle   = computed(() => props.story.title ?? `The Story of ${businessName}`);
+
+// ─── Locked episode → VBP funnel ─────────────────────────────────────────────
+// Three steps: ask if they want the full version, pitch VBP, then the same
+// apply form the sign-up page shows.
+const unlockEpisode = ref(null);
+const unlockStep    = ref(null);
+const partnerOpen   = ref(false);
+
+const openUnlock = (ep) => {
+    unlockEpisode.value = ep;
+    unlockStep.value    = 'ask';
+};
+
+const closeUnlock = () => { unlockStep.value = null; };
+
+const openPartnerApply = () => {
+    unlockStep.value  = null;
+    partnerOpen.value = true;
+};
 
 // Local, mutable copy of the credit balance so it updates immediately after a
 // refine, without waiting for a full page reload.
@@ -918,9 +938,11 @@ const restoreRevision = async (ep) => {
 
                     <!-- Locked: written and waiting. Only the number and title
                          ever reach the browser — there is no content to reveal. -->
-                    <article
+                    <button
                         v-if="ep.locked"
-                        class="rounded-2xl border border-dashed px-4 sm:px-6 py-5 flex items-center gap-4"
+                        type="button"
+                        @click="openUnlock(ep)"
+                        class="w-full text-left rounded-2xl border border-dashed px-4 sm:px-6 py-5 flex items-center gap-4 cursor-pointer transition-all duration-200 hover:border-[#F5A000] hover:shadow-sm"
                         style="background:#FAFAF8; border-color:#DDDDDD;"
                     >
                         <div class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
@@ -935,7 +957,7 @@ const restoreRevision = async (ep) => {
                         <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md" style="background:#FEF9EC; color:#F5A000;">
                             Locked
                         </span>
-                    </article>
+                    </button>
 
                     <article
                         v-else
@@ -1193,15 +1215,16 @@ const restoreRevision = async (ep) => {
                     </h3>
                     <p class="text-[#555555] mb-6 max-w-lg mx-auto">
                         Your whole library was written from your interview — you are reading the first
-                        {{ unlocked_episodes }}. Buy any pack and the rest open straight away. Nothing is regenerated,
-                        and nothing changes.
+                        {{ unlocked_episodes }}. Become a Best of Local Verified Business Partner and the rest open
+                        straight away. Nothing is regenerated, and nothing changes.
                     </p>
-                    <Link :href="route('shop.index')">
-                        <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
-                            <Sparkles class="w-4 h-4" />
-                            Unlock My Full Library
-                        </Button>
-                    </Link>
+                    <Button
+                        @click="partnerOpen = true"
+                        class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
+                    >
+                        <Sparkles class="w-4 h-4" />
+                        Unlock My Full Library
+                    </Button>
                 </div>
 
                 <!-- Bottom CTA -->
@@ -1332,6 +1355,60 @@ const restoreRevision = async (ep) => {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <!-- Locked episode → "Want to see the full version?" -->
+        <Dialog :open="unlockStep === 'ask'" @update:open="closeUnlock">
+            <DialogContent class="max-w-sm">
+                <DialogHeader>
+                    <p class="text-sm font-semibold text-[#555555]">Episode {{ unlockEpisode?.episode_number }} — Locked</p>
+                    <DialogTitle class="text-xl text-[#1A1A1A]">Want to see the full version?</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        "{{ unlockEpisode?.title }}" continues for members only. Unlock it as a Verified Business Partner.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="closeUnlock" class="flex-1 h-11 rounded-xl font-bold border-[#DDDDDD] text-[#1A1A1A] bg-white cursor-pointer">
+                        No
+                    </Button>
+                    <Button
+                        @click="unlockStep = 'pitch'"
+                        class="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Yes
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Yes → "Become a VBP to unlock every episode" -->
+        <Dialog :open="unlockStep === 'pitch'" @update:open="closeUnlock">
+            <DialogContent class="max-w-sm">
+                <DialogHeader>
+                    <p class="text-sm font-semibold text-[#555555]">Verified Business Partner</p>
+                    <DialogTitle class="text-xl text-[#1A1A1A]">Become a VBP to unlock every episode</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        Get "{{ unlockEpisode?.title }}" and the rest of the story, plus category exclusivity and
+                        first placement across Best of Delray Beach.
+                    </DialogDescription>
+                </DialogHeader>
+                <Button
+                    @click="openPartnerApply"
+                    class="w-full h-11 rounded-xl font-bold text-white cursor-pointer hover:opacity-90"
+                    style="background-color: #1A1A1A;"
+                >
+                    Become a VBP
+                </Button>
+                <button
+                    type="button"
+                    @click="closeUnlock"
+                    class="text-sm underline text-[#555555] hover:text-[#1A1A1A] cursor-pointer self-start"
+                >
+                    Not right now
+                </button>
+            </DialogContent>
+        </Dialog>
+
+        <PartnerApplyDialog v-model:open="partnerOpen" />
 
     </AuthenticatedLayout>
 </template>
