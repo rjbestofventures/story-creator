@@ -2,6 +2,7 @@
 import { computed, ref, onMounted } from 'vue';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 import { runTour, runTourWhenReady } from '@/lib/tour';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -46,6 +47,13 @@ const canCreateStory = computed(() => {
 // them at it rather than refusing them blankly.
 const trialStory = computed(() => props.stories.find(s => s.status !== 'interviewing' && s.status !== 'interview_complete'));
 const trialSpent = computed(() => props.is_trial && props.trial_allowance < 1);
+
+// A trial member has no use for the credit shop — becoming a partner is what
+// opens their library — so every buy button becomes the partner apply form.
+const partnerOpen = ref(false);
+const trialTokenLabel = computed(
+    () => `Trial (${props.trial_allowance} FREE Story Token${props.trial_allowance === 1 ? '' : 's'})`
+);
 
 // Format labels
 const formatLabel = {
@@ -143,6 +151,16 @@ onMounted(() => {
                             </Button>
                         </Link>
 
+                        <!-- Trial member: partner status is what opens their library -->
+                        <Button
+                            v-else-if="is_trial"
+                            @click="partnerOpen = true"
+                            class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer"
+                        >
+                            <Sparkles class="w-4 h-4" />
+                            Become a VBP
+                        </Button>
+
                         <!-- Out of credits: buy more -->
                         <Link v-else :href="route('shop.index')">
                             <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
@@ -179,13 +197,24 @@ onMounted(() => {
                                     </Tooltip>
                                 </TooltipProvider>
                             </div>
-                            <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</div>
+                            <div class="flex items-baseline gap-2">
+                                <span class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</span>
+                                <span v-if="is_trial" class="text-sm font-bold text-[#F5A000]">{{ trialTokenLabel }}</span>
+                            </div>
                             <div v-if="!isAdmin" id="tour-credit-info">
                                 <div class="text-xs text-[#555555] mt-0.5">1 AI Refine = 1 StoryBot Credit</div>
                                 <div class="text-xs text-[#555555]">1 Episode Generation = 1 StoryBot Credit (ex: 12 episode story = 12 StoryBot Credits)</div>
                             </div>
                         </div>
-                        <Link v-if="!isAdmin && buyCreditsButtonEnabled" :href="route('shop.index')">
+                        <Button
+                            v-if="!isAdmin && buyCreditsButtonEnabled && is_trial"
+                            @click="partnerOpen = true"
+                            class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer"
+                        >
+                            <Sparkles class="w-4 h-4 text-[#F5A000]" />
+                            Become a VBP
+                        </Button>
+                        <Link v-else-if="!isAdmin && buyCreditsButtonEnabled" :href="route('shop.index')">
                             <Button class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer">
                                 <ShoppingBag class="w-4 h-4 text-[#F5A000]" />
                                 Buy StoryBot Credits
@@ -212,12 +241,13 @@ onMounted(() => {
                                 Go to my story
                             </Button>
                         </Link>
-                        <Link :href="route('shop.index')">
-                            <Button class="font-bold h-10 px-5 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer">
-                                <Sparkles class="w-4 h-4 mr-2" />
-                                Unlock My Full Library
-                            </Button>
-                        </Link>
+                        <Button
+                            @click="partnerOpen = true"
+                            class="font-bold h-10 px-5 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
+                        >
+                            <Sparkles class="w-4 h-4 mr-2" />
+                            Unlock My Full Library
+                        </Button>
                     </div>
                 </div>
 
@@ -381,7 +411,14 @@ onMounted(() => {
                             <p class="text-sm text-[#555555] mt-0.5">Buy StoryBot credits to generate or refine more episodes.</p>
                         </div>
                     </div>
-                    <Link :href="route('shop.index')" class="shrink-0">
+                    <Button
+                        v-if="is_trial"
+                        @click="partnerOpen = true"
+                        class="shrink-0 text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
+                    >
+                        Become a VBP
+                    </Button>
+                    <Link v-else :href="route('shop.index')" class="shrink-0">
                         <Button class="text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0">
                             Buy More StoryBot Credits
                         </Button>
@@ -417,6 +454,8 @@ onMounted(() => {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <PartnerApplyDialog v-model:open="partnerOpen" />
 
     </AuthenticatedLayout>
 </template>
