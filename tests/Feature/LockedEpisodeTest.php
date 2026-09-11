@@ -21,6 +21,7 @@ class LockedEpisodeTest extends TestCase
         $story = Story::factory()->for($user)->for($profile)->create([
             'status' => 'draft',
             'episode_limit' => $episodes,
+            'created_on_trial' => $user->spendsTrialAllowance(),
         ]);
 
         for ($i = 1; $i <= $episodes; $i++) {

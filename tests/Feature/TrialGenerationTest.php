@@ -29,7 +29,10 @@ class TrialGenerationTest extends TestCase
     {
         $profile = BusinessProfile::factory()->for($user)->create();
 
-        return Story::factory()->for($user)->for($profile)->create(['status' => $status]);
+        return Story::factory()->for($user)->for($profile)->create([
+            'status' => $status,
+            'created_on_trial' => $user->spendsTrialAllowance(),
+        ]);
     }
 
     // -------------------------------------------------------------------------

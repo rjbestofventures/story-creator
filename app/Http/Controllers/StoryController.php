@@ -514,6 +514,7 @@ class StoryController extends Controller
             'isAdmin' => $user->isAdmin(),
             'credits' => $user->isAdmin() ? null : $user->credits,
             'is_trial' => $user->is_trial,
+            'is_verified_partner' => $user->is_verified_partner,
             'unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
             'locks_episodes' => $story->locksEpisodes(),
             'unlock_cost' => $story->unlockCost(),

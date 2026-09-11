@@ -43,6 +43,7 @@ class ConvertTrialToPartnerTest extends TestCase
         $story = Story::factory()->for($user)->for($profile)->create([
             'status' => 'draft',
             'episode_limit' => Story::TRIAL_EPISODE_COUNT,
+            'created_on_trial' => true,
         ]);
 
         for ($i = 1; $i <= Story::TRIAL_EPISODE_COUNT; $i++) {
@@ -58,19 +59,21 @@ class ConvertTrialToPartnerTest extends TestCase
         return $story;
     }
 
-    public function test_it_confers_partner_status_and_leaves_the_trial_running(): void
+    public function test_it_confers_partner_status_and_ends_the_trial(): void
     {
         $user = $this->trialMember();
 
         $this->convert($user->email)
             ->assertOk()
             ->assertJsonPath('user.is_verified_partner', true)
-            ->assertJsonPath('user.is_trial', true);
+            ->assertJsonPath('user.is_trial', false)
+            ->assertJsonPath('user.trial_allowance', 0);
 
         $user->refresh();
 
         $this->assertTrue($user->is_verified_partner);
-        $this->assertTrue($user->is_trial);
+        $this->assertFalse($user->is_trial);
+        $this->assertSame(0, $user->trial_allowance);
     }
 
     public function test_the_library_stays_locked_after_conversion(): void

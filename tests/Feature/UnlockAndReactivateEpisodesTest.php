@@ -124,6 +124,44 @@ class UnlockAndReactivateEpisodesTest extends TestCase
         $this->assertNotNull($story->fresh()->reactivation_notified_at);
     }
 
+    public function test_becoming_a_partner_ends_the_trial_but_leaves_the_library_shut(): void
+    {
+        $story = $this->trialLibrary();
+        $user = $story->user;
+
+        $user->becomePartner();
+
+        $user->refresh();
+        $story = $story->fresh(['episodes', 'user']);
+
+        $this->assertTrue($user->is_verified_partner);
+        $this->assertFalse($user->is_trial);
+        $this->assertSame(0, $user->trial_allowance);
+        $this->assertTrue($story->locksEpisodes());
+        $this->assertTrue($story->episodes->last()->isLocked());
+    }
+
+    public function test_ending_a_trial_by_paying_opens_the_library(): void
+    {
+        $story = $this->trialLibrary();
+
+        $story->user->endTrial();
+
+        $story = $story->fresh(['episodes', 'user']);
+
+        $this->assertFalse($story->user->is_trial);
+        $this->assertFalse($story->locksEpisodes());
+        $this->assertFalse($story->episodes->last()->isLocked());
+    }
+
+    public function test_a_library_not_made_on_trial_never_locks(): void
+    {
+        $story = $this->trialLibrary();
+        $story->forceFill(['created_on_trial' => false])->save();
+
+        $this->assertFalse($story->fresh(['episodes', 'user'])->locksEpisodes());
+    }
+
     public function test_the_team_is_not_told_twice(): void
     {
         Notification::fake();
