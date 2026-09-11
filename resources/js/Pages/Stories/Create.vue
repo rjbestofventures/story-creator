@@ -1145,8 +1145,14 @@ const formats = [
                 v-else-if="phase === 1"
                 class="flex-1 min-h-0 overflow-hidden flex flex-col max-w-2xl mx-auto w-full px-4 py-4"
             >
-                <!-- Messages scroll area -->
-                <div class="flex-1 min-h-0 flex flex-col justify-end space-y-4 overflow-y-auto pb-4 pr-1">
+                <!-- Messages scroll area. `justify-end` (not `mt-auto`) would keep short
+                     conversations pinned to the bottom, but once a long one overflows some
+                     browsers stop exposing the earlier messages as scrollable at all —
+                     the user cannot scroll up to reread them. The spacer below pins short
+                     conversations the same way, without breaking scroll once it overflows. -->
+                <div class="flex-1 min-h-0 flex flex-col space-y-4 overflow-y-auto pb-4 pr-1">
+
+                    <div class="mt-auto" aria-hidden="true" />
 
                     <div
                         v-for="(msg, i) in enrichedDisplayLog"
