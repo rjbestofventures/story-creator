@@ -761,7 +761,7 @@ class StoryController extends Controller
 
         $profile = $story->businessProfile;
         $format = $episode->format ?? 'social';
-        $generator = new StoryGeneratorService;
+        $generator = app(StoryGeneratorService::class);
         $generated = $generator->generate($profile, 1, $format);
 
         $ep = $generated['episodes'][0] ?? null;
@@ -900,7 +900,7 @@ class StoryController extends Controller
             'content' => $episode->content,
         ]);
 
-        $generator = new StoryGeneratorService;
+        $generator = app(StoryGeneratorService::class);
         $refined = $generator->refineTone($episode->content, $data['tone'], $data['custom_instruction'] ?? null);
 
         $episode->update(['content' => $refined['content']]);
@@ -956,7 +956,7 @@ class StoryController extends Controller
             abort_unless($user->credits >= $episodes->count(), 403, 'Not enough credits to refine all selected episodes.');
         }
 
-        $generator = new StoryGeneratorService;
+        $generator = app(StoryGeneratorService::class);
         $updated = [];
 
         foreach ($episodes as $episode) {
