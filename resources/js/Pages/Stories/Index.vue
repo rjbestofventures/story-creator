@@ -1,7 +1,9 @@
 <script setup>
-import { computed, ref } from 'vue';
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { computed, ref, onMounted } from 'vue';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
+import { runTour, runTourWhenReady } from '@/lib/tour';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import {
@@ -11,33 +13,52 @@ import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
 import {
-    Sparkles, BookOpen, Plus, Trash2, Eye, ChevronRight,
-    Zap, RefreshCcw, TrendingUp, Calendar, FileText, MessageSquare, Clock
+    Sparkles, BookOpen, Plus, Trash2, ChevronRight,
+    Zap, Calendar, FileText, MessageSquare, Clock, ShoppingBag, CircleHelp
 } from 'lucide-vue-next';
 
 const props = defineProps({
-    stories:      Array,
-    profile:      Object,
-    subscription: Object,
-    plan:         Object,
-    isAdmin:      Boolean,
-    adminRole:    String,
+    stories:             Array,
+    profile:   Object,
+    credits:   { type: Number, default: null },
+    isAdmin:   Boolean,
+    adminRole: String,
+    is_trial:        { type: Boolean, default: false },
+    trial_allowance: { type: Number,  default: 0 },
+    is_verified_partner: { type: Boolean, default: false },
 });
 
-// Subscription state
-const hasSubscription = computed(() => !!props.subscription);
+const buyCreditsButtonEnabled = computed(() => usePage().props.features?.buyCreditsButtonEnabled ?? true);
 
-// Credits
-const storyCredits  = computed(() => props.subscription?.story_credits  ?? 0);
-const refineCredits = computed(() => props.subscription?.refine_credits ?? 0);
-const planLabel     = computed(() => props.plan?.label ?? 'Free');
-const canCreateStory = computed(() => props.isAdmin || (hasSubscription.value && storyCredits.value > 0));
+const creditBalance  = computed(() => props.credits ?? 0);
+// "Generated" excludes stories still in the interview phase (no episodes yet).
+const generatedCount = computed(() =>
+    props.stories.filter(s => s.status !== 'interviewing' && s.status !== 'interview_complete').length
+);
+// Becoming a partner moves a member onto credits and makes the shop useful
+// again; only their episode locks stay behind until they pay to open them.
+const onTrialOffer = computed(() => props.is_trial && !props.is_verified_partner);
 
-const renewalDate = computed(() => {
-    const d = props.subscription?.billing_period_ends_at;
-    if (!d) return null;
-    return new Date(d).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+// Smallest story is 12 episodes (1 credit each), so below 12 a new story can't be afforded.
+const MIN_STORY_CREDITS = 12;
+// A trial member spends trial allowance rather than credits, so the credit floor
+// does not apply to them — their allowance does.
+const canCreateStory = computed(() => {
+    if (onTrialOffer.value) return props.trial_allowance > 0;
+    return props.isAdmin || creditBalance.value >= MIN_STORY_CREDITS;
 });
+
+// A trial member who has spent their allowance already has their story; point
+// them at it rather than refusing them blankly.
+const trialStory = computed(() => props.stories.find(s => s.status !== 'interviewing' && s.status !== 'interview_complete'));
+const trialSpent = computed(() => onTrialOffer.value && props.trial_allowance < 1);
+
+// A trial member has no use for the credit shop — becoming a partner is what
+// opens their library — so every buy button becomes the partner apply form.
+const partnerOpen = ref(false);
+const trialTokenLabel = computed(
+    () => `Trial (${props.trial_allowance} FREE Story Token${props.trial_allowance === 1 ? '' : 's'})`
+);
 
 // Format labels
 const formatLabel = {
@@ -67,116 +88,239 @@ const confirmDelete = () => {
         onFinish: () => { deleteOpen.value = false; deletingStory.value = null; },
     });
 };
+
+// ─── First-time onboarding tour ───────────────────────────────────────────────
+let tourMarked = false;
+const markTourDone = () => {
+    if (tourMarked) return;
+    tourMarked = true;
+    fetch(route('tour.complete'), {
+        method: 'POST',
+        headers: {
+            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            'Content-Type': 'application/json',
+        },
+    }).catch(() => {});
+};
+
+const dashboardTourSteps = [
+    { target: '#tour-demo', title: 'Try the live demo', content: 'See StoryBot in action on a sample business — no credits used.', order: 1 },
+    { target: '#tour-feedback', title: 'Send feedback', content: 'Share an idea or report an issue anytime.', order: 2 },
+    { target: '#tour-new-story', title: 'Create a story', content: 'Start here. Answer a few quick questions and StoryBot writes your episodes.', order: 3 },
+    { target: '#tour-credits', title: 'Your StoryBot credits', content: 'Your credit balance. Credits power episode generation and refinements — and they never expire.', order: 4 },
+    { target: '#tour-credit-info', title: 'How credits are used', content: '1 credit generates 1 episode, and 1 credit refines or redoes one. A 12-episode story uses 12 credits.', order: 5 },
+    { target: '#tour-account', title: 'Your account', content: 'Open this menu for My Stories, Buy Credits, Billing & Packs, and your Profile.', order: 6 },
+];
+const startTour = () => runTour(dashboardTourSteps, { onComplete: markTourDone });
+
+onMounted(() => {
+    const user = usePage().props.auth?.user;
+    if (!user || user.tour_completed_at) return;
+    // Start once the credits card (always present on the dashboard) is rendered.
+    runTourWhenReady(dashboardTourSteps, { onComplete: markTourDone });
+});
 </script>
 
 <template>
     <Head title="My Stories" />
     <AuthenticatedLayout>
-        <div class="min-h-screen bg-[#FAFAF8]">
+        <div class="bg-[#FAFAF8]">
 
             <!-- Header -->
-            <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-5">
+            <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-4">
                 <div class="max-w-4xl mx-auto flex items-center justify-between">
-                    <div class="flex items-center gap-3">
-                        <div class="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center">
-                            <Sparkles class="w-5 h-5 text-[#F5A000]" />
-                        </div>
-                        <div>
-                            <h1 class="text-lg font-black text-[#1A1A1A]">My Stories</h1>
-                            <p class="text-xs text-[#555555]">{{ stories.length }} {{ stories.length === 1 ? 'story' : 'stories' }} generated</p>
-                        </div>
+                    <div class="flex items-center gap-2">
+                        <Sparkles class="w-5 h-5" style="color: #F5A000;" />
+                        <h1 class="text-lg font-black" style="color: #1A1A1A;">
+                            My
+                            <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Storybot Library</span>
+                        </h1>
+                        <span class="text-xs text-[#555555]">· {{ generatedCount }} {{ generatedCount === 1 ? 'story' : 'stories' }} generated</span>
+                        <button
+                            type="button"
+                            @click="startTour"
+                            class="hidden md:inline-flex items-center gap-1 text-xs font-semibold text-[#AAAAAA] hover:text-[#F5A000] transition-colors cursor-pointer"
+                            title="Take a tour"
+                        >
+                            <CircleHelp class="w-3.5 h-3.5" />
+                            Tour
+                        </button>
                     </div>
 
-                    <!-- Unsubscribed non-admin: link to plans -->
-                    <Link v-if="!hasSubscription && !isAdmin" :href="route('billing.plans')">
-                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
-                            <Sparkles class="w-4 h-4" />
-                            Create My Own Story
-                        </Button>
-                    </Link>
+                    <div id="tour-new-story" class="flex items-center gap-2">
+                        <!-- Has credits (or admin): create a story -->
+                        <Link v-if="canCreateStory" :href="route('stories.create')">
+                            <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                                <Plus class="w-4 h-4" />
+                                New Story
+                            </Button>
+                        </Link>
 
-                    <!-- Subscribed or admin: create flow with credit check -->
-                    <TooltipProvider v-else>
-                        <Tooltip :delay-duration="100">
-                            <TooltipTrigger as-child>
-                                <span>
-                                    <Link v-if="canCreateStory" :href="route('stories.create')">
-                                        <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
-                                            <Plus class="w-4 h-4" />
-                                            New Story
-                                        </Button>
-                                    </Link>
-                                    <Button
-                                        v-else
-                                        disabled
-                                        class="flex items-center gap-2 font-bold h-10 px-5 rounded-xl opacity-50 cursor-not-allowed"
-                                        style="background: #DDDDDD; color: #888888;"
-                                    >
-                                        <Plus class="w-4 h-4" />
-                                        New Story
-                                    </Button>
-                                </span>
-                            </TooltipTrigger>
-                            <TooltipContent v-if="!canCreateStory" side="bottom" class="max-w-xs text-center p-3">
-                                <p class="font-semibold text-xs mb-1">No story credits left</p>
-                                <p class="text-xs text-muted-foreground leading-relaxed">
-                                    <template v-if="renewalDate">Your credits refresh on {{ renewalDate }}.</template>
-                                    <template v-else>Credits refresh at the start of your next billing period.</template>
-                                </p>
-                            </TooltipContent>
-                        </Tooltip>
-                    </TooltipProvider>
+                        <!-- Trial member: partner status is what opens their library -->
+                        <Button
+                            v-else-if="onTrialOffer"
+                            @click="partnerOpen = true"
+                            class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer"
+                        >
+                            <Sparkles class="w-4 h-4" />
+                            Become a VBP
+                        </Button>
+
+                        <!-- Out of credits: buy more -->
+                        <Link v-else :href="route('shop.index')">
+                            <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                                <ShoppingBag class="w-4 h-4" />
+                                Buy StoryBot Credits
+                            </Button>
+                        </Link>
+                    </div>
                 </div>
             </div>
 
             <div class="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
-                <!-- Stats row (subscribed users or admins) -->
-                <div v-if="hasSubscription || isAdmin" class="grid grid-cols-3 gap-4">
-                    <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
-                        <div class="flex items-center gap-2 mb-1">
-                            <Zap class="w-4 h-4 text-[#F5A000]" />
-                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Story Credits</span>
+                <!-- Stats row -->
+                <div class="grid grid-cols-1 gap-4">
+                    <!-- StoryBot credits -->
+                    <div id="tour-credits" class="bg-white rounded-2xl border border-[#DDDDDD] p-5 flex flex-col md:flex-row md:items-center gap-5">
+                        <!-- Balance -->
+                        <div class="flex items-center gap-4 md:w-1/2 md:pr-6 md:border-r md:border-[#EEEEEE]">
+                            <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-amber-50">
+                                <Zap class="w-5 h-5 text-[#F5A000]" />
+                            </div>
+                            <div class="min-w-0">
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</span>
+                                    <span class="text-sm text-[#555555]">StoryBot Credits</span>
+                                    <TooltipProvider>
+                                        <Tooltip :delay-duration="100">
+                                            <TooltipTrigger as-child>
+                                                <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help transition-colors" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" class="max-w-xs p-3">
+                                                <p class="text-xs leading-relaxed">
+                                                    Credits power everything. <strong>1 credit generates 1 episode</strong>, and
+                                                    <strong>1 credit refines or redoes</strong> a episode. Choose 12, 18, or 24 episodes per story.
+                                                    Credits never expire.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                                <span
+                                    v-if="onTrialOffer"
+                                    class="inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-[#F5A000]"
+                                >
+                                    {{ trialTokenLabel }}
+                                </span>
+                                <span
+                                    v-else-if="!isAdmin && creditBalance === 0"
+                                    class="inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-[#F5A000]"
+                                >
+                                    • Out of credits — buy more to continue
+                                </span>
+                            </div>
                         </div>
-                        <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : storyCredits }}</div>
-                        <div class="text-xs text-[#555555] mt-0.5">remaining</div>
-                    </div>
-                    <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
-                        <div class="flex items-center gap-2 mb-1">
-                            <RefreshCcw class="w-4 h-4 text-[#F5A000]" />
-                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Refine Credits</span>
+
+                        <!-- What a credit covers -->
+                        <div v-if="!isAdmin" id="tour-credit-info" class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-[#1A1A1A] mb-2">What a credit covers</p>
+                            <div class="flex items-baseline justify-between gap-4">
+                                <span class="text-sm text-[#555555]">AI Refine</span>
+                                <span class="text-sm font-bold text-[#1A1A1A] shrink-0">1 credit</span>
+                            </div>
+                            <div class="flex items-baseline justify-between gap-4 mt-1">
+                                <span class="text-sm text-[#555555]">Episode generation</span>
+                                <span class="text-sm font-bold text-[#1A1A1A] shrink-0">1 credit / episode</span>
+                            </div>
+                            <p class="text-xs text-[#AAAAAA] mt-2">Example: a 12-episode story costs 12 credits to generate.</p>
                         </div>
-                        <div class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : refineCredits }}</div>
-                        <div class="text-xs text-[#555555] mt-0.5">remaining</div>
-                    </div>
-                    <div class="bg-white rounded-2xl border border-[#DDDDDD] p-4">
-                        <div class="flex items-center gap-2 mb-1">
-                            <TrendingUp class="w-4 h-4 text-[#F5A000]" />
-                            <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">Plan</span>
-                        </div>
-                        <div class="text-lg font-black text-[#1A1A1A] truncate">{{ adminRole === 'super_admin' ? 'Super Admin' : adminRole === 'admin' ? 'Admin' : planLabel }}</div>
-                        <div class="text-xs text-[#555555] mt-0.5">current plan</div>
+
+                        <Button
+                            v-if="!isAdmin && buyCreditsButtonEnabled && onTrialOffer"
+                            @click="partnerOpen = true"
+                            class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer"
+                        >
+                            <Sparkles class="w-4 h-4 text-[#F5A000]" />
+                            Become a VBP
+                        </Button>
+                        <Link v-else-if="!isAdmin && buyCreditsButtonEnabled" :href="route('shop.index')">
+                            <Button class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer">
+                                <ShoppingBag class="w-4 h-4 text-[#F5A000]" />
+                                Buy StoryBot Credits
+                            </Button>
+                        </Link>
                     </div>
                 </div>
 
-                <!-- Empty state -->
+                <!-- Trial spent: their story already exists, so point at it -->
                 <div
-                    v-if="stories.length === 0"
+                    v-if="trialSpent && trialStory"
+                    class="rounded-2xl border p-6 sm:p-8 text-center mb-6"
+                    style="background:#FEF9EC; border-color:#F5A000;"
+                >
+                    <h2 class="text-lg font-black text-[#1A1A1A] mb-2">Your trial story is already made</h2>
+                    <p class="text-[#555555] mb-5 max-w-lg mx-auto text-sm">
+                        You have used your trial, so there is no second interview to run — but your full library
+                        is written and waiting. Buy any pack to open all of it.
+                    </p>
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                        <Link :href="route('stories.show', trialStory.id)">
+                            <Button variant="outline" class="font-bold h-10 px-5 rounded-xl border-[#DDDDDD] text-[#1A1A1A] bg-white cursor-pointer">
+                                <BookOpen class="w-4 h-4 mr-2 text-[#F5A000]" />
+                                Go to my story
+                            </Button>
+                        </Link>
+                        <Button
+                            @click="partnerOpen = true"
+                            class="font-bold h-10 px-5 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
+                        >
+                            <Sparkles class="w-4 h-4 mr-2" />
+                            Unlock My Full Library
+                        </Button>
+                    </div>
+                </div>
+
+                <!-- Empty state: no credits → buy first -->
+                <div
+                    v-if="stories.length === 0 && !canCreateStory && !trialSpent"
+                    class="bg-white rounded-2xl border border-[#DDDDDD] p-12 text-center"
+                >
+                    <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <ShoppingBag class="w-8 h-8 text-[#F5A000]" />
+                    </div>
+                    <h2 class="text-xl font-black text-[#1A1A1A] mb-2">Get your first story pack</h2>
+                    <p class="text-[#555555] mb-6 max-w-sm mx-auto">
+                        Story packs let you create professional content from a quick interview. Pick a pack to get started — credits never expire.
+                    </p>
+                    <Link :href="route('shop.index')">
+                        <Button
+                            class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
+                        >
+                            <ShoppingBag class="w-4 h-4" />
+                            Buy StoryBot Credits
+                        </Button>
+                    </Link>
+                </div>
+
+                <!-- Empty state: has credits → create -->
+                <div
+                    v-else-if="stories.length === 0"
                     class="bg-white rounded-2xl border border-[#DDDDDD] p-12 text-center"
                 >
                     <div class="w-16 h-16 bg-amber-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
                         <BookOpen class="w-8 h-8 text-[#F5A000]" />
                     </div>
-                    <h2 class="text-xl font-black text-[#1A1A1A] mb-2">No stories yet</h2>
-                    <p class="text-[#555555] mb-6 max-w-sm mx-auto">
-                        Answer 3 questions about your business and we'll generate your first story episodes in seconds.
+                    <h2 class="text-xl font-black text-[#1A1A1A] mb-2">Create your first story</h2>
+                    <p class="text-[#555555] mb-6 max-w-2xl mx-auto">
+                        Answer a few simple questions, and StoryCreator Bot will bring your unique business story to life, told across 12 episodes over six months, on the Best of Delray Beach Facebook group and other social media platforms.
                     </p>
                     <Link :href="route('stories.create')">
                         <Button
                             class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
                         >
                             <Sparkles class="w-4 h-4" />
-                            Create My First Story
+                            New Story
                         </Button>
                     </Link>
                 </div>
@@ -231,13 +375,22 @@ const confirmDelete = () => {
                                         >
                                             Ready to Generate
                                         </span>
-                                        <Badge
-                                            v-else-if="story.episodes?.[0]?.format"
-                                            :class="formatColor[story.episodes[0].format]"
-                                            class="text-xs font-semibold border"
-                                        >
-                                            {{ formatLabel[story.episodes[0].format] ?? story.episodes[0].format }}
-                                        </Badge>
+                                        <template v-else>
+                                            <!-- Marks a library made on trial; drops away once they are a partner -->
+                                            <Badge
+                                                v-if="story.created_on_trial && !is_verified_partner"
+                                                class="text-xs font-semibold border bg-amber-50 text-[#F5A000] border-amber-200"
+                                            >
+                                                Trial
+                                            </Badge>
+                                            <Badge
+                                                v-if="story.episodes?.[0]?.format"
+                                                :class="formatColor[story.episodes[0].format]"
+                                                class="text-xs font-semibold border"
+                                            >
+                                                {{ formatLabel[story.episodes[0].format] ?? story.episodes[0].format }}
+                                            </Badge>
+                                        </template>
                                     </div>
                                 </div>
 
@@ -285,24 +438,28 @@ const confirmDelete = () => {
                     </div>
                 </div>
 
-                <!-- No credits notice (subscribed non-admin users only) -->
+                <!-- Out of credits notice (non-admin users only) -->
                 <div
-                    v-if="hasSubscription && !isAdmin && storyCredits === 0 && stories.length > 0"
+                    v-if="!isAdmin && creditBalance === 0 && stories.length > 0"
                     class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-start justify-between gap-4"
                 >
                     <div class="flex items-start gap-3">
                         <Zap class="w-5 h-5 text-[#F5A000] flex-shrink-0 mt-0.5" />
                         <div>
-                            <p class="text-sm font-semibold text-[#1A1A1A]">You're out of story credits</p>
-                            <p class="text-sm text-[#555555] mt-0.5">
-                                <template v-if="renewalDate">Credits refresh on {{ renewalDate }}.</template>
-                                <template v-else>Credits refresh at the start of your next billing period.</template>
-                            </p>
+                            <p class="text-sm font-semibold text-[#1A1A1A]">You're out of StoryBot credits</p>
+                            <p class="text-sm text-[#555555] mt-0.5">Buy StoryBot credits to generate or refine more episodes.</p>
                         </div>
                     </div>
-                    <Link :href="route('billing.plans')" class="shrink-0">
+                    <Button
+                        v-if="onTrialOffer"
+                        @click="partnerOpen = true"
+                        class="shrink-0 text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
+                    >
+                        Become a VBP
+                    </Button>
+                    <Link v-else :href="route('shop.index')" class="shrink-0">
                         <Button class="text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0">
-                            Upgrade Plan
+                            Buy More StoryBot Credits
                         </Button>
                     </Link>
                 </div>
@@ -319,6 +476,9 @@ const confirmDelete = () => {
                     <DialogDescription class="text-[#555555]">
                         "<span class="font-semibold text-[#1A1A1A]">{{ deletingStory?.title }}</span>"
                         and all its episodes will be permanently deleted. This cannot be undone.
+                        <span v-if="is_trial" class="block mt-2 font-semibold text-[#1A1A1A]">
+                            This is your trial story. Deleting it does not give your trial back, and it cannot be generated again.
+                        </span>
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">
@@ -333,6 +493,8 @@ const confirmDelete = () => {
                 </DialogFooter>
             </DialogContent>
         </Dialog>
+
+        <PartnerApplyDialog v-model:open="partnerOpen" />
 
     </AuthenticatedLayout>
 </template>

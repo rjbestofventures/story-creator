@@ -4,18 +4,142 @@ namespace App\Http\Controllers;
 
 use App\Jobs\GenerateStory;
 use App\Models\BusinessProfile;
+use App\Models\CreditPack;
 use App\Models\Episode;
 use App\Models\EpisodeVersion;
 use App\Models\SiteSetting;
 use App\Models\Story;
+use App\Models\User;
 use App\Services\InterviewService;
 use App\Services\StoryGeneratorService;
+use App\Services\TranscriptionService;
+use App\Services\Tts;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class StoryController extends Controller
 {
+    /** Episode-count choices offered at generation; each episode costs 1 credit. */
+    public const EPISODE_OPTIONS = [12, 18, 24];
+
+    /**
+     * Confirm the episode really belongs to the story named in the URL, then hand
+     * ownership, demo, and lock enforcement to the episode policy.
+     */
+    private function authorizeEpisode(Story $story, Episode $episode, string $ability): void
+    {
+        abort_unless($episode->story_id === $story->id, 404);
+
+        $episode->setRelation('story', $story);
+
+        Gate::authorize($ability, $episode);
+    }
+
+    /**
+     * Build the episode-count choices for a user, marking any above their pack
+     * tier as locked and naming the pack that unlocks them.
+     *
+     * @return list<array{count:int,locked:bool,unlock_label:?string}>
+     */
+    private function episodeOptionsFor(User $user): array
+    {
+        $max = $user->maxEpisodes(); // null = unlimited (admins)
+
+        $packs = CreditPack::query()
+            ->active()
+            ->ofType(CreditPack::audienceType($user))
+            ->orderBy('max_episodes')
+            ->get(['label', 'max_episodes']);
+
+        return array_map(function (int $count) use ($max, $packs) {
+            $locked = $max !== null && $count > $max;
+
+            $unlock = $locked
+                ? $packs->firstWhere('max_episodes', '>=', $count)?->label
+                : null;
+
+            return [
+                'count' => $count,
+                'locked' => $locked,
+                'unlock_label' => $unlock,
+            ];
+        }, self::EPISODE_OPTIONS);
+    }
+
+    /**
+     * A trial library is always the same size, so trial members are never asked
+     * to choose. Everyone else generates the count they picked.
+     */
+    private function resolveEpisodeCount(User $user, ?int $requested): int
+    {
+        if ($user->spendsTrialAllowance()) {
+            return Story::TRIAL_EPISODE_COUNT;
+        }
+
+        $this->assertWithinTier($user, (int) $requested);
+
+        return (int) $requested;
+    }
+
+    /**
+     * Take payment for a generation in whichever currency the member deals in:
+     * trial members spend trial allowance, everyone else spends credits, admins
+     * spend nothing.
+     */
+    private function chargeForGeneration(User $user, int $count): void
+    {
+        if ($user->spendsTrialAllowance()) {
+            abort_if(
+                $user->trial_allowance < 1,
+                403,
+                'Your trial story has already been created. Buy a pack to unlock your full library.'
+            );
+
+            $user->decrement('trial_allowance');
+
+            return;
+        }
+
+        if ($user->isAdmin()) {
+            return;
+        }
+
+        abort_if($user->credits < $count, 403, 'You don\'t have enough credits to generate this story.');
+
+        $user->decrement('credits', $count);
+    }
+
+    /**
+     * Reject an episode count above the user's pack tier with a 422 naming the
+     * pack that would unlock it.
+     */
+    private function assertWithinTier(User $user, int $count): void
+    {
+        $max = $user->maxEpisodes();
+
+        if ($max === null || $count <= $max) {
+            return;
+        }
+
+        $unlock = CreditPack::query()
+            ->active()
+            ->ofType(CreditPack::audienceType($user))
+            ->where('max_episodes', '>=', $count)
+            ->orderBy('max_episodes')
+            ->value('label');
+
+        throw ValidationException::withMessages([
+            'episode_count' => $unlock
+                ? "{$count}-episode stories require the {$unlock}."
+                : "Your current pack does not allow {$count}-episode stories.",
+        ]);
+    }
+
     // -------------------------------------------------------------------------
     // Dashboard — user's story list
     // -------------------------------------------------------------------------
@@ -31,16 +155,16 @@ class StoryController extends Controller
             ->get();
 
         $profile = $user->businessProfile;
-        $sub = $user->activeSubscription?->load('plan');
-        $plan = $sub?->plan;
 
         return Inertia::render('Stories/Index', [
             'stories' => $stories,
             'profile' => $profile,
-            'subscription' => $sub,
-            'plan' => $plan,
+            'credits' => $user->isAdmin() ? null : $user->credits,
             'isAdmin' => $user->isAdmin(),
             'adminRole' => $user->hasRole('super_admin') ? 'super_admin' : ($user->hasRole('admin') ? 'admin' : null),
+            'is_trial' => $user->is_trial,
+            'trial_allowance' => $user->trial_allowance,
+            'is_verified_partner' => $user->is_verified_partner,
         ]);
     }
 
@@ -50,12 +174,17 @@ class StoryController extends Controller
 
     public function create(Request $request)
     {
-        $episodeLimit = $request->user()->activeSubscription?->effectiveEpisodeLimit() ?? 5;
+        $user = $request->user();
 
         return Inertia::render('Stories/Create', [
             'profile' => null,
             'story' => null,
-            'episode_limit' => $episodeLimit,
+            'credits' => $user->isAdmin() ? null : $user->credits,
+            'episode_options' => $this->episodeOptionsFor($user),
+            'max_episodes' => $user->maxEpisodes(),
+            'is_trial' => $user->spendsTrialAllowance(),
+            'trial_episode_count' => Story::TRIAL_EPISODE_COUNT,
+            'trial_unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
         ]);
     }
 
@@ -67,13 +196,16 @@ class StoryController extends Controller
 
         $story->load('businessProfile');
 
-        $episodeLimit = $story->is_demo
-            ? 3
-            : ($request->user()->activeSubscription?->effectiveEpisodeLimit() ?? 5);
+        $user = $request->user();
 
         return Inertia::render('Stories/Create', [
             'profile' => $story->businessProfile,
-            'episode_limit' => $episodeLimit,
+            'credits' => $user->isAdmin() ? null : $user->credits,
+            'episode_options' => $this->episodeOptionsFor($user),
+            'max_episodes' => $user->maxEpisodes(),
+            'is_trial' => $user->spendsTrialAllowance(),
+            'trial_episode_count' => Story::TRIAL_EPISODE_COUNT,
+            'trial_unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
             'story' => [
                 'id' => $story->id,
                 'status' => $story->status,
@@ -94,8 +226,10 @@ class StoryController extends Controller
             'business_url' => 'nullable|string|max:255',
             'industry' => 'nullable|string|max:80',
             'biography' => 'nullable|string|max:1000',
+            'services' => 'nullable|string|max:1000',
             'linkedin_url' => 'nullable|string|max:255',
             'social_url' => 'nullable|string|max:255',
+            'instagram_url' => 'nullable|string|max:255',
         ]);
 
         $user = $request->user();
@@ -124,8 +258,10 @@ class StoryController extends Controller
             'business_url' => $data['business_url'] ?? null,
             'industry' => $data['industry'] ?? null,
             'biography' => $data['biography'] ?? null,
+            'services' => $data['services'] ?? null,
             'linkedin_url' => $data['linkedin_url'] ?? null,
             'social_url' => $data['social_url'] ?? null,
+            'instagram_url' => $data['instagram_url'] ?? null,
             'website_content' => $websiteContent,
             'answers' => [],
         ]);
@@ -169,7 +305,12 @@ class StoryController extends Controller
     public function retry(Request $request, Story $story)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
-        abort_unless(in_array($story->status, ['failed', 'generating']), 422);
+
+        // A trial generation is free, so retrying an in-flight one would be an
+        // unbounded tap. Trial members may only retry a generation that failed.
+        $retryable = $request->user()->is_trial ? ['failed'] : ['failed', 'generating'];
+
+        abort_unless(in_array($story->status, $retryable), 422);
 
         $format = $story->episodes()->value('format') ?? 'social';
 
@@ -183,17 +324,25 @@ class StoryController extends Controller
     {
         abort_unless($story->user_id === $request->user()->id, 403);
 
-        $data = $request->validate(['format' => 'in:social,blog,linkedin']);
-        $format = $data['format'] ?? 'social';
-
         $user = $request->user();
 
-        if (! $user->isAdmin()) {
-            abort_unless($user->canCreateStory(), 403, 'You have no story credits remaining.');
-            $user->activeSubscription->decrement('story_credits');
-        }
+        $data = $request->validate([
+            'format' => 'in:social,blog,linkedin',
+            'episode_count' => $user->spendsTrialAllowance()
+                ? 'nullable|integer'
+                : 'required|integer|in:'.implode(',', self::EPISODE_OPTIONS),
+        ]);
+        $format = $data['format'] ?? 'social';
 
-        $story->update(['status' => 'generating']);
+        $count = $this->resolveEpisodeCount($user, $data['episode_count'] ?? null);
+
+        $this->chargeForGeneration($user, $count);
+
+        $story->update([
+            'status' => 'generating',
+            'episode_limit' => $count,
+            'created_on_trial' => $user->spendsTrialAllowance(),
+        ]);
         GenerateStory::dispatch($story, $format);
 
         return to_route('stories.show', $story->id);
@@ -231,6 +380,7 @@ class StoryController extends Controller
                 'business_url' => $data['business_url'] ?? '',
                 'industry' => $data['industry'] ?? '',
                 'biography' => $profile?->biography ?? '',
+                'services' => $profile?->services ?? '',
                 'linkedin_url' => $profile?->linkedin_url ?? '',
                 'social_url' => $profile?->social_url ?? '',
                 'website_content' => $profile?->website_content ?? '',
@@ -252,12 +402,29 @@ class StoryController extends Controller
         return response()->json($result);
     }
 
+    public function transcribe(Request $request)
+    {
+        $request->validate([
+            'audio' => 'required|file|max:25600',
+        ]);
+
+        try {
+            $text = (new TranscriptionService)->transcribe($request->file('audio'));
+        } catch (\Throwable) {
+            return response()->json(['error' => 'Could not transcribe audio. Please try again or type your answer.'], 422);
+        }
+
+        return response()->json(['text' => $text]);
+    }
+
     // -------------------------------------------------------------------------
     // Generate story from completed interview
     // -------------------------------------------------------------------------
 
     public function store(Request $request)
     {
+        $user = $request->user();
+
         $data = $request->validate([
             'business_name' => 'required|string|max:120',
             'business_url' => 'nullable|url|max:255',
@@ -266,13 +433,14 @@ class StoryController extends Controller
             'messages.*.role' => 'required|in:user,assistant',
             'messages.*.content' => 'required|string',
             'format' => 'in:social,blog,linkedin',
+            'episode_count' => $user->spendsTrialAllowance()
+                ? 'nullable|integer'
+                : 'required|integer|in:'.implode(',', self::EPISODE_OPTIONS),
         ]);
 
-        $user = $request->user();
+        $count = $this->resolveEpisodeCount($user, $data['episode_count'] ?? null);
 
-        if (! $user->isAdmin()) {
-            abort_unless($user->canCreateStory(), 403, 'You have no story credits remaining.');
-        }
+        $this->chargeForGeneration($user, $count);
 
         $profile = BusinessProfile::updateOrCreate(
             ['user_id' => $user->id],
@@ -291,11 +459,9 @@ class StoryController extends Controller
             'business_profile_id' => $profile->id,
             'title' => 'Generating…',
             'status' => 'generating',
+            'episode_limit' => $count,
+            'created_on_trial' => $user->spendsTrialAllowance(),
         ]);
-
-        if (! $user->isAdmin()) {
-            $user->activeSubscription->decrement('story_credits');
-        }
 
         GenerateStory::dispatch($story, $format);
 
@@ -310,7 +476,7 @@ class StoryController extends Controller
     {
         abort_unless($story->user_id === $request->user()->id, 403);
 
-        $story->load(['episodes.versions', 'businessProfile']);
+        $story->load(['episodes.versions', 'businessProfile', 'user']);
 
         $user = $request->user();
 
@@ -321,16 +487,107 @@ class StoryController extends Controller
                 'status' => $story->status,
                 'is_demo' => $story->is_demo,
                 'business_profile' => $story->businessProfile,
-                'episodes' => $story->episodes->map(fn ($ep) => [
-                    'id' => $ep->id,
-                    'episode_number' => $ep->episode_number,
-                    'title' => $ep->title,
-                    'content' => $ep->content,
-                    'format' => $ep->format,
-                    'versions_count' => $ep->versions->count(),
-                ]),
+                'episodes' => $story->episodes->map(function ($ep) use ($story) {
+                    $ep->setRelation('story', $story);
+
+                    // A locked episode leaves the server as its number and title
+                    // only. Withholding happens here, not in the client — content
+                    // that reaches the browser is readable however it is styled.
+                    if ($ep->isLocked()) {
+                        return [
+                            'id' => $ep->id,
+                            'episode_number' => $ep->episode_number,
+                            'title' => $ep->title,
+                            'format' => $ep->format,
+                            'locked' => true,
+                        ];
+                    }
+
+                    return [
+                        'id' => $ep->id,
+                        'episode_number' => $ep->episode_number,
+                        'title' => $ep->title,
+                        'content' => $ep->content,
+                        'format' => $ep->format,
+                        'versions_count' => $ep->versions->count(),
+                        'custom_refine_instruction' => $ep->custom_refine_instruction,
+                        'locked' => false,
+                    ];
+                }),
             ],
-            'canCreateStory' => $user->canCreateStory(),
+            'isAdmin' => $user->isAdmin(),
+            'credits' => $user->isAdmin() ? null : $user->credits,
+            'is_trial' => $user->is_trial,
+            'is_verified_partner' => $user->is_verified_partner,
+            'unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
+            'locks_episodes' => $story->locksEpisodes(),
+            'unlock_cost' => $story->unlockCost(),
+            'episodes_hidden' => $story->hidesReadableEpisodes(),
+        ]);
+    }
+
+    /**
+     * Open the rest of a trial library for credits. Priced per withheld
+     * episode, so it matches what the member is looking at on this page.
+     */
+    public function unlockEpisodes(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+
+        $user = $request->user();
+        $cost = $story->unlockCost();
+
+        abort_if($cost < 1, 400, 'This library is already unlocked.');
+        abort_if($user->credits < $cost, 403, 'You don\'t have enough credits to unlock this library.');
+
+        $user->decrement('credits', $cost);
+        $story->forceFill(['episodes_unlocked_at' => now()])->save();
+
+        return back();
+    }
+
+    /**
+     * Bring a quietened trial library back into view. The team is told a day
+     * later, which the scheduler handles.
+     */
+    public function reactivateEpisodes(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_unless($story->hidesReadableEpisodes(), 400, 'These episodes are already visible.');
+
+        $story->forceFill([
+            'episodes_reactivated_at' => now(),
+            'reactivation_notified_at' => null,
+        ])->save();
+
+        return back();
+    }
+
+    // -------------------------------------------------------------------------
+    // Interview answers — owner-facing Q&A viewer
+    // -------------------------------------------------------------------------
+
+    public function answers(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+
+        $story->load('businessProfile');
+        $profile = $story->businessProfile;
+
+        return Inertia::render('Stories/Answers', [
+            'interview' => [
+                'story_id' => $story->id,
+                'title' => $story->title,
+                'business_name' => $profile?->business_name,
+                'industry' => $profile?->industry,
+                'business_url' => $profile?->business_url,
+                'linkedin_url' => $profile?->linkedin_url,
+                'social_url' => $profile?->social_url,
+                'instagram_url' => $profile?->instagram_url,
+                'biography' => $profile?->biography,
+                'services' => $profile?->services,
+                'pairs' => $profile?->interviewQaPairs() ?? [],
+            ],
         ]);
     }
 
@@ -343,6 +600,119 @@ class StoryController extends Controller
         abort_unless($story->user_id === $request->user()->id, 403);
 
         return response()->json(['status' => $story->status]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Text-to-voice — read an episode aloud via whichever provider is active
+    // -------------------------------------------------------------------------
+
+    public function speakEpisode(Request $request, Story $story, Episode $episode)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        $this->authorizeEpisode($story, $episode, 'view');
+
+        $audio = Tts::speak(trim("{$episode->title}. {$episode->content}"), 'episode');
+
+        return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
+    /**
+     * Read one interview question or answer aloud on the "My Answers" page.
+     * Questions keep the interview bot's own voice; answers follow the reader's
+     * Male/Female toggle. The text is always resolved server-side from the stored
+     * interview so the endpoint can't be used to narrate arbitrary input.
+     */
+    public function speakAnswer(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+
+        $data = $request->validate([
+            'number' => 'required|integer|min:1',
+            'part' => ['required', Rule::in(['question', 'answer'])],
+            'voice' => ['required', Rule::in(['male', 'female'])],
+        ]);
+
+        $pair = collect($story->businessProfile?->interviewQaPairs() ?? [])
+            ->firstWhere('number', $data['number']);
+
+        $text = trim((string) ($pair[$data['part']] ?? ''));
+
+        abort_if($text === '', 404);
+
+        $role = $data['part'] === 'question' ? 'main' : 'answer_'.$data['voice'];
+
+        $audio = Tts::speak($text, $role);
+
+        return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
+    /** Read arbitrary text aloud — used for individual chat bubbles in the interview. */
+    public function speakText(Request $request)
+    {
+        $data = $request->validate([
+            'text' => 'required|string|max:4096',
+        ]);
+
+        $audio = Tts::speak($data['text']);
+
+        return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
+    /**
+     * The public /demo page has no auth, so its TTS endpoint only ever synthesizes
+     * these exact, fixed lines (never arbitrary client-supplied text) and caches
+     * each one to disk after the first request.
+     */
+    public const DEMO_LINES = [
+        "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! I'll ask you a few quick questions about Barnacle Busters, then turn your answers into a library of stories worth sharing. Ready?",
+        "How did you get into this business? You don't need to make it polished. Just tell it like you would explain it to someone over coffee.",
+        'I totally relate. I remember Brady Baxter started a lawnmowing business that he turned into a big landscaping firm. The guy seemed like a mogul by senior year. Hands on responsibility at a young age is all about natural character and work ethic.',
+        'What is one experience that changed the way you run your business today? Think of one specific customer, mistake, problem, mentor, job, opportunity, or turning point that taught you something you still use now.',
+        "That's a real turning point, understanding that going overboard for your customers meant the business had to grow beyond just you. And handing it to your son makes it a family story people will remember.",
+        'What is something you believe about your business that you learned from experience?',
+        "Customers first. Short and sweet. I think you've given me everything I need. I thank you for these thoughtful and revealing responses. Now, if you give me a moment, I'll process your stories! Are You Ready?",
+    ];
+
+    /**
+     * The customer's side of the demo interview. Kept separate from DEMO_LINES so
+     * each side can be narrated in its own voice.
+     */
+    public const DEMO_ANSWER_LINES = [
+        "I started cleaning boats for extra money while I was young in Northeast. For coffee or a beer. And so while my friends were, you know, partying during the summer, I was cleaning boats. And, and yeah, that's how I started it.",
+        "My early success as a one man band, doing all the work myself,didn't live up the promise I made to go \"overboard\" for my customers…when i saw one of my first customers's boat getting scrubbed at a neighboring spit, as briny as the water was it was painfully clear that the busier i got the more my customers would be pissed.",
+        'If you take care of people first everything comes from that.',
+    ];
+
+    /**
+     * The generated story-library episodes shown at the end of the demo. Narrated
+     * in the same voice as the customer's answers — they're written in the
+     * business owner's voice, same as those answers.
+     */
+    public const DEMO_EPISODE_LINES = [
+        "It Started With a Bucket and a Beer. I was just a kid growing up in the northeast, cleaning boats for extra money. Nothing glamorous. I'd do it for coffee, or a beer, whatever someone wanted to hand me.\n\nAnd while my friends were off partying all summer, I was in the water, scrubbing hulls.\n\nI didn't know it at the time, but that was the beginning of Barnacle Busters. No business plan, no big vision. Just a kid who didn't mind getting in the water and doing the work nobody else wanted to do.\n\nThat's really how it started.\n\nWhat's something you started just to make a little extra money that turned into something bigger? (bet you know people who started like me, I was all hard work, wanting to make people happy and pride).",
+        "Going Overboard Meant Growing Beyond Myself. At some point I realized something. If I wanted to clean as many bottoms as I could and truly go overboard for my customers, it couldn't just be me anymore.\n\nOne person only has so many hours, so many dives in a day.\n\nSo I started to grow the business beyond myself. And as I got older, I got my family involved, and it became even bigger than I ever pictured back when I was that kid with a bucket.\n\nNow I'm proud to say my son, Rayan Danielle, is running it.\n\nThat's the part I'm most proud of. Not the fleet, not the counties we cover. The family.\n\nWhat would it take for your business to grow beyond just you?",
+        "Take Care of People First. After all these years, all the boats, all the divers, all the growth, here's what I believe more than anything.\n\nIf you take care of people first, everything comes from that.\n\nThe customers, the crew, my own family. Take care of them first, do right by them, and the rest follows. The vessels get serviced right at the dock. The work gets done by people who are trained and certified and actually care.\n\nThat's not a slogan. That's just how we've always done it, since the beginning.\n\nI'm not jaded. I feel really lucky and maybe I'm a bit old fashioned but I still believe when you put people first it all comes back around. How about you?",
+    ];
+
+    public function speakDemo(Request $request)
+    {
+        $data = $request->validate([
+            'text' => ['required', 'string', Rule::in([...self::DEMO_LINES, ...self::DEMO_ANSWER_LINES, ...self::DEMO_EPISODE_LINES])],
+        ]);
+
+        $isAnswer = in_array($data['text'], [...self::DEMO_ANSWER_LINES, ...self::DEMO_EPISODE_LINES], true);
+        $role = $isAnswer ? 'demo_customer' : 'demo_bot';
+        $voice = Tts::voiceFor($role);
+
+        // Key the cache on provider and voice too — keying on text alone meant
+        // changing the voice (or provider) in admin kept serving stale audio.
+        $path = 'demo-audio/'.md5($data['text'].'|'.Tts::provider().'|'.$voice).'.mp3';
+
+        if (! Storage::disk('local')->exists($path)) {
+            Storage::disk('local')->put($path, Tts::speak($data['text'], $role));
+        }
+
+        return response(Storage::disk('local')->get($path), 200, ['Content-Type' => 'audio/mpeg']);
     }
 
     // -------------------------------------------------------------------------
@@ -370,7 +740,7 @@ class StoryController extends Controller
         $user = $request->user();
 
         if (! $user->isAdmin()) {
-            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
+            abort_unless($user->canRefine(), 403, 'You have no credits remaining.');
         }
 
         $data = $request->validate([
@@ -378,6 +748,8 @@ class StoryController extends Controller
         ]);
 
         $episode = $story->episodes()->where('episode_number', $data['episode_number'])->firstOrFail();
+
+        $this->authorizeEpisode($story, $episode, 'modify');
 
         $nextVersion = $episode->versions()->max('version') ?? 0;
         EpisodeVersion::create([
@@ -402,7 +774,7 @@ class StoryController extends Controller
         $story->increment('tokens_output', $generated['_tokens_output'] ?? 0);
 
         if (! $user->isAdmin()) {
-            $user->activeSubscription->decrement('refine_credits');
+            $user->decrement('credits');
         }
 
         return response()->json([
@@ -419,7 +791,7 @@ class StoryController extends Controller
     public function episodeVersions(Request $request, Story $story, Episode $episode)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
-        abort_unless($episode->story_id === $story->id, 404);
+        $this->authorizeEpisode($story, $episode, 'view');
 
         $versions = $episode->versions()->get()->map(fn ($v) => [
             'id' => $v->id,
@@ -436,15 +808,8 @@ class StoryController extends Controller
     public function restoreVersion(Request $request, Story $story, Episode $episode, EpisodeVersion $version)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
-        abort_if($story->is_demo, 403);
-        abort_unless($episode->story_id === $story->id, 404);
+        $this->authorizeEpisode($story, $episode, 'modify');
         abort_unless($version->episode_id === $episode->id, 404);
-
-        $user = $request->user();
-
-        if (! $user->isAdmin()) {
-            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
-        }
 
         // Save current as a version before restoring
         $nextVersion = $episode->versions()->max('version') ?? 0;
@@ -456,10 +821,6 @@ class StoryController extends Controller
         ]);
 
         $episode->update(['title' => $version->title, 'content' => $version->content]);
-
-        if (! $user->isAdmin()) {
-            $user->activeSubscription->decrement('refine_credits');
-        }
 
         return response()->json([
             'episode' => [
@@ -476,11 +837,24 @@ class StoryController extends Controller
     // Inline edit — save title / content edits made directly in the card
     // -------------------------------------------------------------------------
 
+    public function saveRefineInstruction(Request $request, Story $story, Episode $episode)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        $this->authorizeEpisode($story, $episode, 'modify');
+
+        $data = $request->validate([
+            'custom_refine_instruction' => 'nullable|string|max:2000',
+        ]);
+
+        $episode->update(['custom_refine_instruction' => $data['custom_refine_instruction']]);
+
+        return response()->noContent();
+    }
+
     public function updateEpisode(Request $request, Story $story, Episode $episode)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
-        abort_if($story->is_demo, 403);
-        abort_unless($episode->story_id === $story->id, 404);
+        $this->authorizeEpisode($story, $episode, 'modify');
 
         $data = $request->validate([
             'title' => 'sometimes|string|max:255',
@@ -505,17 +879,17 @@ class StoryController extends Controller
     public function refineEpisodeTone(Request $request, Story $story, Episode $episode)
     {
         abort_unless($story->user_id === $request->user()->id, 403);
-        abort_if($story->is_demo, 403);
-        abort_unless($episode->story_id === $story->id, 404);
+        $this->authorizeEpisode($story, $episode, 'modify');
 
         $user = $request->user();
 
         if (! $user->isAdmin()) {
-            abort_unless($user->canRefine(), 403, 'You have no refine credits remaining.');
+            abort_unless($user->canRefine(), 403, 'You have no credits remaining.');
         }
 
         $data = $request->validate([
-            'tone' => 'required|in:friendlier,shorter,humor,professional',
+            'tone' => 'required|in:friendlier,shorter,humor,professional,longer,more_cta,less_cta,promotional,custom',
+            'custom_instruction' => 'required_if:tone,custom|string|max:2000',
         ]);
 
         $nextVersion = $episode->versions()->max('version') ?? 0;
@@ -527,15 +901,16 @@ class StoryController extends Controller
         ]);
 
         $generator = app(StoryGeneratorService::class);
-        $refined = $generator->refineTone($episode->content, $data['tone']);
+        $refined = $generator->refineTone($episode->content, $data['tone'], $data['custom_instruction'] ?? null);
 
         $episode->update(['content' => $refined['content']]);
 
+        $story->increment('refines_used');
         $story->increment('tokens_input', $refined['_tokens_input'] ?? 0);
         $story->increment('tokens_output', $refined['_tokens_output'] ?? 0);
 
         if (! $user->isAdmin()) {
-            $user->activeSubscription->decrement('refine_credits');
+            $user->decrement('credits');
         }
 
         return response()->json([
@@ -546,6 +921,76 @@ class StoryController extends Controller
                 'content' => $episode->content,
                 'format' => $episode->format,
             ],
+            'credits' => $user->isAdmin() ? null : $user->fresh()->credits,
+        ]);
+    }
+
+    // -------------------------------------------------------------------------
+    // Bulk AI Refine — apply one tonal transformation to several episodes at once
+    // -------------------------------------------------------------------------
+
+    public function bulkRefineEpisodes(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_if($story->is_demo, 403);
+
+        $user = $request->user();
+
+        $data = $request->validate([
+            'episode_ids' => 'required|array|min:1',
+            'episode_ids.*' => 'integer',
+            'tone' => 'required|in:friendlier,shorter,humor,professional,longer,more_cta,less_cta,promotional,custom',
+            'custom_instruction' => 'required_if:tone,custom|string|max:2000',
+        ]);
+
+        $episodes = $story->episodes()->whereIn('id', $data['episode_ids'])->get();
+        abort_if($episodes->isEmpty(), 404);
+
+        // Authorize every episode up front so a selection containing a locked one
+        // is refused outright rather than partially applied.
+        foreach ($episodes as $episode) {
+            $this->authorizeEpisode($story, $episode, 'modify');
+        }
+
+        if (! $user->isAdmin()) {
+            abort_unless($user->credits >= $episodes->count(), 403, 'Not enough credits to refine all selected episodes.');
+        }
+
+        $generator = app(StoryGeneratorService::class);
+        $updated = [];
+
+        foreach ($episodes as $episode) {
+            $nextVersion = $episode->versions()->max('version') ?? 0;
+            EpisodeVersion::create([
+                'episode_id' => $episode->id,
+                'version' => $nextVersion + 1,
+                'title' => $episode->title,
+                'content' => $episode->content,
+            ]);
+
+            $refined = $generator->refineTone($episode->content, $data['tone'], $data['custom_instruction'] ?? null);
+            $episode->update(['content' => $refined['content']]);
+
+            $story->increment('refines_used');
+            $story->increment('tokens_input', $refined['_tokens_input'] ?? 0);
+            $story->increment('tokens_output', $refined['_tokens_output'] ?? 0);
+
+            if (! $user->isAdmin()) {
+                $user->decrement('credits');
+            }
+
+            $updated[] = [
+                'id' => $episode->id,
+                'episode_number' => $episode->episode_number,
+                'title' => $episode->title,
+                'content' => $episode->content,
+                'format' => $episode->format,
+            ];
+        }
+
+        return response()->json([
+            'episodes' => $updated,
+            'credits' => $user->isAdmin() ? null : $user->fresh()->credits,
         ]);
     }
 }

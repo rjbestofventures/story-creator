@@ -2,6 +2,7 @@
 import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Lock, Eye, EyeOff, ArrowRight } from '@lucide/vue';
+import Footer from '@/Components/Footer.vue';
 
 const props = defineProps({
     email: { type: String, required: true },
@@ -28,7 +29,8 @@ const submit = () => {
 <template>
     <Head title="Reset password" />
 
-    <div class="min-h-screen flex flex-col items-center justify-center px-4" style="background-color: #FAFAF8;">
+    <div class="min-h-screen flex flex-col" style="background-color: #FAFAF8;">
+      <div class="flex-1 flex flex-col items-center justify-center px-4 py-10">
 
         <!-- Logo -->
         <Link href="/" class="flex items-center text-xl font-bold tracking-tight mb-12">
@@ -138,5 +140,7 @@ const submit = () => {
                 <Link :href="route('login')" class="font-semibold underline transition hover:opacity-70" style="color:#1A1A1A;">Log in</Link>
             </p>
         </div>
+      </div>
+      <Footer />
     </div>
 </template>

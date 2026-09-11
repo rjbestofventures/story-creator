@@ -2,7 +2,10 @@
 
 namespace App\Providers;
 
+use App\Models\Episode;
 use App\Models\SiteSetting;
+use App\Policies\EpisodePolicy;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -23,6 +26,8 @@ class AppServiceProvider extends ServiceProvider
     {
         Vite::prefetch(concurrency: 3);
         $this->overrideStripeConfig();
+
+        Gate::policy(Episode::class, EpisodePolicy::class);
     }
 
     private function overrideStripeConfig(): void
@@ -30,6 +35,8 @@ class AppServiceProvider extends ServiceProvider
         try {
             $map = [
                 'anthropic_api_key' => ['anthropic.api_key'],
+                'openai_api_key' => ['services.openai.key'],
+                'elevenlabs_api_key' => ['services.elevenlabs.key'],
                 'stripe_key' => ['cashier.key',            'services.stripe.key'],
                 'stripe_secret' => ['cashier.secret',         'services.stripe.secret'],
                 'stripe_webhook_secret' => ['cashier.webhook.secret', 'services.stripe.webhook.secret'],

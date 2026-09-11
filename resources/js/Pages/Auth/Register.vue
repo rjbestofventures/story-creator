@@ -2,9 +2,37 @@
 import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap } from '@lucide/vue';
+import Footer from '@/Components/Footer.vue';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/Components/ui/dialog';
+
+const props = defineProps({ isDemo: Boolean });
+
+const testimonials = [
+    {
+        quote: 'We recently went from zero social presence to scheduling a full content calendar in one afternoon. StoryCreator.Bot is the real deal.',
+        initials: 'GE',
+        name: 'Gabe Espisito',
+        company: 'Tropic Charters',
+    },
+    {
+        quote: 'I dreaded posting before I used StoryCreator.bot. Now it takes me less than a half hour to get 12 authentic sounding chapters of my story. And they work! I have never had so much online engagement and bookings!',
+        initials: 'VB',
+        name: 'Vase Bari',
+        company: 'Short Term Rentals.',
+    },
+    {
+        quote: 'I thought I knew so much as a seasoned user of digital marketing and then along comes Best of Delray Beach and StoryCreator.bot. Together, they are a game changer. My company has quadrupled in size and every post has my phone rings of the hook.',
+        initials: 'SS',
+        name: 'Steve Silverman',
+        company: 'Diamond Limosine',
+    },
+];
 
 const showPassword        = ref(false);
 const showPasswordConfirm = ref(false);
+const confirmPartnerOpen  = ref(false);
 
 const form = useForm({
     name:                  '',
@@ -13,17 +41,28 @@ const form = useForm({
     password_confirmation: '',
 });
 
-const submit = () => {
+const doRegister = () => {
     form.post(route('register'), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };
+
+const submit = () => {
+    if (props.isDemo) { doRegister(); return; }
+    confirmPartnerOpen.value = true;
+};
+
+const proceedStoryBotOnly = () => {
+    confirmPartnerOpen.value = false;
+    doRegister();
+};
 </script>
 
 <template>
-    <Head title="Create account" />
+    <Head :title="props.isDemo ? 'Create demo account' : 'Create account'" />
 
-    <div class="min-h-screen flex">
+    <div class="min-h-screen flex flex-col">
+      <div class="flex-1 flex">
 
         <!-- Left: Brand panel -->
         <div
@@ -41,7 +80,7 @@ const submit = () => {
                     style="background-color: #F5F5F5; color: #555555; border: 1px solid #DDDDDD;"
                 >
                     <Zap class="w-3.5 h-3.5" />
-                    AI-powered content engine
+                    Coded engineering, AI-powered content development
                 </div>
 
                 <h2 class="text-4xl font-black leading-tight mb-4" style="color: #1A1A1A;">
@@ -50,20 +89,27 @@ const submit = () => {
                 </h2>
 
                 <p class="text-base leading-relaxed mb-10" style="color: #555555;">
-                    Join thousands of businesses that create professional content in minutes.
+                    Join our other Verified Business Partners that create professional content in minutes.
                 </p>
 
-                <div class="rounded-2xl p-5" style="background-color: #FFFFFF; border: 1px solid #DDDDDD;">
-                    <p class="text-sm leading-relaxed mb-4" style="color: #1A1A1A;">
-                        "We went from zero social presence to a full content calendar in one afternoon. StoryCreator.Bot is the real deal."
-                    </p>
-                    <div class="flex items-center gap-3">
-                        <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                            SR
-                        </div>
-                        <div>
-                            <p class="text-xs font-bold" style="color: #1A1A1A;">Sarah Reynolds</p>
-                            <p class="text-xs" style="color: #555555;">Owner, Reynolds & Co.</p>
+                <div class="space-y-4 mb-10">
+                    <div
+                        v-for="t in testimonials"
+                        :key="t.name"
+                        class="rounded-2xl p-5"
+                        style="background-color: #FFFFFF; border: 1px solid #DDDDDD;"
+                    >
+                        <p class="text-sm leading-relaxed mb-4" style="color: #1A1A1A;">
+                            "{{ t.quote }}"
+                        </p>
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
+                                {{ t.initials }}
+                            </div>
+                            <div>
+                                <p class="text-xs font-bold" style="color: #1A1A1A;">{{ t.name }}</p>
+                                <p class="text-xs" style="color: #555555;">{{ t.company }}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -89,7 +135,7 @@ const submit = () => {
 
             <div class="w-full max-w-sm">
 
-                <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">Create your account</h1>
+                <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">{{ props.isDemo ? 'Create your demo account' : 'Create your account' }}</h1>
                 <p class="text-sm mb-8" style="color: #555555;">
                     Already have an account?
                     <Link :href="route('login')" class="font-semibold underline transition hover:opacity-70" style="color: #1A1A1A;">Log in</Link>
@@ -202,9 +248,9 @@ const submit = () => {
                         :class="{ 'opacity-60 cursor-not-allowed': form.processing }"
                         style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                     >
-                        <span v-if="form.processing">Creating account…</span>
+                        <span v-if="form.processing">{{ props.isDemo ? 'Creating demo account…' : 'Creating account…' }}</span>
                         <template v-else>
-                            Create account <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                            {{ props.isDemo ? 'Create demo account' : 'Create account' }} <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </template>
                     </button>
 
@@ -219,5 +265,36 @@ const submit = () => {
             </div>
         </div>
 
+      </div>
+      <Footer />
+
+        <Dialog v-model:open="confirmPartnerOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <DialogTitle class="text-[#1A1A1A]">Are you sure you don't want to become a Verified Business Partner?</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        As a Verified Business Partner, you'll receive <strong class="text-[#1A1A1A]">free access to StoryBot</strong>, along with other exclusive partner benefits.
+                        You can learn more about the benefits and submit your application through the link below.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="flex-col sm:flex-col gap-2">
+                    <button
+                        type="button"
+                        @click="proceedStoryBotOnly"
+                        class="w-full py-2.5 rounded-lg border font-semibold text-sm transition hover:bg-gray-50 cursor-pointer"
+                        style="border-color: #DDDDDD; color: #1A1A1A;"
+                    >
+                        StoryBot Only
+                    </button>
+                    <Link
+                        :href="route('partner')"
+                        class="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90"
+                        style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                    >
+                        Become a Verified Business Partner
+                    </Link>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </div>
 </template>

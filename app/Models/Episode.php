@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -18,11 +19,45 @@ class Episode extends Model
         'content',
         'format',
         'status',
+        'custom_refine_instruction',
     ];
+
+    protected function title(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $value === null ? null : self::stripDashes($value),
+        );
+    }
+
+    protected function content(): Attribute
+    {
+        return Attribute::make(
+            set: fn (?string $value) => $value === null ? null : self::stripDashes($value),
+        );
+    }
+
+    /**
+     * Em, en, and other dashes read as AI-written. Collapse any dash used as a
+     * sentence separator into natural punctuation so episodes stay human.
+     */
+    public static function stripDashes(string $text): string
+    {
+        return preg_replace('/\s*[\x{2012}\x{2013}\x{2014}\x{2015}\x{2E3A}\x{2E3B}]+\s*/u', ', ', $text);
+    }
 
     public function story(): BelongsTo
     {
         return $this->belongsTo(Story::class);
+    }
+
+    /**
+     * A locked episode is written and stored but withheld: its owner may not
+     * read, edit, refine, or hear it until the story stops locking episodes.
+     */
+    public function isLocked(): bool
+    {
+        return $this->story->locksEpisodes()
+            && $this->episode_number > Story::TRIAL_UNLOCKED_EPISODES;
     }
 
     public function versions(): HasMany

@@ -1,17 +1,31 @@
 <script setup>
-import { ref, computed, nextTick, onMounted } from 'vue';
+import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
 import { useForm, router, Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Textarea } from '@/Components/ui/textarea';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil } from 'lucide-vue-next';
+import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/Components/ui/dialog';
+import {
+    Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
+} from '@/Components/ui/tooltip';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2, Volume2, VolumeX } from 'lucide-vue-next';
 
 const props = defineProps({
-    profile:       Object,
-    story:         Object,
-    episode_limit: Number,
+    profile:         Object,
+    story:           Object,
+    credits:         { type: Number, default: null },
+    max_episodes:    { type: Number, default: null },
+    is_trial:                 { type: Boolean, default: false },
+    trial_episode_count:      { type: Number,  default: 12 },
+    trial_unlocked_episodes:  { type: Number,  default: 3 },
+    episode_options: {
+        type: Array,
+        default: () => [12, 18, 24].map((count) => ({ count, locked: false, unlock_label: null })),
+    },
 });
 
 // ─── Phase: 0 = basics, 1 = AI chat, 2 = generate options ───────────────────
@@ -29,13 +43,45 @@ const isTyping      = ref(false);
 const typingText    = ref('');
 const typingSkip    = ref(false);
 
-const typeOut = (text) => new Promise(resolve => {
+// Punctuation gets extra "weight" so the reveal briefly holds after sentence/clause
+// boundaries instead of marching at a flat character rate — closer to natural speech
+// rhythm without needing real per-word timestamps.
+const PAUSE_WEIGHT = { '.': 6, '!': 6, '?': 6, '\n': 6, ',': 3, ';': 3, ':': 3, '—': 3 };
+const weighTextForTyping = (text) => {
+    const weights = new Array(text.length);
+    let total = 0;
+    for (let i = 0; i < text.length; i++) {
+        weights[i] = 1 + (PAUSE_WEIGHT[text[i]] ?? 0);
+        total += weights[i];
+    }
+    return { weights, total };
+};
+
+// durationMs, when given, paces the reveal to finish alongside audio of that length
+// (e.g. TTS narration) instead of the fixed default speed.
+const typeOut = (text, durationMs = null) => new Promise(resolve => {
     typingText.value  = '';
     isTyping.value    = true;
     typingSkip.value  = false;
+
+    if (!text) { isTyping.value = false; resolve(); return; }
+
+    const { weights, total: totalWeight } = weighTextForTyping(text);
+    const prefix = new Array(text.length + 1).fill(0);
+    for (let i = 0; i < text.length; i++) prefix[i + 1] = prefix[i] + weights[i];
+    const avgWeight = totalWeight / text.length;
+
+    const DEFAULT_CPS = 100;
+    const MIN_CPS = 12; // floor so long narration doesn't crawl unreadably slow
+    const MAX_CPS = 100; // ceiling so short narration doesn't flash the text instantly
+    const CPS = durationMs
+        ? Math.min(MAX_CPS, Math.max(MIN_CPS, text.length / (durationMs / 1000)))
+        : DEFAULT_CPS;
+    const weightPerSec = CPS * avgWeight; // preserves the same total duration as flat pacing
+
     let i = 0;
+    let elapsedWeight = 0;
     let lastTime = null;
-    const CHARS_PER_SEC = 100;
 
     const tick = (ts) => {
         if (typingSkip.value) {
@@ -47,8 +93,8 @@ const typeOut = (text) => new Promise(resolve => {
             return;
         }
         if (lastTime !== null) {
-            const add = Math.max(1, Math.floor(((ts - lastTime) / 1000) * CHARS_PER_SEC));
-            i = Math.min(i + add, text.length);
+            elapsedWeight += ((ts - lastTime) / 1000) * weightPerSec;
+            while (i < text.length && prefix[i + 1] <= elapsedWeight) i++;
             typingText.value = text.slice(0, i);
             scrollDown();
         }
@@ -57,6 +103,106 @@ const typeOut = (text) => new Promise(resolve => {
         else { isTyping.value = false; resolve(); }
     };
     requestAnimationFrame(tick);
+});
+
+// ─── Text-to-voice — read any assistant chat bubble aloud via OpenAI's TTS ────
+const speakingMsgIdx = ref(null); // index within enrichedDisplayLog currently playing
+const loadingMsgIdx  = ref(null);
+let speakMsgAudio     = null;
+const speakMsgAudioUrls = {}; // idx -> cached object URL, so replays don't re-synthesize
+
+// Global mute — persisted so it stays off/on across visits. Auto-speak respects it;
+// a manual click on a bubble's speaker icon always plays regardless of mute.
+const speechMuted = ref(typeof localStorage !== 'undefined' && localStorage.getItem('sc_tts_muted') === '1');
+const toggleMute = () => {
+    speechMuted.value = !speechMuted.value;
+    localStorage.setItem('sc_tts_muted', speechMuted.value ? '1' : '0');
+    if (speechMuted.value) stopMsgSpeaking();
+};
+
+const stopMsgSpeaking = () => {
+    speakMsgAudio?.pause();
+    speakMsgAudio = null;
+    speakingMsgIdx.value = null;
+};
+
+// Fetches (or reuses the cached) TTS audio for a message without playing it.
+// Returns an Audio element with metadata already loaded (so .duration is known
+// for pacing the typing animation), or null if synthesis failed.
+const fetchMsgAudio = async (text, idx) => {
+    let url = speakMsgAudioUrls[idx];
+    if (!url) {
+        loadingMsgIdx.value = idx;
+        try {
+            const res = await fetch(route('speak'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                },
+                body: JSON.stringify({ text }),
+            });
+            if (!res.ok) throw new Error('Text-to-speech failed.');
+            url = URL.createObjectURL(await res.blob());
+            speakMsgAudioUrls[idx] = url;
+        } catch {
+            return null;
+        } finally {
+            loadingMsgIdx.value = null;
+        }
+    }
+
+    const audio = new Audio(url);
+    await new Promise(resolve => {
+        if (audio.readyState >= 1) resolve();
+        else audio.addEventListener('loadedmetadata', resolve, { once: true });
+    });
+    return audio;
+};
+
+const playMsgAudio = async (msg, idx) => {
+    const audio = await fetchMsgAudio(msg.content, idx);
+    if (!audio) { chatError.value = 'Could not read this message aloud. Please try again.'; return; }
+    speakingMsgIdx.value = idx;
+    speakMsgAudio = audio;
+    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+    speakMsgAudio.play();
+};
+
+const toggleSpeakMessage = (msg, idx) => {
+    if (speakingMsgIdx.value === idx) { stopMsgSpeaking(); return; }
+    stopMsgSpeaking();
+    playMsgAudio(msg, idx);
+};
+
+// Types `text` out while (unless muted) simultaneously narrating it via TTS, pacing the
+// reveal speed so the text finishes right as the audio does. `onBeforeType`, if given,
+// fires right before the reveal starts (e.g. to swap "thinking" dots for the bubble) —
+// it runs after the audio has been fetched, so both the voice and the typing start together.
+const typeWithSpeech = async (text, idx, onBeforeType) => {
+    if (speechMuted.value) {
+        fetchMsgAudio(text, idx); // pre-warm the cache in the background so a later manual play is instant
+        onBeforeType?.();
+        await typeOut(text);
+        return;
+    }
+
+    stopMsgSpeaking();
+    const audio = await fetchMsgAudio(text, idx);
+    onBeforeType?.();
+
+    if (!audio) { await typeOut(text); return; }
+
+    speakingMsgIdx.value = idx;
+    speakMsgAudio = audio;
+    speakMsgAudio.onended = () => { if (speakingMsgIdx.value === idx) speakingMsgIdx.value = null; };
+    speakMsgAudio.play();
+    await typeOut(text, audio.duration * 1000);
+};
+
+onUnmounted(() => {
+    speakMsgAudio?.pause();
+    for (const url of Object.values(speakMsgAudioUrls)) URL.revokeObjectURL(url);
 });
 
 const demoBuildTurn = () => {
@@ -83,7 +229,7 @@ const advanceDemoReplay = async () => {
     }
 
     scrollDown();
-    await typeOut(assistantMsg.content);
+    await typeWithSpeech(assistantMsg.content, enrichedDisplayLog.value.length);
     chatLog.value.push(assistantMsg);
 
     if (!userMsg.content.startsWith('[')) answerCount.value++;
@@ -106,18 +252,44 @@ const advanceDemoReplay = async () => {
 };
 
 // ─── Basics ──────────────────────────────────────────────────────────────────
+// Help-icon tooltip copy per field. Website, Industry, LinkedIn, Facebook, and
+// Instagram share the same line; About and Services keep their own.
+const ACCURATE_STORIES_HINT = 'By including this we can generate the most accurate stories.';
+const fieldHints = {
+    business_url:  ACCURATE_STORIES_HINT,
+    industry:      ACCURATE_STORIES_HINT,
+    linkedin_url:  ACCURATE_STORIES_HINT,
+    social_url:    ACCURATE_STORIES_HINT,
+    instagram_url: ACCURATE_STORIES_HINT,
+    biography:     'By providing your biography or company history we can generate the most authentic outcomes.',
+    services:      'Please include a short description of your primary services.',
+};
+// The hint shows while the field is hovered or while the cursor sits in it, so
+// the tooltip is driven by us rather than the trigger's default hover-only logic.
+const hoveredHint = ref(null);
+const focusedHint = ref(null);
+const hintOpen = key => hoveredHint.value === key || focusedHint.value === key;
+const hintEvents = key => ({
+    onMouseenter: () => { hoveredHint.value = key; },
+    onMouseleave: () => { if (hoveredHint.value === key) hoveredHint.value = null; },
+    onFocus:      () => { focusedHint.value = key; },
+    onBlur:       () => { if (focusedHint.value === key) focusedHint.value = null; },
+});
 const basics = ref({
     business_name: props.profile?.business_name ?? '',
     business_url:  props.profile?.business_url  ?? '',
     industry:      props.profile?.industry       ?? '',
     biography:     props.profile?.biography      ?? '',
+    services:      props.profile?.services       ?? '',
     linkedin_url:  props.profile?.linkedin_url   ?? '',
     social_url:    props.profile?.social_url     ?? '',
+    instagram_url: props.profile?.instagram_url  ?? '',
 });
 const hasOneUrl = computed(() =>
     basics.value.business_url.trim().length > 0 ||
     basics.value.linkedin_url.trim().length > 0 ||
-    basics.value.social_url.trim().length > 0
+    basics.value.social_url.trim().length > 0 ||
+    basics.value.instagram_url.trim().length > 0
 );
 const canStartInterview = computed(() =>
     basics.value.business_name.trim().length > 0 &&
@@ -127,7 +299,7 @@ const canStartInterview = computed(() =>
 const formErrors = computed(() => {
     const e = [];
     if (!basics.value.industry.trim()) e.push('Industry is required.');
-    if (!hasOneUrl.value) e.push('Please add at least one of: Website, LinkedIn, or Facebook/Instagram.');
+    if (!hasOneUrl.value) e.push('Please add at least one of: Website, LinkedIn, Facebook, or Instagram.');
     return e;
 });
 
@@ -140,6 +312,145 @@ const chatError    = ref('');
 const chatBottom   = ref(null);
 const inputRef     = ref(null);
 const answerCount  = ref(0); // actual text answers submitted (excludes button clicks)
+
+// ─── Voice capture — record answer, transcribe via OpenAI Whisper ────────────
+const isRecording    = ref(false);
+const isTranscribing = ref(false);
+const audioLevel     = ref(0); // 0–1, drives the listening animation
+const mediaRecorder  = ref(null);
+const audioChunks    = ref([]);
+
+const SILENCE_RMS_THRESHOLD = 0.02;
+const SILENCE_STOP_MS       = 2000;
+
+let activeStream    = null;
+let audioContext    = null;
+let analyser        = null;
+let monitorFrame     = null;
+let silenceSince     = null;
+
+// Live-stream captions while recording, via the browser's native speech recognition.
+// The recorded audio is still sent to Whisper on stop for the authoritative transcript.
+const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition || null;
+let recognition      = null;
+let preRecordingText = '';
+
+const stopAudioMonitor = () => {
+    if (monitorFrame) cancelAnimationFrame(monitorFrame);
+    monitorFrame = null;
+    audioLevel.value = 0;
+    audioContext?.close();
+    audioContext = null;
+    analyser = null;
+};
+
+const startAudioMonitor = (stream) => {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 512;
+    audioContext.createMediaStreamSource(stream).connect(analyser);
+
+    const data = new Uint8Array(analyser.frequencyBinCount);
+    silenceSince = performance.now();
+
+    const tick = () => {
+        analyser.getByteTimeDomainData(data);
+        let sumSquares = 0;
+        for (let i = 0; i < data.length; i++) {
+            const v = (data[i] - 128) / 128;
+            sumSquares += v * v;
+        }
+        const rms = Math.sqrt(sumSquares / data.length);
+        audioLevel.value = Math.min(1, rms * 6);
+
+        const now = performance.now();
+        if (rms > SILENCE_RMS_THRESHOLD) {
+            silenceSince = now;
+        } else if (now - silenceSince > SILENCE_STOP_MS) {
+            mediaRecorder.value?.stop();
+            return;
+        }
+        monitorFrame = requestAnimationFrame(tick);
+    };
+    monitorFrame = requestAnimationFrame(tick);
+};
+
+const toggleRecording = async () => {
+    if (isRecording.value) {
+        mediaRecorder.value?.stop();
+        return;
+    }
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        activeStream = stream;
+        const recorder = new MediaRecorder(stream);
+        audioChunks.value = [];
+        recorder.ondataavailable = (e) => { if (e.data.size > 0) audioChunks.value.push(e.data); };
+        recorder.onstop = async () => {
+            stopAudioMonitor();
+            stream.getTracks().forEach(t => t.stop());
+            activeStream = null;
+            isRecording.value = false;
+            try { recognition?.stop(); } catch { /* already stopped */ }
+            await transcribeRecording();
+        };
+        mediaRecorder.value = recorder;
+        recorder.start();
+        isRecording.value = true;
+        startAudioMonitor(stream);
+
+        preRecordingText = currentInput.value;
+        if (SpeechRecognitionCtor) {
+            recognition = new SpeechRecognitionCtor();
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+            recognition.onresult = (e) => {
+                let liveText = '';
+                for (let i = 0; i < e.results.length; i++) liveText += e.results[i][0].transcript;
+                currentInput.value = preRecordingText ? `${preRecordingText} ${liveText}`.trim() : liveText;
+            };
+            recognition.onerror = () => { /* Whisper transcription remains the source of truth on stop */ };
+            try { recognition.start(); } catch { /* unsupported in this state, ignore */ }
+        }
+    } catch {
+        chatError.value = 'Could not access your microphone. Check browser permissions and try again.';
+    }
+};
+
+onUnmounted(() => {
+    stopAudioMonitor();
+    activeStream?.getTracks().forEach(t => t.stop());
+    try { recognition?.stop(); } catch { /* already stopped */ }
+});
+
+const transcribeRecording = async () => {
+    if (audioChunks.value.length === 0) return;
+    isTranscribing.value = true;
+    try {
+        const blob = new Blob(audioChunks.value, { type: mediaRecorder.value?.mimeType || 'audio/webm' });
+        const formData = new FormData();
+        formData.append('audio', blob, 'answer.webm');
+
+        const res = await fetch(route('stories.transcribe'), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+            body: formData,
+        });
+
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Transcription failed.');
+
+        // Replace the live-captioned preview (from speech recognition) with Whisper's
+        // authoritative transcript, based on whatever text existed before recording started.
+        currentInput.value = preRecordingText ? `${preRecordingText} ${data.text}`.trim() : data.text;
+        nextTick(() => inputRef.value?.focus());
+    } catch (err) {
+        chatError.value = err.message || 'Could not transcribe your recording. Please try again or type your answer.';
+    } finally {
+        isTranscribing.value = false;
+    }
+};
 
 // Structured response from Claude — drives button vs input mode
 const currentTurn = ref({
@@ -155,11 +466,76 @@ const displayLog = computed(() =>
     chatLog.value.filter(m => !(m.role === 'user' && m.content.startsWith('[')))
 );
 
+// Older saved sessions may be missing the _question/_retry flags (added
+// after this session was created), which would otherwise leave the whole
+// question unstyled and unnumbered on resume. Fall back to structure: a
+// question turn is always immediately followed by a typed answer (not a
+// "[...]" button marker); a retry re-asks the same trailing question text
+// as last time.
+const enrichedDisplayLog = computed(() => {
+    let qNum = 0;
+    let lastQuestionText = null;
+    const raw = chatLog.value;
+    return displayLog.value.map(msg => {
+        if (msg.role !== 'assistant') return msg;
+
+        const next = raw[raw.indexOf(msg) + 1];
+        const questionText = msg._question || (
+            (next && next.role === 'user' && !next.content.startsWith('['))
+                ? msg.content.split('\n\n').pop()
+                : null
+        );
+        if (!questionText) return msg;
+
+        const isRetry = msg._retry || (lastQuestionText !== null && questionText === lastQuestionText);
+        if (!isRetry) qNum++;
+        lastQuestionText = questionText;
+
+        return { ...msg, _question: questionText, _questionNumber: qNum };
+    });
+});
+
 // ─── Generate options ─────────────────────────────────────────────────────────
-const episodeCount = computed(() => isDemoMode.value ? 3 : (props.episode_limit ?? 5));
-const format       = ref('social');
-const storeForm    = useForm({
-    format: 'social',
+const format = ref('social');
+
+const isUnlimited   = computed(() => props.credits === null); // admins
+const creditBalance = computed(() => props.credits ?? 0);
+const episodeOptions = computed(() => props.episode_options ?? []);
+
+// Selected episode count: default to the largest option the user can both
+// unlock (pack tier) and afford (credits).
+const selectedEpisodes = ref(null);
+
+const affordable = (count) => isUnlimited.value || creditBalance.value >= count;
+const unlocked = (opt) => isUnlimited.value || !opt.locked;
+const selectable = (opt) => unlocked(opt) && affordable(opt.count);
+
+const selectOption = (opt) => {
+    if (!selectable(opt)) return;
+    selectedEpisodes.value = opt.count;
+};
+
+const initEpisodeChoice = () => {
+    const opts = episodeOptions.value;
+    const best = [...opts].reverse().find(selectable)
+        ?? opts.find(unlocked)
+        ?? opts[0];
+    selectedEpisodes.value = best?.count ?? 12;
+};
+
+const isTrial = computed(() => props.is_trial);
+
+const episodeCount = computed(() => {
+    if (isDemoMode.value) return 3;
+    if (isTrial.value) return props.trial_episode_count;
+    return selectedEpisodes.value ?? episodeOptions.value[0]?.count ?? 12;
+});
+
+const canAffordSelected = computed(() => isUnlimited.value || isTrial.value || creditBalance.value >= episodeCount.value);
+
+const storeForm = useForm({
+    format:        'social',
+    episode_count: null,
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -252,6 +628,8 @@ const callInterview = async (isAnswer = false) => {
         // Store combined assistant content in chatLog for display and API history
         const combined = [data.message, data.question].filter(Boolean).join('\n\n');
         if (combined.trim()) {
+            // Swaps the "thinking" dots for the typing bubble right as narration starts.
+            await typeWithSpeech(combined, enrichedDisplayLog.value.length, () => { isLoading.value = false; });
             const entry = { role: 'assistant', content: combined };
             if (data.question) entry._question = data.question;
             if (data.valid === false) entry._retry = true; // paired with the invalid user msg above
@@ -288,7 +666,9 @@ const handleButtonClick = async () => {
 const saveProgress = async (status = null) => {
     if (!storyId.value || isDemoMode.value) return; // demo: no backend calls
     try {
-        const messages = chatLog.value.map(({ _invalid, _retry, _question, ...m }) => m);
+        // Keep _invalid/_retry/_question so question numbering and history
+        // filtering still work correctly after the interview is resumed.
+        const messages = chatLog.value;
         await fetch(route('stories.progress', storyId.value), {
             method: 'PATCH',
             headers: {
@@ -301,6 +681,19 @@ const saveProgress = async (status = null) => {
 };
 
 // ─── Start interview ──────────────────────────────────────────────────────────
+const confirmStartOpen = ref(false);
+
+const requestStartInterview = () => {
+    if (!canStartInterview.value) return;
+    if (isDemoMode.value) { startInterview(); return; }
+    confirmStartOpen.value = true;
+};
+
+const confirmStartInterview = () => {
+    confirmStartOpen.value = false;
+    startInterview();
+};
+
 const startInterview = async () => {
     if (!canStartInterview.value) return;
 
@@ -314,7 +707,7 @@ const startInterview = async () => {
         if (firstAssistant) {
             demoPosition.value = 2;
             scrollDown();
-            await typeOut(firstAssistant.content);
+            await typeWithSpeech(firstAssistant.content, enrichedDisplayLog.value.length);
             chatLog.value.push(firstAssistant);
             const mode = demoBuildTurn();
             currentTurn.value = { message: firstAssistant.content, question: '', ...mode };
@@ -337,8 +730,10 @@ const startInterview = async () => {
                     business_url:  basics.value.business_url,
                     industry:      basics.value.industry,
                     biography:     basics.value.biography,
+                    services:      basics.value.services,
                     linkedin_url:  basics.value.linkedin_url,
                     social_url:    basics.value.social_url,
+                    instagram_url: basics.value.instagram_url,
                 }),
             });
             const data = await res.json();
@@ -361,6 +756,7 @@ const startInterview = async () => {
 
 // ─── Restore on mount (DB only) ──────────────────────────────────────────────
 onMounted(async () => {
+    initEpisodeChoice();
     localStorage.removeItem('sc_interview_session');
     if (props.story) {
         storyId.value = props.story.id;
@@ -424,13 +820,36 @@ const submit = () => {
         }, 3200);
         return;
     }
-    generateError.value = '';
-    storeForm.format = format.value;
+
+    if (!canAffordSelected.value) {
+        router.visit(route('shop.index'), {
+            data: { notice: 'You need more credits to generate this story. Your interview answers are saved.' },
+        });
+        return;
+    }
+
+    generateError.value      = '';
+    storeForm.format         = format.value;
+    storeForm.episode_count  = episodeCount.value;
     storeForm.post(route('stories.generate', storyId.value), {
         onError: () => {
             generateError.value = 'Something went wrong generating your story. Please try again.';
         },
     });
+};
+
+const confirmGenerateOpen = ref(false);
+
+const requestGenerate = () => {
+    // Demo has no cost, and an unaffordable choice routes straight to the shop —
+    // only confirm when real credits are about to be spent.
+    if (isDemoMode.value || !canAffordSelected.value) { submit(); return; }
+    confirmGenerateOpen.value = true;
+};
+
+const confirmGenerate = () => {
+    confirmGenerateOpen.value = false;
+    submit();
 };
 
 // ─── Back navigation ─────────────────────────────────────────────────────────
@@ -456,7 +875,7 @@ const formats = [
 
 <template>
     <Head title="Create Your Story" />
-    <AuthenticatedLayout>
+    <AuthenticatedLayout :hide-footer="phase === 1">
         <!-- In chat phase: lock height to viewport so input stays visible -->
         <div
             class="bg-[#FAFAF8] flex flex-col"
@@ -518,6 +937,20 @@ const formats = [
                                 <span class="truncate">{{ basics.business_name }}</span>
                                 <Pencil class="w-3 h-3 flex-shrink-0" />
                             </button>
+                            <button
+                                v-if="phase === 1"
+                                type="button"
+                                @click="toggleMute"
+                                :aria-label="speechMuted ? 'Unmute StoryBot voice' : 'Mute StoryBot voice'"
+                                :title="speechMuted ? 'Unmute StoryBot voice' : 'Mute StoryBot voice'"
+                                class="flex items-center justify-center w-7 h-7 rounded-lg border transition-all duration-150 cursor-pointer"
+                                :class="speechMuted
+                                    ? 'border-[#DDDDDD] text-[#AAAAAA] hover:text-[#555555] hover:bg-gray-50'
+                                    : 'border-[#F5A000]/40 text-[#F5A000] bg-amber-50'"
+                            >
+                                <VolumeX v-if="speechMuted" class="w-3.5 h-3.5" />
+                                <Volume2 v-else class="w-3.5 h-3.5" />
+                            </button>
                         </template>
                     </div>
                 </div>
@@ -540,6 +973,7 @@ const formats = [
                         <p class="text-[#555555]">Tell us a bit about your business, then StoryBot will interview you.</p>
                     </div>
 
+                    <TooltipProvider :delay-duration="150">
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-5">
                         <div class="space-y-2">
                             <Label for="business_name" class="text-[#1A1A1A] font-semibold">
@@ -550,34 +984,46 @@ const formats = [
                                 v-model="basics.business_name"
                                 placeholder="e.g. Bright Path Consulting"
                                 class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                @keyup.enter="startInterview"
+                                @keyup.enter="requestStartInterview"
                             />
                         </div>
                         <p class="text-xs text-[#555555]">Add at least one link so StoryBot can learn more about your business. <span class="text-red-500">*</span></p>
+                        <p class="text-xs text-[#AAAAAA]">When adding a link, please make sure it is set to public access so the system can properly fetch and process it.</p>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-2">
                                 <Label for="business_url" class="text-[#1A1A1A] font-semibold">
                                     Website
-                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
                                 </Label>
-                                <Input
-                                    id="business_url"
-                                    v-model="basics.business_url"
-                                    placeholder="https://..."
-                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                />
+                                <Tooltip :open="hintOpen('business_url')">
+                                    <TooltipTrigger as-child>
+                                        <Input
+                                            id="business_url"
+                                            v-model="basics.business_url"
+                                            placeholder="https://..."
+                                            class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                            v-bind="hintEvents('business_url')"
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.business_url }}</TooltipContent>
+                                </Tooltip>
                             </div>
                             <div class="space-y-2">
                                 <Label for="industry" class="text-[#1A1A1A] font-semibold">
                                     Industry
                                     <span class="text-red-500 ml-0.5">*</span>
                                 </Label>
-                                <Input
-                                    id="industry"
-                                    v-model="basics.industry"
-                                    placeholder="e.g. Landscaping"
-                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                />
+                                <Tooltip :open="hintOpen('industry')">
+                                    <TooltipTrigger as-child>
+                                        <Input
+                                            id="industry"
+                                            v-model="basics.industry"
+                                            placeholder="e.g. Landscaping"
+                                            class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                            v-bind="hintEvents('industry')"
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.industry }}</TooltipContent>
+                                </Tooltip>
                             </div>
                         </div>
 
@@ -585,41 +1031,95 @@ const formats = [
                             <div class="space-y-2">
                                 <Label for="linkedin_url" class="text-[#1A1A1A] font-semibold">
                                     LinkedIn
-                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
                                 </Label>
-                                <Input
-                                    id="linkedin_url"
-                                    v-model="basics.linkedin_url"
-                                    placeholder="linkedin.com/in/..."
-                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                />
+                                <Tooltip :open="hintOpen('linkedin_url')">
+                                    <TooltipTrigger as-child>
+                                        <Input
+                                            id="linkedin_url"
+                                            v-model="basics.linkedin_url"
+                                            placeholder="linkedin.com/in/..."
+                                            class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                            v-bind="hintEvents('linkedin_url')"
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.linkedin_url }}</TooltipContent>
+                                </Tooltip>
                             </div>
                             <div class="space-y-2">
                                 <Label for="social_url" class="text-[#1A1A1A] font-semibold">
-                                    Facebook / Instagram
-                                    <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                                    Facebook
                                 </Label>
-                                <Input
-                                    id="social_url"
-                                    v-model="basics.social_url"
-                                    placeholder="instagram.com/..."
-                                    class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
-                                />
+                                <Tooltip :open="hintOpen('social_url')">
+                                    <TooltipTrigger as-child>
+                                        <Input
+                                            id="social_url"
+                                            v-model="basics.social_url"
+                                            placeholder="facebook.com/..."
+                                            class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                            v-bind="hintEvents('social_url')"
+                                        />
+                                    </TooltipTrigger>
+                                    <TooltipContent side="top" class="max-w-xs">{{ fieldHints.social_url }}</TooltipContent>
+                                </Tooltip>
                             </div>
                         </div>
 
                         <div class="space-y-2">
+                            <Label for="instagram_url" class="text-[#1A1A1A] font-semibold">
+                                Instagram
+                            </Label>
+                            <Tooltip :open="hintOpen('instagram_url')">
+                                <TooltipTrigger as-child>
+                                    <Input
+                                        id="instagram_url"
+                                        v-model="basics.instagram_url"
+                                        placeholder="instagram.com/..."
+                                        class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
+                                        v-bind="hintEvents('instagram_url')"
+                                    />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" class="max-w-xs">{{ fieldHints.instagram_url }}</TooltipContent>
+                            </Tooltip>
+                        </div>
+
+                        <div class="space-y-2">
                             <Label for="biography" class="text-[#1A1A1A] font-semibold">
-                                About You / Biography
+                                About you and your business
                                 <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
                             </Label>
-                            <Textarea
-                                id="biography"
-                                v-model="basics.biography"
-                                placeholder="Tell us about yourself — your background, what drives you, your journey into this business..."
-                                rows="3"
-                                class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
-                            />
+                            <Tooltip :open="hintOpen('biography')">
+                                <TooltipTrigger as-child>
+                                    <Textarea
+                                        id="biography"
+                                        v-model="basics.biography"
+                                        placeholder="Tell us about yourself, your background, what drives you, your journey into this business..."
+                                        rows="3"
+                                        class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
+                                        v-bind="hintEvents('biography')"
+                                    />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" class="max-w-xs">{{ fieldHints.biography }}</TooltipContent>
+                            </Tooltip>
+                        </div>
+
+                        <div class="space-y-2">
+                            <Label for="services" class="text-[#1A1A1A] font-semibold">
+                                Your Business Services
+                                <span class="text-[#AAAAAA] font-normal text-xs">(optional)</span>
+                            </Label>
+                            <Tooltip :open="hintOpen('services')">
+                                <TooltipTrigger as-child>
+                                    <Textarea
+                                        id="services"
+                                        v-model="basics.services"
+                                        placeholder="e.g. Espresso drinks, in-house roasting, catering for local events..."
+                                        rows="3"
+                                        class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
+                                        v-bind="hintEvents('services')"
+                                    />
+                                </TooltipTrigger>
+                                <TooltipContent side="top" class="max-w-xs">{{ fieldHints.services }}</TooltipContent>
+                            </Tooltip>
                         </div>
 
                         <div v-if="formErrors.length > 0 && basics.business_name.trim()" class="space-y-1">
@@ -629,13 +1129,14 @@ const formats = [
                         <Button
                             type="button"
                             :disabled="!canStartInterview"
-                            @click="startInterview"
+                            @click="requestStartInterview"
                             class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-12 rounded-xl transition-all duration-300 cursor-pointer disabled:opacity-40 mt-2"
                         >
                             Start My Interview
                             <ArrowRight class="w-4 h-4" />
                         </Button>
                     </div>
+                    </TooltipProvider>
                 </div>
             </div>
 
@@ -644,11 +1145,17 @@ const formats = [
                 v-else-if="phase === 1"
                 class="flex-1 min-h-0 overflow-hidden flex flex-col max-w-2xl mx-auto w-full px-4 py-4"
             >
-                <!-- Messages scroll area -->
-                <div class="flex-1 min-h-0 space-y-4 overflow-y-auto pb-4 pr-1">
+                <!-- Messages scroll area. `justify-end` (not `mt-auto`) would keep short
+                     conversations pinned to the bottom, but once a long one overflows some
+                     browsers stop exposing the earlier messages as scrollable at all —
+                     the user cannot scroll up to reread them. The spacer below pins short
+                     conversations the same way, without breaking scroll once it overflows. -->
+                <div class="flex-1 min-h-0 flex flex-col space-y-4 overflow-y-auto pb-4 pr-1">
+
+                    <div class="mt-auto" aria-hidden="true" />
 
                     <div
-                        v-for="(msg, i) in displayLog"
+                        v-for="(msg, i) in enrichedDisplayLog"
                         :key="i"
                         class="flex gap-3"
                         :class="msg.role === 'user' ? 'flex-row-reverse' : ''"
@@ -671,13 +1178,29 @@ const formats = [
                                     v-if="msg.content.replace(msg._question, '').trim()"
                                     class="mt-2 mb-2 border-t border-amber-200"
                                 />
-                                <span class="block font-semibold text-amber-800 bg-amber-50 rounded-lg px-2.5 py-1.5">{{ msg._question }}</span>
+                                <span class="block font-semibold text-amber-800 bg-amber-50 rounded-lg px-2.5 py-1.5">
+                                    <span class="text-amber-500 mr-1.5">{{ msg._questionNumber }}.</span>{{ msg._question }}
+                                </span>
                             </template>
                             <template v-else>{{ msg.content }}</template>
+
+                            <button
+                                v-if="msg.role === 'assistant'"
+                                type="button"
+                                :disabled="loadingMsgIdx === i"
+                                :aria-label="speakingMsgIdx === i ? 'Stop reading aloud' : 'Read aloud'"
+                                @click="toggleSpeakMessage(msg, i)"
+                                class="mt-2 flex items-center justify-center w-6 h-6 rounded-md transition-colors cursor-pointer disabled:cursor-wait"
+                                :class="speakingMsgIdx === i ? 'text-[#F5A000] bg-amber-50' : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                            >
+                                <Loader2 v-if="loadingMsgIdx === i" class="w-3.5 h-3.5 animate-spin" />
+                                <VolumeX v-else-if="speakingMsgIdx === i" class="w-3.5 h-3.5" />
+                                <Volume2 v-else class="w-3.5 h-3.5" />
+                            </button>
                         </div>
                     </div>
 
-                    <!-- Demo typing bubble -->
+                    <!-- Typing bubble (assistant response streaming out, demo or real) -->
                     <div v-if="isTyping" class="flex gap-3">
                         <div class="flex-shrink-0 w-8 h-8 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000] flex items-center justify-center mt-0.5">
                             <Sparkles class="w-3.5 h-3.5 text-white" />
@@ -716,7 +1239,7 @@ const formats = [
 
                     <!-- Interview complete: navigate to generate phase -->
                     <div v-if="complete" class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex items-center justify-between gap-3">
-                        <p class="text-sm text-[#555555]">Interview complete. Ready to generate your story.</p>
+                        <p class="text-sm text-[#555555]">Thank you for completing the interview. Ready to generate your story.</p>
                         <button
                             type="button"
                             @click="phase = 2"
@@ -746,37 +1269,92 @@ const formats = [
                     </div>
 
                     <!-- Normal interview input -->
-                    <div v-else class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-3 items-end"
-                         :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : ''"
-                    >
-                        <Textarea
-                            ref="inputRef"
-                            v-model="currentInput"
-                            :disabled="isLoading || !currentTurn.show_input"
-                            :readonly="isDemoMode && currentTurn.show_input"
-                            :placeholder="currentTurn.show_input ? (isDemoMode ? '' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
-                            rows="2"
-                            class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0 transition-opacity duration-300"
-                            :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : (isDemoMode ? 'cursor-default select-none' : '')"
-                            @keydown="onKeydown"
-                        />
-
-                        <!-- Morphing button: text label → send icon -->
-                        <button
-                            type="button"
-                            :disabled="isLoading || (currentTurn.show_input && !canSubmit)"
-                            @click="currentTurn.show_input ? submitAnswer() : handleButtonClick()"
-                            class="flex-shrink-0 flex items-center justify-center font-bold text-sm transition-all duration-300 cursor-pointer disabled:opacity-40"
-                            :class="currentTurn.show_input
-                                ? 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-white hover:shadow-md'
-                                : 'h-9 px-4 gap-2 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A]'"
+                    <div v-else>
+                        <!-- Listening: ChatGPT-style pulsing orb, reacts to live mic volume -->
+                        <div
+                            v-if="isRecording"
+                            class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex flex-col gap-2"
                         >
-                            <Send v-if="currentTurn.show_input" class="w-4 h-4" />
-                            <template v-else>
-                                <span>{{ currentTurn.button_text || '…' }}</span>
-                                <ArrowRight class="w-3.5 h-3.5" />
-                            </template>
-                        </button>
+                            <div class="flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-3">
+                                    <div class="relative w-10 h-10 shrink-0 flex items-center justify-center">
+                                        <span
+                                            class="absolute inset-0 rounded-full bg-[#F5A000]/15"
+                                            :style="{ transform: `scale(${1.2 + audioLevel * 1.8})`, transition: 'transform 80ms ease-out' }"
+                                        />
+                                        <span
+                                            class="absolute inset-0 rounded-full bg-[#F5A000]/25"
+                                            :style="{ transform: `scale(${1 + audioLevel * 1.1})`, transition: 'transform 80ms ease-out' }"
+                                        />
+                                        <span
+                                            class="absolute w-6 h-6 rounded-full bg-gradient-to-br from-[#FFC837] to-[#F5A000]"
+                                            :style="{ transform: `scale(${1 + audioLevel * 0.5})`, transition: 'transform 80ms ease-out' }"
+                                        />
+                                    </div>
+                                    <span class="text-sm font-semibold text-[#1A1A1A]">Listening…</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    title="Stop recording"
+                                    @click="toggleRecording"
+                                    class="flex-shrink-0 w-9 h-9 rounded-xl bg-[#1A1A1A] flex items-center justify-center text-white cursor-pointer hover:opacity-80 transition-opacity"
+                                >
+                                    <Square class="w-3.5 h-3.5 fill-white" />
+                                </button>
+                            </div>
+                            <p v-if="currentInput" class="text-sm text-[#555555] leading-relaxed pl-1 max-h-24 overflow-y-auto">
+                                {{ currentInput }}
+                            </p>
+                        </div>
+
+                        <!-- Type / speak-to-transcribe input bar -->
+                        <div
+                            v-else
+                            class="bg-white border border-[#DDDDDD] rounded-2xl p-3 flex gap-2 items-end"
+                            :class="isDemoMode && currentTurn.show_input ? 'border-amber-300 bg-amber-50/30' : ''"
+                        >
+                            <Textarea
+                                ref="inputRef"
+                                v-model="currentInput"
+                                :disabled="isLoading || !currentTurn.show_input"
+                                :readonly="isDemoMode && currentTurn.show_input"
+                                :placeholder="currentTurn.show_input ? (isDemoMode ? '' : 'Type your answer… (Enter to send, Shift+Enter for new line)') : ''"
+                                rows="2"
+                                class="flex-1 resize-none border-0 focus:ring-0 focus:outline-none text-sm text-[#1A1A1A] placeholder-[#AAAAAA] bg-transparent p-0 transition-opacity duration-300"
+                                :class="!currentTurn.show_input ? 'opacity-30 cursor-not-allowed' : (isDemoMode ? 'cursor-default select-none' : '')"
+                                @keydown="onKeydown"
+                            />
+
+                            <!-- Mic button: start recording -->
+                            <button
+                                v-if="currentTurn.show_input && !isDemoMode"
+                                type="button"
+                                :disabled="isLoading || isTranscribing"
+                                title="Speak your answer"
+                                @click="toggleRecording"
+                                class="flex-shrink-0 w-9 h-9 rounded-xl border border-[#DDDDDD] bg-white hover:border-[#F5A000]/50 hover:bg-amber-50 flex items-center justify-center transition-all duration-200 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                            >
+                                <Loader2 v-if="isTranscribing" class="w-4 h-4 animate-spin text-[#F5A000]" />
+                                <Mic v-else class="w-4 h-4 text-[#F5A000]" />
+                            </button>
+
+                            <!-- Morphing button: text label → send icon -->
+                            <button
+                                type="button"
+                                :disabled="isLoading || isTranscribing || (currentTurn.show_input && !canSubmit)"
+                                @click="currentTurn.show_input ? submitAnswer() : handleButtonClick()"
+                                class="flex-shrink-0 flex items-center justify-center font-bold text-sm transition-all duration-300 cursor-pointer disabled:opacity-40"
+                                :class="currentTurn.show_input
+                                    ? 'w-9 h-9 rounded-xl bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-white hover:shadow-md'
+                                    : 'h-9 px-4 gap-2 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A]'"
+                            >
+                                <Send v-if="currentTurn.show_input" class="w-4 h-4" />
+                                <template v-else>
+                                    <span>{{ currentTurn.button_text || '…' }}</span>
+                                    <ArrowRight class="w-3.5 h-3.5" />
+                                </template>
+                            </button>
+                        </div>
                     </div>
 
                 </div>
@@ -809,7 +1387,7 @@ const formats = [
                         <span class="w-2.5 h-2.5 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
                     </div>
 
-                    <p class="text-xs text-[#AAAAAA]">This takes up to 1 minute. Please don't close this page.</p>
+                    <p class="text-xs text-[#AAAAAA]">This takes up to 3 minutes. Please don't close this page.</p>
                 </div>
             </div>
 
@@ -834,6 +1412,76 @@ const formats = [
                     </div>
 
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-8">
+
+                        <!-- Trial members get a fixed library, so there is nothing to choose -->
+                        <div v-if="isTrial" class="rounded-xl p-4 border" style="background:#FEF9EC; border-color:#F5A000;">
+                            <p class="text-sm font-bold text-[#1A1A1A]">
+                                Your {{ trial_episode_count }}-episode library
+                            </p>
+                            <p class="text-xs text-[#555555] mt-1">
+                                StoryBot writes all {{ trial_episode_count }} episodes from your interview. The first
+                                {{ trial_unlocked_episodes }} are yours to read straight away, and the rest unlock when you
+                                become a Verified Business Partner.
+                            </p>
+                        </div>
+
+                        <!-- Episode count chooser -->
+                        <div v-if="!isDemoMode && !isTrial" class="space-y-3">
+                            <div class="flex items-center justify-between">
+                                <Label class="text-[#1A1A1A] font-bold text-base block">How many episodes?</Label>
+                                <span v-if="!isUnlimited" class="text-xs font-semibold text-[#555555]">
+                                    {{ creditBalance }} credit{{ creditBalance === 1 ? '' : 's' }} available
+                                </span>
+                            </div>
+                            <TooltipProvider>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <Tooltip v-for="opt in episodeOptions" :key="opt.count" :delay-duration="100">
+                                        <TooltipTrigger as-child>
+                                            <button
+                                                type="button"
+                                                :disabled="unlocked(opt) && !affordable(opt.count)"
+                                                @click="selectOption(opt)"
+                                                class="relative flex flex-col items-center gap-1 p-4 pt-5 rounded-xl border-2 text-center transition-all duration-200 overflow-hidden"
+                                                :class="[
+                                                    selectedEpisodes === opt.count
+                                                        ? 'border-[#F5A000] bg-amber-50'
+                                                        : 'border-[#DDDDDD] hover:border-[#F5A000]/50',
+                                                    selectable(opt) ? 'cursor-pointer' : 'opacity-40 cursor-not-allowed',
+                                                ]"
+                                            >
+                                                <span
+                                                    v-if="!unlocked(opt)"
+                                                    class="absolute top-0 inset-x-0 bg-[#1A1A1A] text-white text-[8px] font-bold uppercase tracking-wide py-0.5 truncate px-1"
+                                                >
+                                                    Buy {{ opt.unlock_label || 'Pro' }} to unlock
+                                                </span>
+                                                <Lock v-if="!unlocked(opt)" class="absolute top-6 right-2 w-3 h-3 text-[#AAAAAA]" />
+                                                <span class="text-xl font-black text-[#1A1A1A]">{{ opt.count }}</span>
+                                                <span class="text-[11px] text-[#555555]">episodes</span>
+                                                <span v-if="!isUnlimited" class="text-[10px] text-[#AAAAAA]">{{ opt.count }} credits</span>
+                                            </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent v-if="!unlocked(opt)" side="bottom" class="max-w-xs p-3 flex-col items-start gap-1">
+                                            <p class="text-xs leading-relaxed text-white">
+                                                <template v-if="opt.unlock_label">
+                                                    Unlock {{ opt.count }}-episode stories with the
+                                                    <strong class="font-semibold text-white">{{ opt.unlock_label }}</strong>.
+                                                </template>
+                                                <template v-else>
+                                                    This episode count requires a higher pack.
+                                                </template>
+                                            </p>
+                                            <Link :href="route('shop.index')" class="text-xs font-semibold text-[#F5A000] hover:underline">
+                                                View packs →
+                                            </Link>
+                                        </TooltipContent>
+                                    </Tooltip>
+                                </div>
+                            </TooltipProvider>
+                            <p v-if="!isUnlimited && !canAffordSelected" class="text-xs text-red-600">
+                                You don't have enough credits — you'll be taken to the shop to top up.
+                            </p>
+                        </div>
 
                         <!-- Format -->
                         <div class="space-y-3">
@@ -866,16 +1514,19 @@ const formats = [
                         <div class="bg-amber-50 rounded-xl p-4 border border-amber-100">
                             <p class="text-sm font-medium text-[#1A1A1A]">
                                 ✨ Generating
-                                <span class="text-[#F5A000] font-bold">{{ episodeCount }} {{ format }}</span>
+                                <span class="text-[#F5A000] font-bold">{{ episodeCount }} Story</span>
                                 episodes for
                                 <span class="text-[#F5A000] font-bold">{{ basics.business_name }}</span>
                             </p>
-                            <p class="text-xs text-[#555555] mt-1">Uses 1 story credit · Takes up to 1 minute</p>
+                            <p class="text-xs text-[#555555] mt-1">
+                                <template v-if="isTrial">Free while you are on trial · </template>
+                                <template v-else-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes up to 3 minutes
+                            </p>
                         </div>
 
                         <Button
                             type="button"
-                            @click="submit"
+                            @click="requestGenerate"
                             class="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-12 rounded-xl transition-all duration-300 cursor-pointer"
                         >
                             <Sparkles class="w-4 h-4" />
@@ -886,5 +1537,72 @@ const formats = [
             </div>
 
         </div>
+
+        <Dialog v-model:open="confirmStartOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+                        <AlertTriangle class="w-5 h-5 text-[#F5A000]" />
+                    </div>
+                    <DialogTitle class="text-[#1A1A1A]">Are your details correct?</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        StoryBot will base your entire story on the business details and answers you provide.
+                        Double-check your business name and links — you won't be able to change these once your story is generated.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="confirmStartOpen = false" class="cursor-pointer">Go back &amp; review</Button>
+                    <Button
+                        @click="confirmStartInterview"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Yes, start my interview
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Generate confirmation -->
+        <Dialog v-model:open="confirmGenerateOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+                        <Sparkles class="w-5 h-5 text-[#F5A000]" />
+                    </div>
+                    <DialogTitle class="text-[#1A1A1A]">Generate your story?</DialogTitle>
+                    <DialogDescription as="div" class="text-[#555555]">
+                        <p>
+                            StoryBot will generate
+                            <strong class="text-[#1A1A1A]">{{ episodeCount }} episodes</strong>
+                            for <strong class="text-[#1A1A1A]">{{ basics.business_name }}</strong>.
+                        </p>
+                        <ul v-if="isTrial" class="mt-2 space-y-1 list-disc list-inside">
+                            <li>This uses your trial and costs no credits.</li>
+                            <li>The first <strong class="text-[#1A1A1A]">{{ trial_unlocked_episodes }}</strong> episodes are readable right away.</li>
+                            <li>The rest unlock when you become a Verified Business Partner — they are written either way.</li>
+                        </ul>
+                        <ul v-else-if="!isUnlimited" class="mt-2 space-y-1 list-disc list-inside">
+                            <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditBalance }}</strong></li>
+                            <li>Cost: <strong class="text-[#1A1A1A]">{{ episodeCount }} credit{{ episodeCount === 1 ? '' : 's' }}</strong> (1 credit per episode)</li>
+                            <li>Remaining Balance After Generation: <strong class="text-[#1A1A1A]">{{ creditBalance - episodeCount }} credits</strong></li>
+                        </ul>
+                        <p class="mt-2 text-xs">
+                            Once confirmed, StoryBot will immediately begin generating your episodes.
+                            <template v-if="isTrial"> This uses your trial, so double-check your answers first.</template>
+                            <template v-else-if="!isUnlimited"> Credits used are non-refundable.</template>
+                        </p>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="confirmGenerateOpen = false" class="cursor-pointer">Cancel</Button>
+                    <Button
+                        @click="confirmGenerate"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Yes, generate
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     </AuthenticatedLayout>
 </template>

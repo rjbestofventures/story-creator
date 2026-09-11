@@ -1,18 +1,32 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck } from 'lucide-vue-next';
+import { Sparkles, ShieldCheck, BookOpen, User, LogOut, ChevronDown, UserCheck, ShoppingBag, Receipt, MessageCircle, PlayCircle } from 'lucide-vue-next';
+import Footer from '@/Components/Footer.vue';
+import FeedbackDialog from '@/Components/FeedbackDialog.vue';
+import { Button } from '@/Components/ui/button';
+
+defineProps({
+    // Suppressed on pages that lock their own content to the viewport height
+    // (e.g. the interview chat) — a footer there would push content behind
+    // the sticky nav instead of appending to a normally-scrolling page.
+    hideFooter: { type: Boolean, default: false },
+});
 
 const page  = usePage();
 const user  = computed(() => page.props.auth.user);
-const isAdmin = computed(() => page.props.auth.user?.roles?.includes('admin') ?? false);
+const isAdmin = computed(() => {
+    const roles = page.props.auth.user?.roles ?? [];
+    return roles.includes('admin') || roles.includes('super_admin');
+});
 const impersonating = computed(() => page.props.impersonating ?? null);
 
 const menuOpen = ref(false);
+const feedbackOpen = ref(false);
 </script>
 
 <template>
-    <div class="min-h-screen bg-[#FAFAF8]">
+    <div class="min-h-screen flex flex-col bg-[#FAFAF8]">
 
         <!-- Top nav -->
         <nav class="bg-white border-b border-[#DDDDDD] sticky top-0 z-40">
@@ -25,7 +39,7 @@ const menuOpen = ref(false);
                             <Sparkles class="w-4 h-4 text-white" />
                         </div>
                         <span class="font-black text-[#1A1A1A] text-base tracking-tight">
-                            Story<span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Creator</span>
+                            Story<span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Creator</span>.Bot
                         </span>
                     </Link>
 
@@ -36,15 +50,45 @@ const menuOpen = ref(false);
                         <Link
                             v-if="isAdmin"
                             :href="route('admin.users.index')"
-                            class="hidden md:flex items-center gap-1.5 text-xs font-semibold px-3 h-8 rounded-lg text-[#555555] hover:text-[#1A1A1A] hover:bg-gray-100 transition-colors cursor-pointer"
+                            class="hidden md:flex items-center gap-2 px-3 h-8 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
                         >
-                            <ShieldCheck class="w-3.5 h-3.5 text-[#F5A000]" />
-                            Admin
+                            <ShieldCheck class="w-4 h-4" style="color: #F5A000;" />
+                            <span class="text-md font-black" style="color: #1A1A1A;">
+                                Admin
+                                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Panel</span>
+                            </span>
                         </Link>
+
+                        <!-- Try Live Demo -->
+                        <Button
+                            as-child
+                            variant="outline"
+                            size="sm"
+                            class="hidden md:flex items-center gap-2 h-8 rounded-lg border-[#DDDDDD] font-semibold cursor-pointer"
+                        >
+                            <Link id="tour-demo" :href="route('demo')" style="color: #1A1A1A;">
+                                <PlayCircle class="w-4 h-4" />
+                                Try Live Demo
+                            </Link>
+                        </Button>
+
+                        <!-- Feedback -->
+                        <Button
+                            v-if="!isAdmin"
+                            id="tour-feedback"
+                            variant="outline"
+                            size="sm"
+                            @click="feedbackOpen = true"
+                            class="flex items-center gap-2 h-8 rounded-lg border-[#DDDDDD] text-[#1A1A1A] font-semibold cursor-pointer"
+                        >
+                            <MessageCircle class="w-4 h-4" />
+                            Feedback
+                        </Button>
 
                         <!-- User menu -->
                         <div class="relative">
                             <button
+                                id="tour-account"
                                 type="button"
                                 @click="menuOpen = !menuOpen"
                                 class="flex items-center gap-2 h-9 px-3 rounded-xl hover:bg-gray-100 transition-colors cursor-pointer"
@@ -77,6 +121,24 @@ const menuOpen = ref(false);
                                 >
                                     <BookOpen class="w-4 h-4" />
                                     My Stories
+                                </Link>
+                                <Link
+                                    v-if="!isAdmin"
+                                    :href="route('shop.index')"
+                                    @click="menuOpen = false"
+                                    class="flex items-center gap-2 px-3 py-2 text-sm text-[#555555] hover:text-[#1A1A1A] hover:bg-gray-50 transition-colors cursor-pointer"
+                                >
+                                    <ShoppingBag class="w-4 h-4" />
+                                    Buy Credits
+                                </Link>
+                                <Link
+                                    v-if="!isAdmin"
+                                    :href="route('billing.history')"
+                                    @click="menuOpen = false"
+                                    class="flex items-center gap-2 px-3 py-2 text-sm text-[#555555] hover:text-[#1A1A1A] hover:bg-gray-50 transition-colors cursor-pointer"
+                                >
+                                    <Receipt class="w-4 h-4" />
+                                    Billing & Packs
                                 </Link>
                                 <Link
                                     :href="route('profile.edit')"
@@ -130,10 +192,14 @@ const menuOpen = ref(false);
             </Link>
         </div>
 
-        <!-- Page content -->
-        <main>
+        <!-- Page content — grows so the footer is pinned to the bottom on short pages -->
+        <main class="flex-1">
             <slot />
         </main>
+
+        <Footer v-if="!hideFooter" />
+
+        <FeedbackDialog v-model:open="feedbackOpen" />
 
     </div>
 </template>

@@ -7,6 +7,8 @@ import { Cpu, Eye, EyeOff, RefreshCcw, CircleCheck, CircleDot, Loader2, Triangle
 const props = defineProps({
     anthropic_api_key:       String,
     env_key_set:             Boolean,
+    openai_api_key:          String,
+    openai_env_key_set:      Boolean,
     interview_model:         String,
     generation_model:        String,
     interview_price_input:   Number,
@@ -17,6 +19,7 @@ const props = defineProps({
 
 const form = useForm({
     anthropic_api_key:       props.anthropic_api_key,
+    openai_api_key:          props.openai_api_key,
     interview_model:         props.interview_model,
     generation_model:        props.generation_model,
     interview_price_input:   props.interview_price_input,
@@ -26,6 +29,7 @@ const form = useForm({
 });
 
 const showKey    = ref(false);
+const showOpenaiKey = ref(false);
 const saved      = ref(false);
 const models     = ref([]);
 const fetching   = ref(false);
@@ -117,6 +121,52 @@ const phases = [
                         />
                         <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer hover:opacity-70" style="color:#AAAAAA;" @click="showKey = !showKey">
                             <EyeOff v-if="showKey" class="w-4 h-4" />
+                            <Eye v-else class="w-4 h-4" />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── OpenAI API Key card (used for Whisper voice transcription) ── -->
+            <div class="bg-white rounded-2xl p-6" style="border:1px solid #DDDDDD;">
+                <div class="flex items-center gap-3 mb-5">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
+                        <Cpu class="w-4 h-4" style="color:#F5A000;" />
+                    </div>
+                    <div>
+                        <h2 class="text-sm font-black" style="color:#1A1A1A;">OpenAI API Key</h2>
+                        <p class="text-xs" style="color:#555555;">Powers Whisper voice transcription during the interview. Database value takes priority over <code class="font-mono text-xs px-1 rounded" style="background:#F5F5F5;">.env</code>.</p>
+                    </div>
+                </div>
+
+                <div class="space-y-1.5">
+                    <div class="flex items-center justify-between">
+                        <label class="text-sm font-bold" style="color:#1A1A1A;">Secret key</label>
+                        <span
+                            class="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
+                            :style="form.openai_api_key
+                                ? 'background:#F0FDF4; color:#16A34A;'
+                                : openai_env_key_set
+                                    ? 'background:#F5F5F5; color:#555555;'
+                                    : 'background:#FEF2F2; color:#DC2626;'"
+                        >
+                            <CircleCheck v-if="form.openai_api_key" class="w-3 h-3" />
+                            <CircleDot v-else class="w-3 h-3" />
+                            {{ form.openai_api_key ? 'Database override' : openai_env_key_set ? 'Using .env' : 'Not set' }}
+                        </span>
+                    </div>
+                    <div class="relative">
+                        <input
+                            v-model="form.openai_api_key"
+                            :type="showOpenaiKey ? 'text' : 'password'"
+                            placeholder="sk-proj-..."
+                            class="w-full pr-10 pl-3 py-2.5 rounded-lg text-sm font-mono outline-none transition-all duration-200"
+                            style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
+                            @focus="e => (e.target.style.borderColor='#F5A000', e.target.style.boxShadow='0 0 0 3px rgba(245,160,0,0.15)')"
+                            @blur="e => (e.target.style.borderColor='#DDDDDD', e.target.style.boxShadow='none')"
+                        />
+                        <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer hover:opacity-70" style="color:#AAAAAA;" @click="showOpenaiKey = !showOpenaiKey">
+                            <EyeOff v-if="showOpenaiKey" class="w-4 h-4" />
                             <Eye v-else class="w-4 h-4" />
                         </button>
                     </div>

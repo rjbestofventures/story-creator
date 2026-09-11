@@ -48,6 +48,8 @@ Generate episodic story-based social media posts from the interview responses. T
 
 Every human is as unique as a snowflake or a thumbprint. The best episodes are standalone, anecdotal, authentic, unpretentious, and revealing of character and trustworthiness. StoryBot must capture the makeup of the people who do the work — their history, what drives them, what makes them different or attractive. The ingredients of a business may be similar across people, but no two humans are exactly alike. Celebrate that uniqueness and the emotional trust it engenders.
 
+The goal of every episode is to connect with the people who will actually read it, not to recite a resume, and to gently move them toward reaching out to the narrator. Favor the metaphorical over the autobiographical: reach for an image, comparison, or moment that lets the reader feel the point, rather than simply listing what happened and when. A well-chosen metaphor that captures a feeling beats a strictly factual recap every time.
+
 EPISODE ARCHITECTURE — four invisible layers in every episode:
 The reader should never feel the structure. It must feel like a completely natural story. But all four layers must be present underneath.
 
@@ -61,15 +63,15 @@ Show through story why this person can be trusted. Use a specific challenge they
 Layer 3 — What They Do Now:
 Bring the story into the present. Connect the past experience directly to what the narrator does today and how they do it. The reader should understand clearly what problem this person solves and who they solve it for. It must never feel like a pitch. It should feel like the natural conclusion of the story that came before it.
 
-Layer 4 — The Invisible Invitation:
-End every episode by inviting response and opening the door to dialogue. Do not include specific calls to buy, book, or sign up. The closing line should feel like the narrator is reflecting quietly to themselves. It should never sound like it is addressed to the reader directly.
+Layer 4 — The Closing Call to Action (required on every episode, no exceptions):
+At the end of every generated episode, include a short and natural call-to-action paragraph that encourages reader engagement while subtly supporting the business, brand, product, or service being promoted within the story. The CTA should feel conversational and smoothly connected to the episode without sounding overly promotional, salesy, or forced.
+Encourage the reader to interact by sharing their thoughts, reactions, opinions, or predictions about the episode. You may also naturally guide the reader toward learning more about the featured business, product, or service through soft, engagement-focused language.
+The CTA should vary between episodes to avoid repetition and should always match the tone, mood, and emotional pacing of the story. Keep it immersive, modern, audience-friendly, and concise, around one to three sentences at most. The CTA is always about the narrator's own business and work, never about StoryCreator.Bot or any tool used to write it. Do not include hard sell instructions to buy, book, or sign up.
 
-Wrong closing: "If you are struggling with your brand story, reach out and let us talk."
-Wrong closing: "DM me if any of this resonates."
-Wrong closing: "Sound familiar? You know where to find me."
-Correct closing: "The people who find their way to this work usually already know what they need. They just needed someone to say it was real."
-Correct closing: "Some problems look complicated from the outside. From where I sit, most of them start in the same place."
-Correct closing: "I have seen what happens when someone finally tells their real story. It does not just change their business. It changes how they see themselves."
+Wrong closing (salesy and generic): "If you are struggling with your brand story, reach out and let us talk. Book a call today."
+Correct closing (invites reaction): "I still catch myself testing new blends at midnight, chasing that one cup that finally tastes like home. If you have ever gone that far for something small, I would genuinely love to hear what it was."
+Correct closing (soft guide to the work): "Every table by the window at Cravepresso started as a question I could not stop asking. Come see which corner becomes your own, and tell me what you notice first."
+Correct closing (invites a prediction): "I keep wondering which detail people will remember a year from now. What would you bet on, the coffee or the quiet?"
 
 VOICE AND IMMERSION RULES:
 - Always write in first-person present tense. This rule applies to every sentence in every paragraph in every episode. No exceptions.
@@ -86,6 +88,9 @@ VOICE AND IMMERSION RULES:
 AUTHENTICITY:
 Never fabricate facts, achievements, statistics, or specific details. Use only what the person actually said in their interview answers. If an answer was short or vague, write around it using atmosphere, feeling, and implication rather than inventing specifics.
 Treat the business described in the responses as unique. No two businesses are alike even when they provide the exact same service. Preserve the owner's history, experiences, mentors, and intangible influences as provided. Do not generalize or rewrite responses into generic industry language.
+
+HUMILITY:
+Keep the narrator genuinely humble throughout. Credit mentors, teammates, luck, and the people served rather than claiming sole credit. Acknowledge doubt, mistakes, and things still being learned. Let competence show through actions and outcomes, never through self-praise or proving a point. When the choice is between sounding impressive and sounding honest, choose honest, and when in doubt, understate. A humble narrator earns more trust than a polished one.
 
 LANGUAGE RULES:
 - Never use em dashes under any circumstances.
@@ -155,6 +160,9 @@ PROMPT;
         if (! empty($profile->biography)) {
             $extra .= "\nOwner biography: {$profile->biography}";
         }
+        if (! empty($profile->services)) {
+            $extra .= "\nServices offered: {$profile->services}";
+        }
         if (! empty($profile->linkedin_url)) {
             $extra .= "\nLinkedIn: {$profile->linkedin_url}";
         }
@@ -180,15 +188,23 @@ PROMPT;
 
         $model = SiteSetting::get('generation_model', 'claude-sonnet-4-6');
 
+        $perEpisodeTokens = match ($format) {
+            'blog' => 900,
+            'linkedin' => 650,
+            default => 500,
+        };
+        $maxTokens = min(32000, 2048 + $episodeCount * $perEpisodeTokens);
+
         Log::channel('anthropic')->debug('Generation → request', [
             'model' => $model,
             'episode_count' => $episodeCount,
             'format' => $format,
+            'max_tokens' => $maxTokens,
             'user_prompt' => $userPrompt,
         ]);
 
         $response = $this->client()->messages->create(
-            maxTokens: 8192,
+            maxTokens: $maxTokens,
             messages: [['role' => 'user', 'content' => $userPrompt]],
             model: $model,
             system: [
@@ -234,23 +250,39 @@ PROMPT;
         return [];
     }
 
-    public function refineTone(string $content, string $tone): array
+    public function refineTone(string $content, string $tone, ?string $customInstruction = null): array
     {
-        $instruction = match ($tone) {
-            'friendlier' => 'Rewrite this episode with a warmer, more approachable tone. Keep all the facts and story beats. Make the voice feel more personal and inviting.',
-            'shorter' => 'Condense this episode to roughly half its current length. Keep the core story and the closing line\'s feeling. Cut padding, not substance.',
-            'humor' => 'Weave light, natural wit into this episode. Keep the story structure intact. The humor should feel organic — a subtle turn of phrase or a self-aware aside, not jokes.',
-            'professional' => 'Polish this episode to a more composed, business-appropriate tone. Keep the story authentic but make the language more precise and measured.',
-        };
+        $instruction = $tone === 'custom'
+            ? $customInstruction
+            : match ($tone) {
+                'friendlier' => 'Rewrite this episode with a warmer, more approachable tone. Keep all the facts and story beats. Make the voice feel more personal and inviting.',
+                'shorter' => 'Condense this episode to roughly half its current length. Keep the core story and the closing line\'s feeling. Cut padding, not substance.',
+                'humor' => 'Weave light, natural wit into this episode. Keep the story structure intact. The humor should feel organic — a subtle turn of phrase or a self-aware aside, not jokes.',
+                'professional' => 'Polish this episode to a more composed, business-appropriate tone. Keep the story authentic but make the language more precise and measured.',
+                'longer' => 'Expand this episode with more depth, detail, and texture. Keep the same story structure and voice. Add substance — not filler or repetition.',
+                'more_cta' => "Strengthen the closing invitation of this episode. It should be a short, natural call to action, one to three sentences at most, that invites the reader to engage, share their own thoughts, or connect with the narrator's business. Keep it subtle and conversational, never salesy or forced, and never a direct pitch to buy, book, or sign up. It should feel like a natural extension of this specific episode's story, not a generic tack-on. Keep the voice consistent throughout.",
+                'less_cta' => 'Soften or reduce the calls to action in this episode. Let the story do more of the work. Keep any remaining CTAs subtle and earned.',
+                'promotional' => 'Rewrite this episode with a more promotional tone. Highlight the value, outcome, or offer more confidently. Keep it authentic — persuasive but not pushy.',
+            };
+
+        $customNote = $tone === 'custom' ? <<<'NOTE'
+
+The user's request above may be phrased as a direct instruction ("make this shorter", "add more humor") or as an observation or comment about the episode ("this doesn't sound like me", "it's more robotic", "I don't see any engaging sentences"). Treat both forms the same way: figure out what is actually bothering the user or what they want changed, and rewrite the episode to address it. Do not require the request to be an action sentence — interpret comments and complaints as implicit instructions to fix the thing being described.
+NOTE
+            : '';
+
+        $ctaNote = $tone === 'less_cta' ? '' : <<<'NOTE'
+ Keep the closing call to action described in Layer 4 of your instructions: end the episode with a short, natural CTA of one to three sentences that invites the reader to react or share their thoughts and softly supports the narrator's business, never salesy or a hard pitch.
+NOTE;
 
         $userPrompt = <<<PROMPT
 Original episode:
 
 {$content}
 
-Task: {$instruction}
+Task: {$instruction}{$customNote}
 
-Return only the rewritten episode text. Preserve the first-person present tense voice throughout. No labels, no commentary, no title — just the episode body.
+Return only the rewritten episode text. Preserve the first-person present tense voice throughout.{$ctaNote} Do not use em dashes or en dashes anywhere in the output; use commas, periods, or new sentences instead, so the writing reads as naturally human. No labels, no commentary, no title. Just the episode body.
 PROMPT;
 
         $model = SiteSetting::get('generation_model', 'claude-sonnet-4-6');
@@ -288,10 +320,19 @@ PROMPT;
         ]);
 
         return [
-            'content' => trim($refined),
+            'content' => $this->stripDashes(trim($refined)),
             '_tokens_input' => $response->usage->inputTokens + $cacheCreate + $cacheRead,
             '_tokens_output' => $response->usage->outputTokens,
         ];
+    }
+
+    /**
+     * Em and en dashes read as AI-written. Collapse them into natural punctuation
+     * so refined copy stays human and persuasive.
+     */
+    private function stripDashes(string $text): string
+    {
+        return preg_replace('/\s*[—–]\s*/u', ', ', $text);
     }
 
     public function saveToStory(BusinessProfile $profile, array $generated, string $format = 'social'): Story
@@ -307,8 +348,8 @@ PROMPT;
             Episode::create([
                 'story_id' => $story->id,
                 'episode_number' => $ep['episode_number'],
-                'title' => $ep['title'],
-                'content' => $ep['content'],
+                'title' => $this->stripDashes($ep['title']),
+                'content' => $this->stripDashes($ep['content']),
                 'format' => $format,
                 'status' => 'draft',
             ]);

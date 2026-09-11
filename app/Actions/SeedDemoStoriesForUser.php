@@ -93,7 +93,7 @@ class SeedDemoStoriesForUser
     {
         $messages = [
             ['role' => 'user',      'content' => 'Please begin the interview.'],
-            ['role' => 'assistant', 'content' => "I'm StoryBot. My job is to ask the right questions and turn your answers into content worth sharing. Over the next few minutes, I'll walk you through 15 questions about Torres Landscaping — where you started, what shaped you, the work you do, and where you're headed. Ready?"],
+            ['role' => 'assistant', 'content' => "Hi, I am your StoryCreator.Bot Assistant, or you can call me StoryBot! Over the next few minutes, I'll walk you through 15 questions about Torres Landscaping — where you started, what shaped you, the work you do, and where you're headed. Ready?"],
             ['role' => 'user',      'content' => '[Ready to begin]'],
             ['role' => 'assistant', 'content' => 'Describe what you were doing prior to starting your business.'],
             ['role' => 'user',      'content' => 'I spent eleven years working for a large landscaping company in Dallas. Started as a crew member pulling weeds and hauling mulch, worked my way up to crew lead, then site supervisor. By the end I was managing six crews across three commercial accounts. I knew the work inside out. I also knew exactly how the company was cutting corners on every job.'],

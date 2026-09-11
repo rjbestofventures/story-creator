@@ -1,27 +1,26 @@
 <?php
 
 use App\Http\Controllers\Admin\AdminController;
-use App\Http\Controllers\BillingController;
+use App\Http\Controllers\Admin\GrillController;
 use App\Http\Controllers\LandingLockController;
+use App\Http\Controllers\PartnerApplicationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StoryController;
+use App\Http\Controllers\TourController;
 use App\Http\Middleware\CheckLandingLock;
-use App\Models\Plan;
-use Illuminate\Http\Request;
+use App\Models\CreditPack;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 Route::get('/', function () {
-    $plans = Plan::where('is_active', true)
-        ->where('slug', '!=', 'partner')
-        ->where('price_monthly', '>', 0)
-        ->orderBy('price_monthly')
-        ->get(['slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly']);
+    $packs = CreditPack::active()->orderBy('price')
+        ->get(['slug', 'label', 'type', 'credits', 'price']);
 
     return Inertia::render('Welcome', [
         'canLogin' => Route::has('login'),
         'canRegister' => Route::has('register'),
-        'plans' => $plans,
+        'packs' => $packs,
     ]);
 })->middleware(CheckLandingLock::class)->name('welcome');
 
@@ -35,44 +34,34 @@ Route::get('/verified-partner', function () {
     ]);
 })->name('partner');
 
+Route::get('/become-a-partner', [PartnerApplicationController::class, 'create'])->name('partner.apply');
+Route::post('/become-a-partner', [PartnerApplicationController::class, 'store'])->middleware('throttle:10,1')->name('partner.apply.submit');
+
 Route::get('/unlock', [LandingLockController::class, 'show'])->name('landing.unlock');
 Route::post('/unlock', [LandingLockController::class, 'unlock'])->name('landing.unlock.submit');
 
-Route::get('/email/verified-success', function () {
-    return Inertia::render('Auth/EmailVerified');
-})->middleware('auth')->name('verification.success');
-
-Route::get('/demo', function (Request $request) {
-    if (! $request->user()) {
-        session()->put('post_register_intent', 'demo');
-
-        return redirect()->route('register');
-    }
-
-    $story = $request->user()->stories()
-        ->where('is_demo', true)
-        ->whereIn('status', ['interviewing', 'interview_complete'])
-        ->first();
-
-    return $story
-        ? redirect()->route('stories.resume', $story->id)
-        : redirect()->route('stories.index');
-})->name('demo');
+// Public demo — no signup required. A single shared, fully templated walkthrough
+// (Tammy Spa). Runs entirely client-side; no AI tokens, no database writes.
+Route::get('/demo', fn () => Inertia::render('Demo', [
+    'canLogin' => Route::has('login'),
+    'canRegister' => Route::has('register'),
+]))->name('demo');
+Route::post('/demo/speak', [StoryController::class, 'speakDemo'])->middleware('throttle:30,1')->name('demo.speak');
 
 Route::get('/dashboard', function () {
     return to_route('stories.index');
 })->middleware(['auth'])->name('dashboard');
 
-// Billing — auth + verified
+// Shop — auth + verified
 Route::middleware(['auth', 'verified'])->group(function () {
-    Route::get('/billing/plans', [BillingController::class, 'plans'])->name('billing.plans');
-    Route::post('/billing/free', [BillingController::class, 'selectFree'])->name('billing.free');
-    Route::post('/billing/checkout', [BillingController::class, 'checkout'])->name('billing.checkout');
-    Route::get('/billing/success', [BillingController::class, 'success'])->name('billing.success');
+    Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
+    Route::post('/shop/checkout', [ShopController::class, 'checkout'])->name('shop.checkout');
+    Route::get('/shop/success', [ShopController::class, 'success'])->name('shop.success');
+    Route::get('/billing/history', [ShopController::class, 'history'])->name('billing.history');
 });
 
 // Stripe webhook — no auth, no CSRF
-Route::post('/stripe/webhook', [BillingController::class, 'webhook'])->name('stripe.webhook');
+Route::post('/stripe/webhook', [ShopController::class, 'webhook'])->name('stripe.webhook');
 
 // Stories index — auth only (demo browsing, no subscription needed)
 Route::middleware(['auth'])->group(function () {
@@ -81,10 +70,11 @@ Route::middleware(['auth'])->group(function () {
 
 // Stories write/AI routes — registered before wildcard /{story} routes to avoid conflict
 // Require verified email + active subscription
-Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function () {
+Route::middleware(['auth', 'verified', 'requires.credits'])->group(function () {
     Route::get('/stories/create', [StoryController::class, 'create'])->name('stories.create');
     Route::post('/stories/init', [StoryController::class, 'init'])->name('stories.init');
     Route::post('/stories/interview', [StoryController::class, 'interview'])->name('stories.interview');
+    Route::post('/stories/transcribe', [StoryController::class, 'transcribe'])->name('stories.transcribe');
     Route::post('/stories', [StoryController::class, 'store'])->name('stories.store');
     Route::patch('/stories/{story}/progress', [StoryController::class, 'saveProgress'])->name('stories.progress');
     Route::post('/stories/{story}/generate', [StoryController::class, 'generate'])->name('stories.generate');
@@ -95,21 +85,36 @@ Route::middleware(['auth', 'verified', 'requires.subscription'])->group(function
     Route::post('/stories/{story}/episodes/{episode}/versions/{version}/restore', [StoryController::class, 'restoreVersion'])->name('stories.episode.restore');
     Route::patch('/stories/{story}/episodes/{episode}', [StoryController::class, 'updateEpisode'])->name('stories.episode.update');
     Route::post('/stories/{story}/episodes/{episode}/refine', [StoryController::class, 'refineEpisodeTone'])->name('stories.episode.refine');
+    Route::patch('/stories/{story}/episodes/{episode}/refine-instruction', [StoryController::class, 'saveRefineInstruction'])->name('stories.episode.refine-instruction');
+    Route::post('/stories/{story}/episodes/bulk-refine', [StoryController::class, 'bulkRefineEpisodes'])->name('stories.episodes.bulk-refine');
+    Route::post('/stories/{story}/unlock', [StoryController::class, 'unlockEpisodes'])->name('stories.unlock');
+    Route::post('/stories/{story}/reactivate', [StoryController::class, 'reactivateEpisodes'])->name('stories.reactivate');
 });
 
 // Stories read-only by ID — wildcard routes, registered after literal /stories/create
 // Auth only (unverified, unsubscribed users can browse demo content)
 Route::middleware(['auth'])->group(function () {
     Route::get('/stories/{story}', [StoryController::class, 'show'])->name('stories.show');
+    Route::get('/stories/{story}/answers', [StoryController::class, 'answers'])->name('stories.answers');
     Route::get('/stories/{story}/resume', [StoryController::class, 'resume'])->name('stories.resume');
     Route::get('/stories/{story}/status', [StoryController::class, 'status'])->name('stories.status');
+    Route::post('/stories/{story}/episodes/{episode}/speak', [StoryController::class, 'speakEpisode'])->name('stories.episode.speak');
+    Route::post('/stories/{story}/answers/speak', [StoryController::class, 'speakAnswer'])->name('stories.answers.speak');
+    Route::post('/speak', [StoryController::class, 'speakText'])->name('speak');
 });
 
 Route::middleware('auth')->group(function () {
     Route::post('/impersonate/stop', [AdminController::class, 'stopImpersonating'])->name('impersonate.stop');
+    Route::post('/tour/complete', [TourController::class, 'complete'])->name('tour.complete');
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
+});
+
+// Interview review — admin-only Q&A viewer
+Route::middleware(['auth', 'role:admin|super_admin'])->group(function () {
+    Route::get('/grill-me', [GrillController::class, 'index'])->name('grill.index');
+    Route::get('/grill-me/{story}', [GrillController::class, 'show'])->name('grill.show');
 });
 
 Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('admin.')->group(function () {
@@ -117,7 +122,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     // Module pages
     Route::get('/', fn () => to_route('admin.users.index'))->name('index');
     Route::get('/users', [AdminController::class, 'usersIndex'])->name('users.index');
-    Route::get('/plans', [AdminController::class, 'plansIndex'])->name('plans.index');
+    Route::get('/packs', [AdminController::class, 'packsIndex'])->name('packs.index');
     Route::get('/stories', [AdminController::class, 'storiesIndex'])->name('stories.index');
     Route::get('/stories/{story}', [AdminController::class, 'storyShow'])->name('stories.show');
     Route::get('/manual', fn () => Inertia::render('Admin/Manual'))->name('manual');
@@ -130,23 +135,33 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::get('/settings/ai/models', [AdminController::class, 'fetchModels'])->name('settings.ai.models');
     Route::get('/settings/stripe', [AdminController::class, 'stripeSettingsIndex'])->name('settings.stripe');
     Route::post('/settings/stripe', [AdminController::class, 'updateStripeSettings'])->name('settings.stripe.update');
+    Route::get('/settings/voice', [AdminController::class, 'voiceSettingsIndex'])->name('settings.voice');
+    Route::post('/settings/voice', [AdminController::class, 'updateVoiceSettings'])->name('settings.voice.update');
+    Route::post('/settings/voice/preview', [AdminController::class, 'previewVoice'])->name('settings.voice.preview');
+    Route::get('/settings/voice/elevenlabs-voices', [AdminController::class, 'elevenlabsVoices'])->name('settings.voice.elevenlabs-voices');
+    Route::post('/settings/voice/elevenlabs-preview', [AdminController::class, 'previewElevenLabsVoice'])->name('settings.voice.elevenlabs-preview');
+    Route::get('/settings/features', [AdminController::class, 'featuresSettingsIndex'])->name('settings.features');
+    Route::post('/settings/features', [AdminController::class, 'updateFeaturesSettings'])->name('settings.features.update');
 
     // User actions
     Route::post('/users', [AdminController::class, 'storeUser'])->name('users.store');
     Route::patch('/users/{user}', [AdminController::class, 'update'])->name('users.update');
     Route::patch('/users/{user}/profile', [AdminController::class, 'updateProfile'])->name('users.profile');
     Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleStatus'])->name('users.toggle-status');
+    Route::post('/users/{user}/toggle-partner', [AdminController::class, 'togglePartner'])->name('users.toggle-partner');
     Route::post('/users/{user}/password', [AdminController::class, 'resetPassword'])->name('users.password');
-    Route::post('/users/{user}/plan', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
-    Route::patch('/users/{user}/subscription', [AdminController::class, 'updateSubscription'])->name('users.subscription');
+    Route::post('/users/{user}/grant-pack', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
+    Route::post('/users/{user}/gift-credits', [AdminController::class, 'giftCredits'])->name('users.gift-credits');
+    Route::post('/users/{user}/trial-allowance', [AdminController::class, 'setTrialAllowance'])->name('users.trial-allowance');
+    Route::post('/users/{user}/toggle-trial', [AdminController::class, 'toggleTrial'])->name('users.toggle-trial');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/impersonate', [AdminController::class, 'impersonate'])->name('users.impersonate');
     Route::get('/users/{user}/invoices', [AdminController::class, 'userInvoices'])->name('users.invoices');
 
-    // Plan actions
-    Route::post('/plans', [AdminController::class, 'storePlan'])->name('plans.store');
-    Route::patch('/plans/{plan}', [AdminController::class, 'updatePlan'])->name('plans.update');
-    Route::delete('/plans/{plan}', [AdminController::class, 'destroyPlan'])->name('plans.destroy');
+    // Credit pack actions
+    Route::post('/packs', [AdminController::class, 'storePack'])->name('packs.store');
+    Route::patch('/packs/{pack}', [AdminController::class, 'updatePack'])->name('packs.update');
+    Route::delete('/packs/{pack}', [AdminController::class, 'destroyPack'])->name('packs.destroy');
 });
 
 require __DIR__.'/auth.php';

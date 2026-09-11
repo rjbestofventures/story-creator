@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Mail, ArrowRight } from '@lucide/vue';
+import Footer from '@/Components/Footer.vue';
 
 defineProps({ status: String });
 
@@ -12,7 +13,8 @@ const submit = () => form.post(route('password.email'));
 <template>
     <Head title="Forgot password" />
 
-    <div class="min-h-screen flex flex-col items-center justify-center px-4" style="background-color: #FAFAF8;">
+    <div class="min-h-screen flex flex-col" style="background-color: #FAFAF8;">
+      <div class="flex-1 flex flex-col items-center justify-center px-4 py-10">
 
         <!-- Logo -->
         <Link href="/" class="flex items-center text-xl font-bold tracking-tight mb-12">
@@ -86,5 +88,7 @@ const submit = () => form.post(route('password.email'));
                 <Link :href="route('login')" class="font-semibold underline transition hover:opacity-70" style="color:#1A1A1A;">Log in</Link>
             </p>
         </div>
+      </div>
+      <Footer />
     </div>
 </template>

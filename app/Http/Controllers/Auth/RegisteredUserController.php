@@ -21,7 +21,9 @@ class RegisteredUserController extends Controller
      */
     public function create(): Response
     {
-        return Inertia::render('Auth/Register');
+        return Inertia::render('Auth/Register', [
+            'isDemo' => session('post_register_intent') === 'demo',
+        ]);
     }
 
     /**
@@ -44,6 +46,7 @@ class RegisteredUserController extends Controller
         ]);
 
         Auth::login($user);
+        $user->recordLogin();
 
         $intent = session()->pull('post_register_intent');
 

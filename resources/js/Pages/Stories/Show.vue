@@ -2,22 +2,98 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import {
+    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from '@/Components/ui/dialog';
+import {
     ArrowLeft, Copy, Check, Sparkles, Loader2, Plus,
-    Wand2, ChevronLeft, ChevronRight, RotateCcw, ArrowRight, Pencil,
+    Wand2, ChevronLeft, ChevronRight, ChevronDown, ChevronUp, RotateCcw, ArrowRight, Pencil, RefreshCcw,
+    Volume2, VolumeX, Headphones, Square, ClipboardList, Lock,
 } from 'lucide-vue-next';
 
 const props = defineProps({
     story: Object,
-    canCreateStory: Boolean,
+    isAdmin: Boolean,
+    credits: { type: Number, default: null },
+    is_trial: { type: Boolean, default: false },
+    is_verified_partner: { type: Boolean, default: false },
+    unlocked_episodes: { type: Number, default: 3 },
+    locks_episodes: { type: Boolean, default: false },
+    unlock_cost: { type: Number, default: 0 },
+    episodes_hidden: { type: Boolean, default: false },
 });
 
 const isDemo       = props.story.is_demo ?? false;
 const episodes     = ref(props.story.episodes ?? []);
 const businessName = props.story.business_profile?.business_name ?? 'Your Business';
+
+// Locked episodes are written and stored, but the server sends only their number
+// and title. Everything that reads episode text works from the unlocked ones.
+const unlockedEpisodes = computed(() => episodes.value.filter((ep) => !ep.locked));
+const lockedEpisodes   = computed(() => episodes.value.filter((ep) => ep.locked));
 const storyTitle   = computed(() => props.story.title ?? `The Story of ${businessName}`);
+
+// Someone who is already a partner has nothing left to apply for, so every
+// pitch on this page turns into the price of opening the library instead.
+const onTrialOffer = computed(() => ! props.is_verified_partner);
+
+// ─── Paying to open the rest of the library ──────────────────────────────────
+const unlockAllOpen = ref(false);
+const unlocking     = ref(false);
+
+const confirmUnlockAll = () => {
+    unlocking.value = true;
+    router.post(route('stories.unlock', props.story.id), {}, {
+        preserveScroll: true,
+        onFinish: () => { unlocking.value = false; unlockAllOpen.value = false; },
+    });
+};
+
+// ─── Locked episode → VBP funnel ─────────────────────────────────────────────
+// Three steps for someone still being pitched: ask if they want the full
+// version, pitch VBP, then the sign-up page's apply form. A partner skips all
+// of it and goes straight to what unlocking costs.
+const unlockEpisode = ref(null);
+const unlockStep    = ref(null);
+const partnerOpen   = ref(false);
+
+const openUnlock = (ep) => {
+    unlockEpisode.value = ep;
+
+    if (! onTrialOffer.value) {
+        unlockAllOpen.value = true;
+
+        return;
+    }
+
+    unlockStep.value = 'ask';
+};
+
+const closeUnlock = () => { unlockStep.value = null; };
+
+const openPartnerApply = () => {
+    unlockStep.value  = null;
+    partnerOpen.value = true;
+};
+
+// ─── A quietened trial library, and the button that brings it back ───────────
+const reactivating = ref(false);
+
+const reactivateEpisodes = () => {
+    reactivating.value = true;
+    router.post(route('stories.reactivate', props.story.id), {}, {
+        preserveScroll: true,
+        onFinish: () => { reactivating.value = false; },
+    });
+};
+
+// Local, mutable copy of the credit balance so it updates immediately after a
+// refine, without waiting for a full page reload.
+const creditsBalance = ref(props.credits);
+watch(() => props.credits, (val) => { creditsBalance.value = val; });
 
 // ─── Generating / failed state + polling ─────────────────────────────────────
 const isGenerating = computed(() => props.story.status === 'generating');
@@ -95,6 +171,211 @@ const copyEpisode = async (content) => {
     setTimeout(() => { copied.value = null; }, 2000);
 };
 
+// ─── Text-to-voice — read a episode aloud via OpenAI's TTS (natural voice) ────
+const speakingId  = ref(null); // episode id currently playing
+const loadingId   = ref(null); // episode id currently being synthesized
+const speakError  = ref(null);
+let speakAudio    = null;
+const speakAudioUrls = {}; // episode id -> object URL, cached so replays don't re-synthesize
+
+const stopSpeaking = () => {
+    speakAudio?.pause();
+    speakAudio = null;
+    speakingId.value = null;
+};
+
+// Fetches (or reuses the cached) TTS audio for an episode without playing it —
+// shared by the manual play button and the background scroll-into-view prefetch below.
+const synthesizeEpisodeAudio = async (ep) => {
+    if (speakAudioUrls[ep.id]) return speakAudioUrls[ep.id];
+    try {
+        const res = await fetch(route('stories.episode.speak', { story: props.story.id, episode: ep.id }), {
+            method: 'POST',
+            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+        });
+        if (!res.ok) throw new Error('Text-to-speech failed.');
+        const url = URL.createObjectURL(await res.blob());
+        speakAudioUrls[ep.id] = url;
+        return url;
+    } catch {
+        return null;
+    }
+};
+
+const toggleSpeak = async (ep) => {
+    // While "Listen to Your Story" is narrating, the only enabled per-episode
+    // button is the one currently playing — clicking it stops the whole story
+    // instead of just pausing this episode (which would strand the sequence).
+    if (storyPlaying.value) {
+        if (speakingId.value === ep.id) toggleFullStory();
+        return;
+    }
+
+    speakError.value = null;
+
+    if (speakingId.value === ep.id) { stopSpeaking(); return; }
+    stopSpeaking();
+
+    if (speakAudioUrls[ep.id]) {
+        speakingId.value = ep.id;
+        speakAudio = new Audio(speakAudioUrls[ep.id]);
+        speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; };
+        speakAudio.play();
+        return;
+    }
+
+    loadingId.value = ep.id;
+    const url = await synthesizeEpisodeAudio(ep);
+    loadingId.value = null;
+
+    if (!url) { speakError.value = 'Could not read this episode aloud. Please try again.'; return; }
+
+    speakingId.value = ep.id;
+    speakAudio = new Audio(url);
+    speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; };
+    speakAudio.play();
+};
+
+// Lazily prefetches an episode's audio the moment its card scrolls near the
+// viewport, so by the time the user actually clicks play it's already cached.
+const prefetchedEpisodeIds = new Set();
+const episodeAudioObserver = new IntersectionObserver((entries) => {
+    for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        episodeAudioObserver.unobserve(entry.target);
+        if (entry.target.__episode) synthesizeEpisodeAudio(entry.target.__episode);
+    }
+}, { rootMargin: '200px' });
+
+const observeEpisodeCard = (el, ep) => {
+    if (!el || prefetchedEpisodeIds.has(ep.id)) return;
+    prefetchedEpisodeIds.add(ep.id);
+    el.__episode = ep;
+    episodeAudioObserver.observe(el);
+};
+
+// Episode card DOM elements, keyed by id — used to auto-scroll each episode
+// into view as "Listen to Your Story" narrates through it.
+const episodeCardEls = {};
+const registerEpisodeCard = (el, ep) => {
+    observeEpisodeCard(el, ep);
+    if (el) episodeCardEls[ep.id] = el;
+};
+
+onUnmounted(() => {
+    speakAudio?.pause();
+    storyPlayAbort = true;
+    episodeAudioObserver.disconnect();
+    for (const url of Object.values(speakAudioUrls)) URL.revokeObjectURL(url);
+});
+
+// ─── "Listen to Your Story" — plays every episode back to back, auto-scrolling
+// to and highlighting whichever one is currently narrating ─────────────────────
+const storyPlaying = ref(false);
+let storyPlayAbort = false;
+
+// The whole story opens in a modal that karaokes along with the narration —
+// every word is tagged with the position it's spoken in ("<title>. <content>"),
+// so the player can light up whichever one the voice has reached.
+const storyModalOpen = ref(false);
+const karaokeIndex   = ref(-1);
+
+const splitWords = (text) => (text ?? '').split(/\s+/).filter(Boolean);
+
+const karaokeDocs = computed(() => {
+    const docs = {};
+    for (const ep of unlockedEpisodes.value) {
+        let i = 0;
+        const tag = (words) => words.map((text) => ({ text, i: i++ }));
+        const title = tag(splitWords(ep.title));
+        const paras = (ep.content ?? '').split(/\n{2,}/).map((p) => tag(splitWords(p))).filter((p) => p.length);
+
+        // Longer words take longer to say, so weight each one by its length to
+        // spread the audio's duration across the text more evenly than a flat split.
+        const weights = [];
+        let total = 0;
+        for (const word of [...title, ...paras.flat()]) {
+            total += word.text.length + 1;
+            weights.push(total);
+        }
+
+        docs[ep.id] = { title, paras, weights, total };
+    }
+    return docs;
+});
+
+const trackKaraoke = (ep) => {
+    const doc = karaokeDocs.value[ep.id];
+    const duration = speakAudio?.duration;
+    if (!doc?.total || !duration || !isFinite(duration)) return;
+
+    const target = (speakAudio.currentTime / duration) * doc.total;
+    const idx = doc.weights.findIndex((w) => w > target);
+    karaokeIndex.value = idx === -1 ? doc.weights.length - 1 : idx;
+};
+
+const wordClass = (ep, index) => {
+    if (speakingId.value !== ep.id) return 'text-[#555555]';
+    if (index === karaokeIndex.value) return 'bg-[#FFE9B8] text-[#1A1A1A] rounded px-0.5';
+    return index < karaokeIndex.value ? 'text-[#1A1A1A]' : 'text-[#999999]';
+};
+
+// Episode blocks inside the modal, so narration can scroll them into view there
+// instead of on the page behind it.
+const modalEpisodeEls = {};
+const registerModalEpisode = (el, ep) => { if (el) modalEpisodeEls[ep.id] = el; };
+
+const openStoryPlayer = () => {
+    storyModalOpen.value = true;
+    toggleFullStory();
+};
+
+watch(storyModalOpen, (open) => {
+    if (!open && storyPlaying.value) toggleFullStory();
+});
+
+const playEpisodeAndAwaitEnd = (ep) => new Promise(async (resolve) => {
+    let url = speakAudioUrls[ep.id];
+    if (!url) {
+        loadingId.value = ep.id;
+        url = await synthesizeEpisodeAudio(ep);
+        loadingId.value = null;
+    }
+    if (!url || storyPlayAbort) {
+        if (!url) speakError.value = 'Could not read this episode aloud. Please try again.';
+        resolve();
+        return;
+    }
+    karaokeIndex.value = -1;
+    speakingId.value = ep.id;
+    speakAudio = new Audio(url);
+    speakAudio.ontimeupdate = () => trackKaraoke(ep);
+    speakAudio.onended = () => { if (speakingId.value === ep.id) speakingId.value = null; resolve(); };
+    speakAudio.play();
+});
+
+const toggleFullStory = async () => {
+    if (storyPlaying.value) {
+        storyPlayAbort = true;
+        stopSpeaking();
+        storyPlaying.value = false;
+        return;
+    }
+
+    speakError.value = null;
+    storyPlayAbort = false;
+    storyPlaying.value = true;
+
+    for (const ep of episodes.value) {
+        if (storyPlayAbort) break;
+        const target = storyModalOpen.value ? modalEpisodeEls[ep.id] : episodeCardEls[ep.id];
+        target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await playEpisodeAndAwaitEnd(ep);
+    }
+
+    storyPlaying.value = false;
+};
+
 // ─── Revision state per episode ───────────────────────────────────────────────
 const revState = ref({});
 
@@ -169,6 +450,7 @@ const handleCardFocusIn = (epId) => {
 
 const handleCardFocusOut = async (ep, event) => {
     if (event.currentTarget.contains(event.relatedTarget)) return;
+    if (confirmRefineOpen.value) return; // keep edit mode while the refine confirmation is open
     focusedId.value = null;
     if (editingId.value === ep.id) editingId.value = null;
     if (!isDemo && isAtCurrent(ep)) await saveEdit(ep);
@@ -203,14 +485,63 @@ const saveEdit = async (ep) => {
 const toningEpId = ref(null);
 const toningId   = ref(null);
 
-const toneOptions = [
+const toneOptions1 = [
     { key: 'friendlier',   label: 'Make it Friendlier' },
     { key: 'shorter',      label: 'Make it Shorter' },
     { key: 'humor',        label: 'Add Humor' },
     { key: 'professional', label: 'More Professional' },
 ];
 
+const toneOptions2 = [
+    { key: 'longer',      label: 'Make it Longer' },
+    { key: 'more_cta',    label: 'More Call to Action' },
+    { key: 'less_cta',    label: 'Less Call to Action' },
+    { key: 'promotional', label: 'Make it Promotional' },
+];
+
+const customInstructions = ref(
+    Object.fromEntries(props.story.episodes.map(ep => [ep.id, ep.custom_refine_instruction ?? '']))
+);
+
+const refineInstructionTimers = {};
+
+const persistRefineInstruction = (ep, value) => {
+    clearTimeout(refineInstructionTimers[ep.id]);
+    refineInstructionTimers[ep.id] = setTimeout(() => {
+        fetch(route('stories.episode.refine-instruction', { story: props.story.id, episode: ep.id }), {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ custom_refine_instruction: value }),
+        });
+    }, 600);
+};
+
 const refineError = ref(null);
+
+// ─── Refine confirmation (each refine costs 1 credit; restoring a version is free) ─
+const confirmRefineOpen = ref(false);
+const pendingRefine     = ref(null);
+const pendingRefineKind = ref('refine'); // 'refine' | 'restore'
+const pendingRefineCost = ref(1);
+
+const requestRefine = (fn, kind = 'refine', cost = 1) => {
+    if (isDemo) { fn(); return; } // demo never charges
+    pendingRefine.value     = fn;
+    pendingRefineKind.value = kind;
+    pendingRefineCost.value = cost;
+    confirmRefineOpen.value = true;
+};
+
+const confirmRefine = () => {
+    confirmRefineOpen.value = false;
+    const fn = pendingRefine.value;
+    pendingRefine.value = null;
+    if (fn) fn();
+};
 
 const applyTone = async (ep, toneKey) => {
     refineError.value = null;
@@ -246,10 +577,140 @@ const applyTone = async (ep, toneKey) => {
             syncEditState(ep.id);
             revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
         }
+        if (typeof data.credits === 'number') creditsBalance.value = data.credits;
     } finally {
         toningEpId.value = null;
         toningId.value   = null;
     }
+};
+
+const applyCustomRefine = async (ep) => {
+    const instruction = customInstructions.value[ep.id]?.trim();
+    if (!instruction) return;
+
+    refineError.value = null;
+    await saveEdit(ep);
+
+    toningEpId.value = ep.id;
+    toningId.value   = 'custom';
+    try {
+        const res = await fetch(route('stories.episode.refine', { story: props.story.id, episode: ep.id }), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({ tone: 'custom', custom_instruction: instruction }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            refineError.value = data.message ?? 'Refine failed. Please try again.';
+            return;
+        }
+
+        const idx = episodes.value.findIndex(e => e.id === data.episode.id);
+        if (idx !== -1) {
+            episodes.value[idx] = {
+                ...episodes.value[idx],
+                content:        data.episode.content,
+                versions_count: (episodes.value[idx].versions_count ?? 0) + 1,
+            };
+            syncEditState(ep.id);
+            revState.value[ep.id] = { position: total(episodes.value[idx]), versions: null };
+        }
+        if (typeof data.credits === 'number') creditsBalance.value = data.credits;
+    } finally {
+        toningEpId.value = null;
+        toningId.value   = null;
+    }
+};
+
+// ─── Bulk AI Refine — one refinement applied to several episodes at once ─────
+const bulkOpen             = ref(false);
+const bulkSelected         = ref([]);
+const bulkTone             = ref(null);
+const bulkCustomInstruction = ref('');
+const bulkRefining         = ref(false);
+const bulkError            = ref(null);
+
+const bulkToneOptions = [
+    { key: 'friendlier',   label: 'Make it Friendlier' },
+    { key: 'shorter',      label: 'Make it Shorter' },
+    { key: 'humor',        label: 'Add Humor' },
+    { key: 'professional', label: 'More Professional' },
+    { key: 'more_cta',     label: 'Stronger Call to Action' },
+    { key: 'promotional',  label: 'Less Promotional' },
+];
+
+const toggleBulkEpisode = (epId) => {
+    const idx = bulkSelected.value.indexOf(epId);
+    if (idx === -1) bulkSelected.value.push(epId);
+    else bulkSelected.value.splice(idx, 1);
+};
+
+const selectBulkTone = (key) => {
+    bulkTone.value = bulkTone.value === key ? null : key;
+};
+
+const canApplyBulk = computed(() =>
+    bulkSelected.value.length > 0 &&
+    !bulkRefining.value &&
+    (bulkTone.value === 'custom' ? bulkCustomInstruction.value.trim().length > 0 : !!bulkTone.value)
+);
+
+const runBulkRefine = async () => {
+    bulkError.value = null;
+    bulkRefining.value = true;
+    try {
+        const res = await fetch(route('stories.episodes.bulk-refine', props.story.id), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                Accept: 'application/json',
+            },
+            body: JSON.stringify({
+                episode_ids: bulkSelected.value,
+                tone: bulkTone.value,
+                custom_instruction: bulkTone.value === 'custom' ? bulkCustomInstruction.value.trim() : undefined,
+            }),
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+            bulkError.value = data.message ?? 'Bulk refine failed. Please try again.';
+            return;
+        }
+
+        for (const updatedEp of data.episodes) {
+            const idx = episodes.value.findIndex(e => e.id === updatedEp.id);
+            if (idx !== -1) {
+                episodes.value[idx] = {
+                    ...episodes.value[idx],
+                    content: updatedEp.content,
+                    versions_count: (episodes.value[idx].versions_count ?? 0) + 1,
+                };
+                syncEditState(updatedEp.id);
+                revState.value[updatedEp.id] = { position: total(episodes.value[idx]), versions: null };
+            }
+        }
+        if (typeof data.credits === 'number') creditsBalance.value = data.credits;
+
+        bulkSelected.value = [];
+        bulkTone.value = null;
+        bulkCustomInstruction.value = '';
+    } finally {
+        bulkRefining.value = false;
+    }
+};
+
+const applyBulkRefine = () => {
+    if (!canApplyBulk.value) return;
+    requestRefine(runBulkRefine, 'refine', bulkSelected.value.length);
 };
 
 // ─── Restore ──────────────────────────────────────────────────────────────────
@@ -296,8 +757,9 @@ const restoreRevision = async (ep) => {
             <div class="flex flex-col items-center gap-4 text-center px-6">
                 <Loader2 class="w-12 h-12 animate-spin" style="color: #F5A000;" />
                 <div>
+                    <p class="text-xs font-semibold uppercase tracking-wide mb-2" style="color: #AAAAAA;">Processing your provided information…</p>
                     <p class="text-xl font-black mb-1" style="color: #1A1A1A;">Generating your story…</p>
-                    <p class="text-sm" style="color: #555555;">This takes up to 1 minute. You can wait here or come back later.</p>
+                    <p class="text-sm" style="color: #555555;">This takes up to 3 minutes. You can wait here or come back later.</p>
                 </div>
                 <Link :href="route('stories.index')" class="text-sm underline mt-2" style="color: #555555;">Go to My Stories</Link>
             </div>
@@ -326,7 +788,7 @@ const restoreRevision = async (ep) => {
             </div>
         </div>
 
-        <div class="min-h-screen bg-[#FAFAF8]">
+        <div class="bg-[#FAFAF8]">
 
             <!-- Top bar -->
             <div class="bg-white border-b border-[#DDDDDD] px-4 md:px-8 py-4">
@@ -335,7 +797,7 @@ const restoreRevision = async (ep) => {
                         <ArrowLeft class="w-4 h-4" />
                         My Stories
                     </Link>
-                    <Link :href="isDemo ? route('billing.plans') : route('stories.create')">
+                    <Link :href="isDemo ? route('shop.index') : route('stories.create')">
                         <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-9 px-4 rounded-xl text-sm transition-all duration-300 cursor-pointer">
                             <Sparkles v-if="isDemo" class="w-3.5 h-3.5" />
                             <Plus v-else class="w-3.5 h-3.5" />
@@ -352,7 +814,7 @@ const restoreRevision = async (ep) => {
                         <span class="font-semibold text-[#1A1A1A]">This is a demo story.</span>
                         It shows you exactly what StoryCreator.Bot generates with a Paid Subscription Story Generation.
                     </p>
-                    <Link :href="route('billing.plans')" class="flex-shrink-0">
+                    <Link :href="route('shop.index')" class="flex-shrink-0">
                         <Button class="flex items-center gap-1.5 text-xs font-bold h-8 px-3 rounded-lg bg-[#F5A000] hover:bg-[#e09600] text-white cursor-pointer transition-colors">
                             Create yours
                             <ArrowRight class="w-3 h-3" />
@@ -367,71 +829,274 @@ const restoreRevision = async (ep) => {
                 <div class="mb-8 md:mb-10 text-center">
                     <div class="inline-flex items-center gap-2 text-xs font-semibold text-[#F5A000] uppercase tracking-widest mb-3">
                         <Sparkles class="w-3.5 h-3.5" />
-                        AI Generated Story
+                        Story Generated by Our Intelligence
                     </div>
                     <h1 class="text-2xl md:text-4xl font-black text-[#1A1A1A] mb-3">{{ storyTitle }}</h1>
-                    <p class="text-[#555555] text-base md:text-lg">
+                    <p class="text-[#555555] text-base md:text-lg mb-6">
                         Here's what StoryCreator generated from your interview.
                         <span class="text-[#F5A000] font-semibold">{{ episodes.length }} episode{{ episodes.length === 1 ? '' : 's' }}</span> ready to publish.
                     </p>
+
+                    <div class="flex flex-wrap items-center justify-center gap-3">
+                        <button
+                            v-if="episodes.length > 0"
+                            type="button"
+                            @click="storyPlaying ? toggleFullStory() : openStoryPlayer()"
+                            class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer"
+                            :class="storyPlaying
+                                ? 'border-2 border-[#F5A000]/40 bg-amber-50 text-[#F5A000]'
+                                : 'bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A] hover:opacity-90'"
+                        >
+                            <Square v-if="storyPlaying" class="w-4 h-4 fill-current" />
+                            <Headphones v-else class="w-4 h-4" />
+                            {{ storyPlaying ? 'Stop Listening' : 'Listen to Your Story' }}
+                        </button>
+
+                        <Link
+                            v-if="!isDemo"
+                            :href="route('stories.answers', story.id)"
+                            class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm bg-white text-[#1A1A1A] border border-[#DDDDDD] transition-all duration-200 hover:bg-[#FAFAF8]"
+                        >
+                            <ClipboardList class="w-4 h-4" />
+                            View My Answers
+                        </Link>
+
+                        <button
+                            v-if="locks_episodes && unlock_cost > 0"
+                            type="button"
+                            @click="unlockAllOpen = true"
+                            class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm bg-white text-[#1A1A1A] border border-[#DDDDDD] transition-all duration-200 hover:bg-[#FAFAF8] cursor-pointer"
+                        >
+                            <Lock class="w-4 h-4 text-[#F5A000]" />
+                            Unlock All Episodes
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Bulk AI Refine -->
+                <div v-if="!isDemo" class="mb-6 bg-white rounded-2xl border border-[#DDDDDD] overflow-hidden">
+                    <button
+                        type="button"
+                        @click="bulkOpen = !bulkOpen"
+                        class="w-full flex items-center justify-between gap-3 px-5 py-4 cursor-pointer hover:bg-[#FAFAF8] transition-colors"
+                    >
+                        <div class="flex items-center gap-3 text-left">
+                            <div class="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                                <Wand2 class="w-4 h-4 text-[#F5A000]" />
+                            </div>
+                            <div>
+                                <p class="font-bold text-sm text-[#1A1A1A]">Bulk AI Refine</p>
+                                <p class="text-xs text-[#555555]">Refine several episodes together.</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="text-xs font-semibold text-[#555555]">{{ bulkSelected.length }} selected</span>
+                            <ChevronDown v-if="!bulkOpen" class="w-4 h-4 text-[#555555]" />
+                            <ChevronUp v-else class="w-4 h-4 text-[#555555]" />
+                        </div>
+                    </button>
+
+                    <div v-if="bulkOpen" class="px-5 pb-5 pt-1 border-t border-[#F0F0F0]">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                            <!-- Choose episodes -->
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wide text-[#888888] mb-3">1. Choose Episodes</p>
+                                <div class="grid grid-cols-3 gap-2">
+                                    <label
+                                        v-for="ep in unlockedEpisodes"
+                                        :key="ep.id"
+                                        class="flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-semibold cursor-pointer transition-colors"
+                                        :class="bulkSelected.includes(ep.id) ? 'border-[#F5A000] bg-amber-50 text-[#1A1A1A]' : 'border-[#DDDDDD] text-[#555555] hover:border-[#F5A000]/40'"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            class="accent-[#F5A000]"
+                                            :checked="bulkSelected.includes(ep.id)"
+                                            @change="toggleBulkEpisode(ep.id)"
+                                        />
+                                        Episode {{ ep.episode_number }}
+                                    </label>
+                                </div>
+                                <p class="text-xs text-[#888888] mt-3">Select only the episodes you want changed. The original versions will remain available.</p>
+                            </div>
+
+                            <!-- Choose refinement -->
+                            <div>
+                                <p class="text-xs font-bold uppercase tracking-wide text-[#888888] mb-3">2. Choose One Refinement</p>
+                                <div class="flex flex-wrap gap-2">
+                                    <button
+                                        v-for="opt in bulkToneOptions"
+                                        :key="opt.key"
+                                        type="button"
+                                        @click="selectBulkTone(opt.key)"
+                                        class="text-xs font-semibold px-3 py-1.5 rounded-full border transition-colors cursor-pointer"
+                                        :class="bulkTone === opt.key
+                                            ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50'
+                                            : 'text-[#555555] border-[#DDDDDD] hover:border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        {{ opt.label }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        @click="selectBulkTone('custom')"
+                                        class="text-xs font-bold px-3 py-1.5 rounded-full border transition-colors cursor-pointer"
+                                        :class="bulkTone === 'custom'
+                                            ? 'text-[#F5A000] border-[#F5A000] bg-amber-50'
+                                            : 'text-[#B87800] border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        Custom Refinement
+                                    </button>
+                                </div>
+                                <textarea
+                                    v-if="bulkTone === 'custom'"
+                                    v-model="bulkCustomInstruction"
+                                    placeholder="Describe exactly how you want the selected episodes refined."
+                                    rows="3"
+                                    class="w-full mt-3 text-sm text-[#333333] bg-[#FAFAF8] border border-[#DDDDDD] rounded-lg px-3 py-2 resize-none placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#F5A000]/60"
+                                />
+                                <p class="text-xs text-[#888888] mt-3">Choose one predefined refinement or Custom Refinement. Only one option can be used at a time.</p>
+                            </div>
+                        </div>
+
+                        <p v-if="bulkError" class="text-xs text-red-600 mt-4">{{ bulkError }}</p>
+
+                        <div class="flex justify-end mt-5">
+                            <button
+                                type="button"
+                                :disabled="!canApplyBulk"
+                                @click="applyBulkRefine"
+                                class="inline-flex items-center gap-2 text-sm font-bold px-5 py-2.5 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                                style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                            >
+                                <Loader2 v-if="bulkRefining" class="w-4 h-4 animate-spin" />
+                                {{ bulkRefining ? 'Refining…' : 'Apply to Selected' }}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Read-aloud error -->
+                <div v-if="speakError" class="mb-6 flex items-center justify-between gap-3 bg-red-50 border border-red-200 rounded-xl px-4 py-2.5">
+                    <p class="text-sm text-red-600">{{ speakError }}</p>
+                    <button type="button" @click="speakError = null" class="text-red-400 hover:text-red-600 cursor-pointer text-xs font-semibold">Dismiss</button>
+                </div>
+
+                <!-- A trial library goes quiet after a month until it is asked for -->
+                <div v-if="episodes_hidden" class="relative">
+                    <div class="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-6">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white mb-4 shadow-sm">
+                            <Lock class="w-6 h-6" style="color:#F5A000;" />
+                        </div>
+                        <h3 class="text-xl font-black text-[#1A1A1A] mb-2">Your episodes are resting</h3>
+                        <p class="text-[#555555] mb-5 max-w-md">
+                            Your trial library has been quiet for a while. Bring it back whenever you want to read it again.
+                        </p>
+                        <Button
+                            :disabled="reactivating"
+                            @click="reactivateEpisodes"
+                            class="font-bold h-11 px-8 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
+                        >
+                            <Loader2 v-if="reactivating" class="w-4 h-4 mr-2 animate-spin" />
+                            {{ reactivating ? 'Bringing them back…' : 'View Episodes' }}
+                        </Button>
+                    </div>
+                    <div class="blur-md select-none pointer-events-none space-y-6" aria-hidden="true">
+                        <div v-for="n in unlocked_episodes" :key="`veil-${n}`" class="bg-white rounded-2xl border border-[#DDDDDD] px-6 py-8">
+                            <div class="h-4 w-40 rounded bg-[#EEEEEE] mb-4" />
+                            <div class="h-3 w-full rounded bg-[#F3F3F3] mb-2" />
+                            <div class="h-3 w-11/12 rounded bg-[#F3F3F3] mb-2" />
+                            <div class="h-3 w-10/12 rounded bg-[#F3F3F3]" />
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Episodes -->
-                <div class="space-y-6">
+                <div v-else class="space-y-6">
+                  <template v-for="ep in episodes" :key="ep.id">
+
+                    <!-- Locked: written and waiting. Only the number and title
+                         ever reach the browser — there is no content to reveal. -->
+                    <button
+                        v-if="ep.locked"
+                        type="button"
+                        @click="openUnlock(ep)"
+                        class="w-full text-left rounded-2xl border border-dashed px-4 sm:px-6 py-5 flex items-center gap-4 cursor-pointer transition-all duration-200 hover:border-[#F5A000] hover:shadow-sm"
+                        style="background:#FAFAF8; border-color:#DDDDDD;"
+                    >
+                        <div class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
+                            <Lock class="w-4 h-4" style="color:#F5A000;" />
+                        </div>
+                        <div class="min-w-0 flex-1">
+                            <p class="text-[10px] font-black uppercase tracking-widest text-[#AAAAAA]">
+                                Episode {{ ep.episode_number }}
+                            </p>
+                            <h2 class="text-base sm:text-lg font-black text-[#1A1A1A] truncate">{{ ep.title }}</h2>
+                        </div>
+                        <span class="shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded-md" style="background:#FEF9EC; color:#F5A000;">
+                            Locked
+                        </span>
+                    </button>
+
                     <article
-                        v-for="ep in episodes"
-                        :key="ep.id"
+                        v-else
+                        :ref="el => registerEpisodeCard(el, ep)"
                         class="bg-white rounded-2xl border transition-all duration-200 overflow-hidden relative"
-                        :class="focusedId === ep.id
-                            ? 'border-[#F5A000]/40 shadow-md'
+                        :class="focusedId === ep.id || speakingId === ep.id
+                            ? ''
                             : 'border-[#DDDDDD] hover:border-[#F5A000]/20 hover:shadow-sm'"
+                        :style="focusedId === ep.id || speakingId === ep.id
+                            ? 'border-color: rgba(245,160,0,0.4); box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1);'
+                            : ''"
                         @focusin="handleCardFocusIn(ep.id)"
                         @focusout="handleCardFocusOut(ep, $event)"
                     >
                         <!-- ── Card header ─────────────────────────────────── -->
                         <div class="px-4 sm:px-6 pt-5 pb-4 border-b border-[#F5F5F5] space-y-3">
 
-                            <!-- Edit + Copy buttons — absolute top-right (non-demo only) -->
-                            <div v-if="!isDemo" class="absolute top-3 right-3 flex items-center gap-1">
-                                <button
-                                    v-if="isAtCurrent(ep) && !isEditing(ep)"
-                                    type="button"
-                                    aria-label="Edit episode"
-                                    @mousedown.prevent
-                                    @click.stop="editEpisode(ep)"
-                                    class="flex items-center gap-1.5 text-xs font-semibold px-2.5 h-8 rounded-lg border border-[#DDDDDD] text-[#555555] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
-                                >
-                                    <Pencil class="w-3.5 h-3.5" />
-                                    Edit
-                                </button>
+                            <!-- Speak + Edit + Copy buttons — absolute top-right -->
+                            <div class="absolute top-3 right-3 flex items-center gap-1">
                                 <button
                                     type="button"
-                                    aria-label="Copy episode"
-                                    @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
-                                    class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
-                                    :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
-                                        ? 'text-emerald-600 bg-emerald-50'
+                                    :disabled="loadingId === ep.id || (storyPlaying && speakingId !== ep.id)"
+                                    :aria-label="speakingId === ep.id ? 'Stop reading episode aloud' : 'Read episode aloud'"
+                                    @click.stop="toggleSpeak(ep)"
+                                    class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer disabled:cursor-wait disabled:opacity-40"
+                                    :class="speakingId === ep.id
+                                        ? 'text-[#F5A000] bg-amber-50'
                                         : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
                                 >
-                                    <Check v-if="copied === (editState[ep.id]?.content ?? displayed(ep).content)" class="w-4 h-4" />
-                                    <Copy v-else class="w-4 h-4" />
+                                    <Loader2 v-if="loadingId === ep.id" class="w-4 h-4 animate-spin" />
+                                    <VolumeX v-else-if="speakingId === ep.id" class="w-4 h-4" />
+                                    <Volume2 v-else class="w-4 h-4" />
                                 </button>
+                                <template v-if="!isDemo">
+                                    <button
+                                        v-if="isAtCurrent(ep) && !isEditing(ep)"
+                                        type="button"
+                                        aria-label="Edit episode"
+                                        @mousedown.prevent
+                                        @click.stop="editEpisode(ep)"
+                                        class="flex items-center gap-1.5 text-xs font-semibold px-2.5 h-8 rounded-lg border border-[#DDDDDD] text-[#555555] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50 transition-all duration-150 cursor-pointer"
+                                    >
+                                        <Pencil class="w-3.5 h-3.5" />
+                                        Edit
+                                    </button>
+                                    <button
+                                        type="button"
+                                        aria-label="Copy episode"
+                                        @click.stop="copyEpisode(editState[ep.id]?.content ?? displayed(ep).content)"
+                                        class="w-8 h-8 flex items-center justify-center rounded-lg transition-all duration-150 cursor-pointer"
+                                        :class="copied === (editState[ep.id]?.content ?? displayed(ep).content)
+                                            ? 'text-emerald-600 bg-emerald-50'
+                                            : 'text-[#AAAAAA] hover:text-[#F5A000] hover:bg-amber-50'"
+                                    >
+                                        <Check v-if="copied === (editState[ep.id]?.content ?? displayed(ep).content)" class="w-4 h-4" />
+                                        <Copy v-else class="w-4 h-4" />
+                                    </button>
+                                </template>
                             </div>
 
-                            <!-- Row 1: badges (leave room on right for copy button) -->
-                            <div class="flex items-center gap-2 pr-10">
-                                <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
-                                    Episode {{ ep.episode_number }}
-                                </span>
-                                <Badge :class="formatColor[ep.format]" class="text-xs font-semibold border shrink-0">
-                                    {{ formatLabel[ep.format] ?? ep.format }}
-                                </Badge>
-                                <span v-if="!isDemo" class="text-xs font-bold text-[#888888] bg-[#F0F0F0] px-2 py-0.5 rounded-md shrink-0">
-                                    v{{ position(ep) }}
-                                </span>
-                            </div>
-
-                            <!-- Row 2: revision navigator (non-demo, has history) -->
+                            <!-- Row 1: revision navigator (non-demo, has history) -->
                             <div v-if="!isDemo && ep.versions_count > 0" class="flex items-center gap-1">
                                 <button
                                     type="button"
@@ -463,6 +1128,19 @@ const restoreRevision = async (ep) => {
                                     <ChevronRight class="w-3.5 h-3.5" />
                                 </button>
                             </div>
+
+                            <!-- Row 2: badges (leave room on right for copy button) -->
+                            <div class="flex items-center gap-2 pr-10">
+                                <Badge :class="formatColor[ep.format]" class="text-xs font-semibold border shrink-0">
+                                    {{ formatLabel[ep.format] ?? ep.format }}
+                                </Badge>
+                                <span class="text-xs font-black bg-[#F5A000] text-white px-2.5 py-1 rounded-lg shrink-0">
+                                    Episode {{ ep.episode_number }}
+                                </span>
+                                <span v-if="!isDemo" class="text-xs font-bold text-[#F5A000] border border-[#F5A000]/40 bg-amber-50 px-2 py-0.5 rounded-md shrink-0">
+                                    Viewing Version {{ position(ep) }}
+                                </span>
+                            </div>
                         </div>
 
                         <!-- ── Card body ───────────────────────────────────── -->
@@ -492,7 +1170,7 @@ const restoreRevision = async (ep) => {
                                     :disabled="restoring === ep.id"
                                     class="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-lg transition-all duration-150 cursor-pointer disabled:opacity-50"
                                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                                    @click="restoreRevision(ep)"
+                                    @click="requestRefine(() => restoreRevision(ep), 'restore')"
                                 >
                                     <Loader2 v-if="restoring === ep.id" class="w-3 h-3 animate-spin" />
                                     <RotateCcw v-else class="w-3 h-3" />
@@ -533,11 +1211,11 @@ const restoreRevision = async (ep) => {
                                         AI Refine:
                                     </span>
                                     <button
-                                        v-for="opt in toneOptions"
+                                        v-for="opt in toneOptions1"
                                         :key="opt.key"
                                         type="button"
                                         :disabled="toningEpId === ep.id"
-                                        @click="applyTone(ep, opt.key)"
+                                        @click="requestRefine(() => applyTone(ep, opt.key))"
                                         class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
                                         :class="toningEpId === ep.id && toningId === opt.key
                                             ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50 opacity-100'
@@ -553,9 +1231,83 @@ const restoreRevision = async (ep) => {
                                         Saving…
                                     </span>
                                 </div>
+                                <div class="flex items-center gap-2 flex-wrap mt-2">
+                                    <button
+                                        v-for="opt in toneOptions2"
+                                        :key="opt.key"
+                                        type="button"
+                                        :disabled="toningEpId === ep.id"
+                                        @click="requestRefine(() => applyTone(ep, opt.key))"
+                                        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed"
+                                        :class="toningEpId === ep.id && toningId === opt.key
+                                            ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50 opacity-100'
+                                            : toningEpId === ep.id
+                                                ? 'text-[#AAAAAA] border-[#EEEEEE] opacity-50'
+                                                : 'text-[#555555] border-[#DDDDDD] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        <Loader2 v-if="toningEpId === ep.id && toningId === opt.key" class="w-3 h-3 animate-spin" />
+                                        {{ opt.label }}
+                                    </button>
+                                </div>
+                                <div class="flex gap-2 items-start mt-3">
+                                    <textarea
+                                        v-model="customInstructions[ep.id]"
+                                        :disabled="toningEpId === ep.id"
+                                        @input="persistRefineInstruction(ep, customInstructions[ep.id])"
+                                        placeholder="Describe how you'd like this refined... (e.g. add more urgency, include a biblical reference)"
+                                        rows="2"
+                                        class="flex-1 text-sm text-[#333333] bg-white border border-[#DDDDDD] rounded-lg px-3 py-2 resize-none placeholder:text-[#AAAAAA] focus:outline-none focus:border-[#F5A000]/60 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    />
+                                    <button
+                                        type="button"
+                                        :disabled="toningEpId === ep.id || !customInstructions[ep.id]?.trim()"
+                                        @click="requestRefine(() => applyCustomRefine(ep))"
+                                        class="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg border transition-all duration-150 cursor-pointer disabled:cursor-not-allowed shrink-0"
+                                        :class="toningEpId === ep.id && toningId === 'custom'
+                                            ? 'text-[#F5A000] border-[#F5A000]/40 bg-amber-50'
+                                            : toningEpId === ep.id || !customInstructions[ep.id]?.trim()
+                                                ? 'text-[#AAAAAA] border-[#EEEEEE] opacity-50'
+                                                : 'text-[#555555] border-[#DDDDDD] hover:text-[#F5A000] hover:border-[#F5A000]/40 hover:bg-amber-50'"
+                                    >
+                                        <Loader2 v-if="toningEpId === ep.id && toningId === 'custom'" class="w-3 h-3 animate-spin" />
+                                        Refine
+                                    </button>
+                                </div>
                             </div>
                         </div>
                     </article>
+                  </template>
+                </div>
+
+                <!-- One unlock message for the whole library, not one per card -->
+                <div
+                    v-if="lockedEpisodes.length && !episodes_hidden"
+                    class="mt-8 rounded-2xl border p-6 sm:p-8 text-center"
+                    style="background:#FEF9EC; border-color:#F5A000;"
+                >
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white mb-4">
+                        <Lock class="w-6 h-6" style="color:#F5A000;" />
+                    </div>
+                    <h3 class="text-xl font-black text-[#1A1A1A] mb-2">
+                        {{ lockedEpisodes.length }} more episodes are already written
+                    </h3>
+                    <p v-if="onTrialOffer" class="text-[#555555] mb-6 max-w-lg mx-auto">
+                        Your whole library was written from your interview — you are reading the first
+                        {{ unlocked_episodes }}. Become a Best of Local Verified Business Partner and the rest open
+                        straight away. Nothing is regenerated, and nothing changes.
+                    </p>
+                    <p v-else class="text-[#555555] mb-6 max-w-lg mx-auto">
+                        Your whole library was written from your interview — you are reading the first
+                        {{ unlocked_episodes }}. Opening the rest costs {{ unlock_cost }} credits. Nothing is
+                        regenerated, and nothing changes.
+                    </p>
+                    <Button
+                        @click="onTrialOffer ? partnerOpen = true : unlockAllOpen = true"
+                        class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
+                    >
+                        <Sparkles class="w-4 h-4" />
+                        Unlock My Full Library
+                    </Button>
                 </div>
 
                 <!-- Bottom CTA -->
@@ -568,7 +1320,7 @@ const restoreRevision = async (ep) => {
                         <p class="text-[#555555] mb-6 max-w-md mx-auto">
                             Pick a plan and StoryCreator.Bot will interview you, then generate a story library just like this — but yours.
                         </p>
-                        <Link :href="route('billing.plans')">
+                        <Link :href="route('shop.index')">
                             <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
                                 <Sparkles class="w-4 h-4" />
                                 Choose a Plan
@@ -576,31 +1328,206 @@ const restoreRevision = async (ep) => {
                         </Link>
                     </template>
                     <template v-else>
-                        <h3 class="text-xl font-black text-[#1A1A1A] mb-2">Ready to tell your next story?</h3>
-                        <p class="text-[#555555] mb-6 max-w-md mx-auto">
-                            Each story builds your brand's narrative. Start a new interview to explore a different angle of your business.
+                        <h3 class="text-xl font-black text-[#1A1A1A] mb-2">The first draft of your story is complete. What's next?</h3>
+                        <p class="text-[#555555] mb-4 max-w-lg mx-auto">
+                            You are now ready to either publish your episodes as currently written or refine them. Use your credits to make your story sound naturally like you and to ensure each episode encourages engagement.
                         </p>
-                        <template v-if="canCreateStory">
-                            <Link :href="route('stories.create')">
-                                <Button class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer">
-                                    <Plus class="w-4 h-4" />
-                                    Create Another Story
-                                </Button>
-                            </Link>
-                        </template>
-                        <template v-else>
-                            <p class="text-sm text-[#555555] mb-4">You've used all your story credits for this plan.</p>
-                            <Link :href="route('billing.plans')">
-                                <Button class="inline-flex items-center gap-2 bg-white border border-[#DDDDDD] text-[#1A1A1A] font-bold h-11 px-8 rounded-xl hover:bg-[#F5F5F5] transition-all duration-300 cursor-pointer">
-                                    Upgrade Plan
-                                </Button>
-                            </Link>
-                        </template>
+                        <p class="text-[#555555] max-w-lg mx-auto">
+                            Scroll up to your episodes above, click "Edit," and you will see your refinement options. When you are ready to post, copy and paste your story episodes one at a time to Best of Delray Beach platforms or any other social media.
+                        </p>
                     </template>
                 </div>
 
             </div>
         </div>
+
+        <!-- Refine confirmation — non-modal so the episode you're editing stays interactive -->
+        <!-- Full-story player — the whole story, karaoke-highlighted as it's read -->
+        <Dialog v-model:open="storyModalOpen">
+            <DialogContent class="max-w-3xl p-0 gap-0">
+                <DialogHeader class="px-6 pt-6 pb-4 border-b border-[#EEEEEE] text-left">
+                    <DialogTitle class="text-[#1A1A1A]">{{ storyTitle }}</DialogTitle>
+                    <DialogDescription class="text-[#555555]">Follow along — each word lights up as it's read.</DialogDescription>
+                </DialogHeader>
+
+                <div class="max-h-[60vh] overflow-y-auto px-6 py-5 space-y-8">
+                    <div
+                        v-for="ep in unlockedEpisodes"
+                        :key="ep.id"
+                        :ref="(el) => registerModalEpisode(el, ep)"
+                    >
+                        <p class="text-[10px] font-black uppercase tracking-widest mb-2 text-[#F5A000]">Episode {{ ep.episode_number }}</p>
+                        <h3 class="text-lg font-black mb-3 leading-snug">
+                            <span
+                                v-for="w in karaokeDocs[ep.id].title"
+                                :key="`t-${w.i}`"
+                                :class="wordClass(ep, w.i)"
+                            >{{ w.text }} </span>
+                        </h3>
+                        <p
+                            v-for="(para, pi) in karaokeDocs[ep.id].paras"
+                            :key="pi"
+                            class="text-sm leading-relaxed mb-3"
+                        >
+                            <span
+                                v-for="w in para"
+                                :key="`p-${w.i}`"
+                                :class="wordClass(ep, w.i)"
+                            >{{ w.text }} </span>
+                        </p>
+                    </div>
+                </div>
+
+                <DialogFooter class="px-6 py-4 border-t border-[#EEEEEE]">
+                    <button
+                        type="button"
+                        @click="toggleFullStory"
+                        class="inline-flex items-center gap-2 px-5 py-2.5 rounded-full font-bold text-sm transition-all duration-200 cursor-pointer"
+                        :class="storyPlaying
+                            ? 'border-2 border-[#F5A000]/40 bg-amber-50 text-[#F5A000]'
+                            : 'bg-gradient-to-r from-[#FFC837] to-[#F5A000] text-[#1A1A1A] hover:opacity-90'"
+                    >
+                        <Square v-if="storyPlaying" class="w-4 h-4 fill-current" />
+                        <Headphones v-else class="w-4 h-4" />
+                        {{ storyPlaying ? 'Stop Listening' : 'Listen to Your Story' }}
+                    </button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <Dialog v-model:open="confirmRefineOpen" :modal="false">
+            <DialogContent class="max-w-md" @interact-outside="(e) => e.preventDefault()">
+                <DialogHeader>
+                    <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
+                        <RefreshCcw class="w-5 h-5 text-[#F5A000]" />
+                    </div>
+                    <DialogTitle class="text-[#1A1A1A]">
+                        {{ pendingRefineKind === 'restore' ? 'Restore this version?' : 'Refine this episode?' }}
+                    </DialogTitle>
+                    <DialogDescription as="div" class="text-[#555555]">
+                        <template v-if="pendingRefineKind === 'restore'">
+                            <p>
+                                Are you sure you want to restore this version? This won't cost any credits.
+                                The current version is saved to history so you can come back to it.
+                            </p>
+                        </template>
+                        <template v-else-if="isAdmin">
+                            <p>This will rewrite the episode. The current version is saved to history so you can restore it.</p>
+                        </template>
+                        <template v-else>
+                            <p>
+                                This will rewrite {{ pendingRefineCost > 1 ? `${pendingRefineCost} episodes` : 'the episode' }}.
+                                The current version{{ pendingRefineCost > 1 ? 's are' : ' is' }} saved to history so you can restore {{ pendingRefineCost > 1 ? 'them' : 'it' }}.
+                            </p>
+                            <ul class="mt-2 space-y-1 list-disc list-inside">
+                                <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditsBalance }}</strong></li>
+                                <li>Cost: <strong class="text-[#1A1A1A]">{{ pendingRefineCost }} credit{{ pendingRefineCost === 1 ? '' : 's' }}</strong></li>
+                                <li>Remaining Balance After Refine: <strong class="text-[#1A1A1A]">{{ creditsBalance - pendingRefineCost }} credit{{ (creditsBalance - pendingRefineCost) === 1 ? '' : 's' }}</strong></li>
+                            </ul>
+                        </template>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="confirmRefineOpen = false" class="cursor-pointer">Cancel</Button>
+                    <Button
+                        @click="confirmRefine"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        {{ pendingRefineKind === 'restore' ? 'Yes, restore it' : 'Yes, refine it' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Locked episode → "Want to see the full version?" -->
+        <Dialog :open="unlockStep === 'ask'" @update:open="closeUnlock">
+            <DialogContent class="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle class="text-xl text-[#1A1A1A]">Want to see the full version?</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        Full Episodes continues for members only. Unlock it as a Verified Business Partner.
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="closeUnlock" class="flex-1 h-11 rounded-xl font-bold border-[#DDDDDD] text-[#1A1A1A] bg-white cursor-pointer">
+                        No
+                    </Button>
+                    <Button
+                        @click="unlockStep = 'pitch'"
+                        class="flex-1 h-11 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Yes
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Yes → "Become a VBP to unlock every episode" -->
+        <Dialog :open="unlockStep === 'pitch'" @update:open="closeUnlock">
+            <DialogContent class="max-w-sm">
+                <DialogHeader>
+                    <p class="text-sm font-semibold text-[#555555]">Verified Business Partner</p>
+                    <DialogTitle class="text-xl text-[#1A1A1A]">Become a VBP to unlock every episode</DialogTitle>
+                    <DialogDescription class="text-[#555555]">
+                        Get the rest of the story, plus category exclusivity and
+                        first placement across Best of Delray Beach.
+                    </DialogDescription>
+                </DialogHeader>
+                <Button
+                    @click="openPartnerApply"
+                    class="w-full h-11 rounded-xl font-bold text-white cursor-pointer hover:opacity-90"
+                    style="background-color: #1A1A1A;"
+                >
+                    Become a VBP
+                </Button>
+                <button
+                    type="button"
+                    @click="closeUnlock"
+                    class="text-sm underline text-[#555555] hover:text-[#1A1A1A] cursor-pointer self-start"
+                >
+                    Not right now
+                </button>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Paying to open the rest of the library -->
+        <Dialog v-model:open="unlockAllOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-50 mb-2">
+                        <Lock class="w-6 h-6 text-[#F5A000]" />
+                    </div>
+                    <DialogTitle class="text-[#1A1A1A]">Unlock all episodes?</DialogTitle>
+                    <DialogDescription as="div" class="text-[#555555]">
+                        <p>
+                            Unlocking all episodes will cost you
+                            <strong class="text-[#1A1A1A]">{{ unlock_cost }} Credits</strong>.
+                            Nothing is regenerated — the episodes are already written.
+                        </p>
+                        <ul class="mt-2 space-y-1 list-disc list-inside">
+                            <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditsBalance }}</strong></li>
+                            <li>Cost: <strong class="text-[#1A1A1A]">{{ unlock_cost }} credit{{ unlock_cost === 1 ? '' : 's' }}</strong></li>
+                            <li>Remaining Balance After Unlock: <strong class="text-[#1A1A1A]">{{ creditsBalance - unlock_cost }} credit{{ (creditsBalance - unlock_cost) === 1 ? '' : 's' }}</strong></li>
+                        </ul>
+                        <p v-if="creditsBalance < unlock_cost" class="mt-2 text-xs" style="color:#EF4444;">
+                            You do not have enough credits to unlock this library yet.
+                        </p>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="unlockAllOpen = false" class="cursor-pointer">Cancel</Button>
+                    <Button
+                        :disabled="unlocking || creditsBalance < unlock_cost"
+                        @click="confirmUnlockAll"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer disabled:opacity-50"
+                    >
+                        {{ unlocking ? 'Unlocking…' : 'Yes, unlock them' }}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+
+        <PartnerApplyDialog v-model:open="partnerOpen" />
 
     </AuthenticatedLayout>
 </template>

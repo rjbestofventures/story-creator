@@ -96,9 +96,22 @@ return [
         'users' => [
             'provider' => 'users',
             'table' => env('AUTH_PASSWORD_RESET_TOKEN_TABLE', 'password_reset_tokens'),
-            'expire' => 60,
+            'expire' => 60 * 24 * 7,
             'throttle' => 60,
         ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Email Verification
+    |--------------------------------------------------------------------------
+    |
+    | The number of minutes a signed email verification link stays valid.
+    |
+    */
+
+    'verification' => [
+        'expire' => 60 * 24 * 7,
     ],
 
     /*

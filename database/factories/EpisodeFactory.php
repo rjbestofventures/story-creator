@@ -13,12 +13,12 @@ class EpisodeFactory extends Factory
     public function definition(): array
     {
         return [
-            'story_id'       => Story::factory(),
+            'story_id' => Story::factory(),
             'episode_number' => 1,
-            'title'          => fake()->sentence(5),
-            'content'        => fake()->paragraph(),
-            'format'         => 'social',
-            'status'         => 'draft',
+            'title' => fake()->sentence(5),
+            'content' => fake()->paragraph(),
+            'format' => 'social',
+            'status' => 'draft',
         ];
     }
 }

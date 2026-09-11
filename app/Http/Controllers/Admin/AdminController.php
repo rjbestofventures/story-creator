@@ -4,19 +4,25 @@ namespace App\Http\Controllers\Admin;
 
 use Anthropic\Client;
 use App\Http\Controllers\Controller;
-use App\Models\Plan;
+use App\Models\CreditPack;
 use App\Models\SiteSetting;
 use App\Models\Story;
 use App\Models\User;
-use App\Models\UserSubscription;
+use App\Models\UserCredit;
 use App\Notifications\AccountCreatedNotification;
+use App\Notifications\EpisodesReactivatedNotification;
+use App\Services\ElevenLabsService;
+use App\Services\TextToSpeechService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -28,11 +34,10 @@ class AdminController extends Controller
 
     public function usersIndex(): Response
     {
-        $plans = Plan::where('is_active', true)
-            ->orderBy('price_monthly')
-            ->get(['id', 'slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly', 'trial_months', 'is_active']);
+        $creditPacks = CreditPack::active()->orderBy('price')
+            ->get(['id', 'slug', 'label', 'type', 'credits', 'price']);
 
-        $users = User::with(['roles', 'activeSubscription.plan'])
+        $users = User::with(['roles', 'purchases.creditPack:id,label,type'])
             ->withCount('stories')
             ->orderByDesc('created_at')
             ->get()
@@ -42,41 +47,45 @@ class AdminController extends Controller
                 'email' => $user->email,
                 'tier' => $user->roles->first()?->name ?? 'user',
                 'is_active' => $user->is_active,
-                'subscription' => $user->activeSubscription ? [
-                    'id' => $user->activeSubscription->id,
-                    'plan_id' => $user->activeSubscription->plan_id,
-                    'plan_slug' => $user->activeSubscription->plan->slug,
-                    'plan_label' => $user->activeSubscription->plan->label,
-                    'status' => $user->activeSubscription->status,
-                    'billing_interval' => $user->activeSubscription->billing_interval,
-                    'starts_at' => $user->activeSubscription->starts_at?->toDateString(),
-                    'expires_at' => $user->activeSubscription->expires_at?->toDateString(),
-                    'story_credits' => $user->activeSubscription->story_credits,
-                    'refine_credits' => $user->activeSubscription->refine_credits,
-                    'effective_episode_limit' => $user->activeSubscription->effectiveEpisodeLimit(),
-                    'stories_per_month' => $user->activeSubscription->plan->stories_per_month,
-                    'refine_monthly' => $user->activeSubscription->plan->refine_monthly,
-                ] : null,
+                'is_verified_partner' => $user->is_verified_partner,
+                'is_trial' => $user->is_trial,
+                'trial_allowance' => $user->trial_allowance,
+                'credits' => $user->credits,
                 'stories_total' => $user->stories_count,
                 'created_at' => $user->created_at->format('n/j/Y'),
+                'current_pack' => $user->purchases
+                    ->first(fn ($p) => in_array($p->creditPack?->type, ['partner', 'storybot']))
+                    ?->creditPack?->label,
             ]);
 
         return Inertia::render('Admin/Users', [
             'users' => $users,
-            'plans' => $plans,
+            'creditPacks' => $creditPacks,
             'stats' => [
                 'users' => User::count(),
-                'stories' => 0,
+                'stories' => Story::count(),
+                'sold_packs' => UserCredit::where('source', 'online')->count(),
             ],
         ]);
     }
 
-    public function plansIndex(): Response
+    public function packsIndex(): Response
     {
-        $plans = Plan::orderBy('price_monthly')
-            ->get(['id', 'slug', 'label', 'episode_limit', 'stories_per_month', 'refine_monthly', 'price_monthly', 'price_yearly', 'trial_months', 'is_active', 'stripe_price_monthly', 'stripe_price_yearly']);
+        $packs = CreditPack::orderBy('type')->orderBy('price')
+            ->get(['id', 'slug', 'label', 'type', 'credits', 'max_episodes', 'price', 'stripe_price_id', 'is_active'])
+            ->map(fn (CreditPack $pack) => [
+                'id' => $pack->id,
+                'slug' => $pack->slug,
+                'label' => $pack->label,
+                'type' => $pack->type,
+                'credits' => $pack->credits,
+                'max_episodes' => $pack->max_episodes,
+                'price_dollars' => $pack->price / 100,
+                'stripe_price_id' => $pack->stripe_price_id,
+                'is_active' => $pack->is_active,
+            ]);
 
-        return Inertia::render('Admin/Plans', ['plans' => $plans]);
+        return Inertia::render('Admin/Packs', ['packs' => $packs]);
     }
 
     public function storiesIndex(Request $request): Response
@@ -263,6 +272,8 @@ class AdminController extends Controller
         return Inertia::render('Admin/Settings/AI', [
             'anthropic_api_key' => SiteSetting::get('anthropic_api_key', ''),
             'env_key_set' => (bool) env('ANTHROPIC_API_KEY'),
+            'openai_api_key' => SiteSetting::get('openai_api_key', ''),
+            'openai_env_key_set' => (bool) env('OPENAI_API_KEY'),
             'interview_model' => SiteSetting::get('interview_model', 'claude-haiku-4-5-20251001'),
             'generation_model' => SiteSetting::get('generation_model', 'claude-sonnet-4-6'),
             'interview_price_input' => (float) SiteSetting::get('interview_price_input', 0.80),
@@ -276,6 +287,7 @@ class AdminController extends Controller
     {
         $data = $request->validate([
             'anthropic_api_key' => 'nullable|string|max:255',
+            'openai_api_key' => 'nullable|string|max:255',
             'interview_model' => 'required|string|max:100',
             'generation_model' => 'required|string|max:100',
             'interview_price_input' => 'required|numeric|min:0',
@@ -285,6 +297,7 @@ class AdminController extends Controller
         ]);
 
         SiteSetting::set('anthropic_api_key', $data['anthropic_api_key'] ?? '');
+        SiteSetting::set('openai_api_key', $data['openai_api_key'] ?? '');
         SiteSetting::set('interview_model', $data['interview_model']);
         SiteSetting::set('generation_model', $data['generation_model']);
         SiteSetting::set('interview_price_input', $data['interview_price_input']);
@@ -343,26 +356,208 @@ class AdminController extends Controller
         return back();
     }
 
+    /** Voices offered by OpenAI's gpt-4o-mini-tts model. */
+    public const TTS_VOICES = [
+        ['id' => 'alloy', 'label' => 'Alloy', 'desc' => 'Neutral, balanced'],
+        ['id' => 'ash', 'label' => 'Ash', 'desc' => 'Warm, confident'],
+        ['id' => 'ballad', 'label' => 'Ballad', 'desc' => 'Smooth, expressive'],
+        ['id' => 'coral', 'label' => 'Coral', 'desc' => 'Bright, friendly'],
+        ['id' => 'echo', 'label' => 'Echo', 'desc' => 'Clear, articulate'],
+        ['id' => 'fable', 'label' => 'Fable', 'desc' => 'Warm, storytelling'],
+        ['id' => 'nova', 'label' => 'Nova', 'desc' => 'Warm, natural (default)'],
+        ['id' => 'onyx', 'label' => 'Onyx', 'desc' => 'Deep, authoritative'],
+        ['id' => 'sage', 'label' => 'Sage', 'desc' => 'Calm, measured'],
+        ['id' => 'shimmer', 'label' => 'Shimmer', 'desc' => 'Soft, gentle'],
+        ['id' => 'verse', 'label' => 'Verse', 'desc' => 'Versatile, conversational'],
+    ];
+
+    public function voiceSettingsIndex(): Response
+    {
+        $ttsVoice = SiteSetting::get('tts_voice', TextToSpeechService::DEFAULT_VOICE);
+
+        return Inertia::render('Admin/Settings/Voice', [
+            'tts_voice' => $ttsVoice,
+            'tts_instructions' => SiteSetting::get('tts_instructions', TextToSpeechService::DEFAULT_INSTRUCTIONS),
+            'demo_bot_voice' => SiteSetting::get('demo_bot_voice', $ttsVoice),
+            'demo_customer_voice' => SiteSetting::get('demo_customer_voice', TextToSpeechService::DEFAULT_CUSTOMER_VOICE),
+            'episode_voice' => SiteSetting::get('tts_episode_voice', $ttsVoice),
+            'voices' => self::TTS_VOICES,
+            'elevenlabs_api_key' => SiteSetting::get('elevenlabs_api_key', ''),
+            'elevenlabs_env_key_set' => (bool) env('ELEVENLABS_API_KEY'),
+            'tts_provider' => SiteSetting::get('tts_provider', 'openai'),
+            'elevenlabs_voice' => SiteSetting::get('elevenlabs_voice', ElevenLabsService::DEFAULT_VOICE),
+            'elevenlabs_demo_bot_voice' => SiteSetting::get('elevenlabs_demo_bot_voice', ElevenLabsService::DEFAULT_VOICE),
+            'elevenlabs_demo_customer_voice' => SiteSetting::get('elevenlabs_demo_customer_voice', ElevenLabsService::DEFAULT_CUSTOMER_VOICE),
+            'elevenlabs_episode_voice' => SiteSetting::get('elevenlabs_episode_voice', ElevenLabsService::DEFAULT_VOICE),
+            'elevenlabs_tier' => $this->elevenlabsTier(),
+        ]);
+    }
+
+    /** Cached so the settings page doesn't hit ElevenLabs on every load. Null if the key is missing/invalid. */
+    private function elevenlabsTier(): ?string
+    {
+        if (! config('services.elevenlabs.key')) {
+            return null;
+        }
+
+        return Cache::remember('elevenlabs.tier', now()->addHour(), function () {
+            $response = Http::withHeaders(['xi-api-key' => config('services.elevenlabs.key')])
+                ->get('https://api.elevenlabs.io/v1/user/subscription');
+
+            return $response->successful() ? $response->json('tier') : null;
+        });
+    }
+
+    public function updateVoiceSettings(Request $request): RedirectResponse
+    {
+        $voiceRule = ['required', 'string', Rule::in(array_column(self::TTS_VOICES, 'id'))];
+
+        $data = $request->validate([
+            'tts_voice' => $voiceRule,
+            'tts_instructions' => 'required|string|max:1000',
+            'demo_bot_voice' => $voiceRule,
+            'demo_customer_voice' => $voiceRule,
+            'episode_voice' => $voiceRule,
+            'elevenlabs_api_key' => 'nullable|string|max:255',
+            'tts_provider' => ['required', 'string', Rule::in(['openai', 'elevenlabs'])],
+            'elevenlabs_voice' => 'nullable|string|max:255',
+            'elevenlabs_demo_bot_voice' => 'nullable|string|max:255',
+            'elevenlabs_demo_customer_voice' => 'nullable|string|max:255',
+            'elevenlabs_episode_voice' => 'nullable|string|max:255',
+        ]);
+
+        SiteSetting::set('tts_voice', $data['tts_voice']);
+        SiteSetting::set('tts_instructions', $data['tts_instructions']);
+        SiteSetting::set('demo_bot_voice', $data['demo_bot_voice']);
+        SiteSetting::set('demo_customer_voice', $data['demo_customer_voice']);
+        SiteSetting::set('tts_episode_voice', $data['episode_voice']);
+        SiteSetting::set('elevenlabs_api_key', $data['elevenlabs_api_key'] ?? '');
+        SiteSetting::set('tts_provider', $data['tts_provider']);
+        SiteSetting::set('elevenlabs_voice', $data['elevenlabs_voice'] ?? '');
+        SiteSetting::set('elevenlabs_demo_bot_voice', $data['elevenlabs_demo_bot_voice'] ?? '');
+        SiteSetting::set('elevenlabs_demo_customer_voice', $data['elevenlabs_demo_customer_voice'] ?? '');
+        SiteSetting::set('elevenlabs_episode_voice', $data['elevenlabs_episode_voice'] ?? '');
+
+        return back();
+    }
+
+    public function featuresSettingsIndex(): Response
+    {
+        return Inertia::render('Admin/Settings/Features', [
+            'buy_credits_button_enabled' => (bool) SiteSetting::get('buy_credits_button_enabled', true),
+            'admin_notification_email' => SiteSetting::get('admin_notification_email', EpisodesReactivatedNotification::FALLBACK_EMAIL),
+        ]);
+    }
+
+    public function updateFeaturesSettings(Request $request): RedirectResponse
+    {
+        $data = $request->validate([
+            'buy_credits_button_enabled' => 'required|boolean',
+            'admin_notification_email' => 'required|email|max:255',
+        ]);
+
+        SiteSetting::set('buy_credits_button_enabled', $data['buy_credits_button_enabled'] ? '1' : '0');
+        SiteSetting::set('admin_notification_email', $data['admin_notification_email']);
+
+        return back();
+    }
+
+    public function previewVoice(Request $request): \Illuminate\Http\Response
+    {
+        $data = $request->validate([
+            'voice' => ['required', 'string', Rule::in(array_column(self::TTS_VOICES, 'id'))],
+            'instructions' => 'nullable|string|max:1000',
+        ]);
+
+        $audio = (new TextToSpeechService)->synthesize(
+            "Hi, I'm StoryBot. This is how I sound.",
+            $data['voice'],
+            $data['instructions'] ?? null,
+        );
+
+        return response($audio, 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
+    // -------------------------------------------------------------------------
+    // ElevenLabs voice test — evaluating voice quality only, not wired into the
+    // live TTS flow (TextToSpeechService). Remove once the client decides.
+    // -------------------------------------------------------------------------
+
+    public function elevenlabsVoices(): JsonResponse
+    {
+        // Fetched fresh on every load, uncached — this only runs when an admin opens
+        // the Voice settings page, and it needs to reflect voices added or cloned in
+        // the ElevenLabs account immediately, not up to an hour later.
+        //
+        // No voice_type filter — includes premade defaults plus anything the account
+        // has added from the Voice Library or cloned itself.
+        $response = Http::withHeaders(['xi-api-key' => config('services.elevenlabs.key')])
+            ->get('https://api.elevenlabs.io/v2/voices', ['page_size' => 100]);
+
+        abort_unless($response->successful(), 502, 'Could not load ElevenLabs voices.');
+
+        $voices = collect($response->json('voices'))
+            ->map(fn ($v) => ['id' => $v['voice_id'], 'name' => $v['name']])
+            ->values()
+            ->all();
+
+        return response()->json($voices);
+    }
+
+    public function previewElevenLabsVoice(Request $request): \Illuminate\Http\Response
+    {
+        $data = $request->validate([
+            'voice_id' => 'required|string',
+            'text' => 'required|string|max:1000',
+        ]);
+
+        $response = Http::withHeaders([
+            'xi-api-key' => config('services.elevenlabs.key'),
+            'Content-Type' => 'application/json',
+        ])->post("https://api.elevenlabs.io/v1/text-to-speech/{$data['voice_id']}", [
+            'text' => $data['text'],
+            'model_id' => 'eleven_multilingual_v2',
+        ]);
+
+        abort_unless($response->successful(), 502, 'ElevenLabs synthesis failed.');
+
+        return response($response->body(), 200, ['Content-Type' => 'audio/mpeg']);
+    }
+
     // -------------------------------------------------------------------------
     // User management
     // -------------------------------------------------------------------------
 
     public function storeUser(Request $request)
     {
+        $request->merge(['pack_id' => $request->input('pack_id') ?: null]);
+
         $validated = $request->validate([
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
             'tier' => 'required|in:super_admin,admin,user',
+            'is_active' => 'required|boolean',
+            'is_verified_partner' => 'required|boolean',
+            'pack_id' => 'nullable|exists:credit_packs,id',
         ]);
 
         $user = User::create([
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make(Str::random(32)),
-            'email_verified_at' => now(),
+            'is_active' => $validated['is_active'],
+            'is_verified_partner' => $validated['is_verified_partner'],
         ]);
 
+        // Not mass-assignable — an admin-created account is verified by the admin
+        // creating it, so it must not be left waiting on a confirmation email.
+        $user->markEmailAsVerified();
+
         $user->assignRole($validated['tier']);
+
+        if (! empty($validated['pack_id'])) {
+            CreditPack::findOrFail($validated['pack_id'])->grantTo($user);
+        }
 
         $token = Password::createToken($user);
         $user->notify(new AccountCreatedNotification($token));
@@ -399,44 +594,75 @@ class AdminController extends Controller
     public function assignPlan(Request $request, User $user)
     {
         $validated = $request->validate([
-            'plan_id' => 'required|exists:plans,id',
-            'billing_interval' => 'required|in:monthly,yearly',
+            'pack_id' => 'required|exists:credit_packs,id',
         ]);
 
-        $plan = Plan::findOrFail($validated['plan_id']);
-        $interval = $validated['billing_interval'];
+        $pack = CreditPack::findOrFail($validated['pack_id']);
 
-        $user->subscriptions()->whereIn('status', ['active', 'trialing'])->update(['status' => 'cancelled']);
+        $pack->grantTo($user);
 
-        $expiresAt = match (true) {
-            $plan->trial_months > 0 => now()->addMonths($plan->trial_months),
-            $plan->isFree() => null,
-            $interval === 'yearly' => now()->addYear(),
-            default => now()->addMonth(),
-        };
+        return back();
+    }
 
-        UserSubscription::create([
+    /** Gift a dynamic number of StoryBot credits to a user, recorded in the ledger. */
+    public function giftCredits(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'credits' => 'required|integer|min:1|max:100000',
+        ]);
+
+        UserCredit::create([
             'user_id' => $user->id,
-            'plan_id' => $plan->id,
-            'billing_interval' => $interval,
-            'status' => 'active',
-            'starts_at' => now(),
-            'expires_at' => $expiresAt,
-            'billing_period_ends_at' => now()->addMonth(),
-            'story_credits' => $plan->stories_per_month,
-            'refine_credits' => $plan->refine_monthly,
+            'credit_pack_id' => null,
+            'credits_granted' => $validated['credits'],
+            'amount_paid' => 0,
+            'source' => 'gift',
+            'purchased_at' => now(),
+        ]);
+
+        $user->increment('credits', $validated['credits']);
+
+        return back();
+    }
+
+    /**
+     * Set how many stories a trial member may still generate. Sales uses this to
+     * give a promising lead another run; setting it on a member who is not in
+     * trial puts them into one.
+     */
+    public function setTrialAllowance(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'trial_allowance' => 'required|integer|min:0|max:20',
+        ]);
+
+        $allowance = (int) $validated['trial_allowance'];
+
+        $user->update([
+            'trial_allowance' => $allowance,
+            'is_trial' => $allowance > 0,
         ]);
 
         return back();
     }
 
-    public function updateSubscription(Request $request, User $user)
+    /**
+     * Move an account between Trial Member and ordinary User. Turning a trial on
+     * seeds the standard allowance; turning it off ends the trial, which opens
+     * whatever their library was still withholding.
+     */
+    public function toggleTrial(Request $request, User $user)
     {
-        $validated = $request->validate([
-            'status' => 'required|in:active,trialing,cancelled,expired',
-        ]);
+        if ($user->is_trial) {
+            $user->endTrial();
 
-        $user->subscriptions()->latest()->first()?->update(['status' => $validated['status']]);
+            return back();
+        }
+
+        $user->update([
+            'is_trial' => true,
+            'trial_allowance' => max($user->trial_allowance, User::DEFAULT_TRIAL_ALLOWANCE),
+        ]);
 
         return back();
     }
@@ -461,23 +687,37 @@ class AdminController extends Controller
 
     public function userInvoices(User $user)
     {
-        if (! $user->stripe_id) {
-            return response()->json(['invoices' => [], 'has_stripe' => false]);
+        $purchases = $user->purchases()
+            ->with('creditPack:id,slug,label,type')
+            ->orderByDesc('purchased_at')
+            ->get()
+            ->map(fn ($p) => [
+                'id' => $p->id,
+                'pack_label' => $p->creditPack?->label ?? 'Bonus Pack',
+                'credits' => $p->credits_granted,
+                'date' => optional($p->purchased_at)->format('M j, Y'),
+                'source' => $p->source,
+                'amount' => $p->source === 'online'
+                    ? '$'.number_format((int) ($p->amount_paid ?? optional($p->creditPack)->price ?? 0) / 100, 0)
+                    : null,
+            ]);
+
+        return response()->json(['purchases' => $purchases]);
+    }
+
+    public function togglePartner(User $user)
+    {
+        if ($user->is_verified_partner) {
+            $user->update(['is_verified_partner' => false]);
+
+            return back();
         }
 
-        try {
-            $invoices = $user->invoices()->map(fn ($inv) => [
-                'id' => $inv->id,
-                'number' => $inv->number ?? $inv->id,
-                'date' => $inv->date()->format('M j, Y'),
-                'total' => $inv->total(),
-                'status' => $inv->status,
-            ])->values();
-        } catch (\Exception) {
-            return response()->json(['invoices' => [], 'has_stripe' => true]);
-        }
+        // Partner status ends the trial with it, so the account stops reading as
+        // both at once. Their library stays shut until they pay to open it.
+        $user->becomePartner();
 
-        return response()->json(['invoices' => $invoices, 'has_stripe' => true]);
+        return back();
     }
 
     public function impersonate(User $user)
@@ -503,67 +743,78 @@ class AdminController extends Controller
     }
 
     // -------------------------------------------------------------------------
-    // Plan management
+    // Credit pack management
     // -------------------------------------------------------------------------
 
-    public function storePlan(Request $request)
+    public function storePack(Request $request)
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
-            'episode_limit' => 'required|integer|min:1',
-            'stories_per_month' => 'required|integer|min:0',
-            'refine_monthly' => 'required|integer|min:0',
-            'price_monthly' => 'required|integer|min:0',
-            'price_yearly' => 'required|integer|min:0',
-            'trial_months' => 'required|integer|min:0',
+            'type' => 'required|in:partner,storybot,addon',
+            'credits' => 'required|integer|min:1',
+            'max_episodes' => 'required|integer|in:12,18,24',
+            'price_dollars' => 'required|numeric|min:0',
+            'stripe_price_id' => 'nullable|string|max:255',
         ]);
 
-        $slug = Str::slug($validated['label']);
-        $suffix = 2;
+        $slug = Str::slug($validated['type'].'-'.$validated['label']);
         $base = $slug;
-        while (Plan::where('slug', $slug)->exists()) {
+        $suffix = 2;
+        while (CreditPack::where('slug', $slug)->exists()) {
             $slug = $base.'-'.$suffix++;
         }
 
-        Plan::create(array_merge($validated, ['slug' => $slug, 'is_active' => true]));
+        CreditPack::create([
+            'slug' => $slug,
+            'label' => $validated['label'],
+            'type' => $validated['type'],
+            'credits' => $validated['credits'],
+            'max_episodes' => $validated['max_episodes'],
+            'price' => (int) round($validated['price_dollars'] * 100),
+            'stripe_price_id' => $validated['stripe_price_id'] ?: null,
+            'is_active' => true,
+        ]);
 
         return back();
     }
 
-    public function updatePlan(Request $request, Plan $plan)
+    public function updatePack(Request $request, CreditPack $pack)
     {
         $validated = $request->validate([
             'label' => 'required|string|max:100',
-            'episode_limit' => 'required|integer|min:1',
-            'stories_per_month' => 'required|integer|min:0',
-            'refine_monthly' => 'required|integer|min:0',
-            'price_monthly' => 'required|integer|min:0',
-            'price_yearly' => 'required|integer|min:0',
-            'trial_months' => 'required|integer|min:0',
+            'slug' => ['required', 'string', 'max:100', 'regex:/^[a-z0-9]+(-[a-z0-9]+)*$/', Rule::unique('credit_packs', 'slug')->ignore($pack->id)],
+            'type' => 'required|in:partner,storybot,addon',
+            'credits' => 'required|integer|min:1',
+            'max_episodes' => 'required|integer|in:12,18,24',
+            'price_dollars' => 'required|numeric|min:0',
+            'stripe_price_id' => 'nullable|string|max:255',
             'is_active' => 'required|boolean',
-            'stripe_price_monthly' => 'nullable|string|max:255',
-            'stripe_price_yearly' => 'nullable|string|max:255',
+        ], [
+            'slug.regex' => 'Slug may only contain lowercase letters, numbers, and hyphens.',
         ]);
 
-        $plan->update($validated);
+        $pack->update([
+            'label' => $validated['label'],
+            'slug' => $validated['slug'],
+            'type' => $validated['type'],
+            'credits' => $validated['credits'],
+            'max_episodes' => $validated['max_episodes'],
+            'price' => (int) round($validated['price_dollars'] * 100),
+            'stripe_price_id' => $validated['stripe_price_id'] ?: null,
+            'is_active' => $validated['is_active'],
+        ]);
 
         return back();
     }
 
-    public function destroyPlan(Plan $plan)
+    public function destroyPack(CreditPack $pack)
     {
-        $active = $plan->subscriptions()->whereIn('status', ['active', 'trialing'])->count();
-
-        if ($active > 0) {
-            return back()->withErrors(['plan' => "Cannot delete \"{$plan->label}\" — it has {$active} active subscriber(s)."]);
+        if ($pack->userCredits()->exists()) {
+            return back()->withErrors(['pack' => "Cannot delete \"{$pack->label}\" — it has purchase history. Deactivate it instead."]);
         }
 
-        if ($plan->subscriptions()->exists()) {
-            return back()->withErrors(['plan' => "Cannot delete \"{$plan->label}\" — it has historical subscriptions. Deactivate it instead."]);
-        }
+        $pack->delete();
 
-        $plan->delete();
-
-        return to_route('admin.plans.index');
+        return to_route('admin.packs.index');
     }
 }

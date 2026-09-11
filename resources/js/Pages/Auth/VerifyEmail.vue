@@ -2,6 +2,7 @@
 import { computed } from 'vue';
 import { Head, Link, useForm, usePage } from '@inertiajs/vue3';
 import { Mail, Send } from '@lucide/vue';
+import Footer from '@/Components/Footer.vue';
 
 const props = defineProps({ status: String });
 
@@ -15,7 +16,8 @@ const email = usePage().props.auth.user?.email;
 <template>
     <Head title="Verify your email" />
 
-    <div class="min-h-screen flex flex-col items-center justify-center px-4" style="background-color: #FAFAF8;">
+    <div class="min-h-screen flex flex-col" style="background-color: #FAFAF8;">
+      <div class="flex-1 flex flex-col items-center justify-center px-4 py-10">
 
         <!-- Logo -->
         <Link href="/" class="flex items-center text-xl font-bold tracking-tight mb-12">
@@ -35,9 +37,9 @@ const email = usePage().props.auth.user?.email;
                 <template v-if="!sent">
                     <h1 class="text-xl font-black mb-2" style="color: #1A1A1A;">Verify your email</h1>
                     <p class="text-sm leading-relaxed mb-6" style="color: #555555;">
-                        To continue, we need to verify
+                        We sent a verification link to
                         <span class="font-semibold" style="color: #1A1A1A;">{{ email }}</span>.
-                        Click the button below and we'll send you a verification link.
+                        Click the link in the email to activate your account. If you don't receive it after a minute, resend it below.
                     </p>
 
                     <form @submit.prevent="submit">
@@ -47,7 +49,7 @@ const email = usePage().props.auth.user?.email;
                             class="w-full py-2.5 rounded-lg font-bold text-sm transition cursor-pointer disabled:opacity-60"
                             style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                         >
-                            {{ form.processing ? 'Sending…' : 'Send verification email' }}
+                            {{ form.processing ? 'Sending…' : 'Resend verification' }}
                         </button>
                     </form>
                 </template>
@@ -90,5 +92,7 @@ const email = usePage().props.auth.user?.email;
 
             </div>
         </div>
+      </div>
+      <Footer />
     </div>
 </template>

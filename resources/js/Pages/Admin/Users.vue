@@ -2,9 +2,9 @@
 import { ref, computed, watch } from 'vue';
 import { Head, Link, useForm, router } from '@inertiajs/vue3';
 import {
-    Users, BookOpen, Activity, TrendingUp,
+    Users, BookOpen, Activity, Package, Coins,
     Search, UserPlus, CircleUser, KeyRound, Trash2, Mail,
-    ChevronDown, BookMarked, Coins, Layers, Check, Shield, LogIn,
+    ChevronDown, Check, LogIn, Gift, Lock,
     Receipt, ExternalLink,
 } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
@@ -12,6 +12,7 @@ import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
 import { Label } from '@/Components/ui/label';
 import { Badge } from '@/Components/ui/badge';
+import { Switch } from '@/Components/ui/switch';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/Components/ui/select';
@@ -23,9 +24,9 @@ import {
 } from '@/Components/ui/tooltip';
 
 const props = defineProps({
-    users: Array,
-    plans: Array,
-    stats: Object,
+    users:       Array,
+    creditPacks: Array,
+    stats:       Object,
 });
 
 // ── State ─────────────────────────────────────────────────────────────────────
@@ -51,7 +52,7 @@ const fetchInvoices = async (userId) => {
         const data = await res.json();
         invoicesCache.value[userId] = data;
     } catch {
-        invoicesCache.value[userId] = { invoices: [], has_stripe: false };
+        invoicesCache.value[userId] = { purchases: [] };
     } finally {
         invoicesLoading.value[userId] = false;
     }
@@ -85,29 +86,26 @@ const filtered = computed(() =>
 );
 
 const kpis = computed(() => [
-    { label: 'Total Users', value: props.stats.users,                                                     icon: Users,      color: '#F5A000', bg: 'bg-amber-50',   text: 'text-amber-600',  tooltip: 'Total registered accounts'                          },
-    { label: 'Active',      value: props.users.filter(u => u.subscription?.status === 'active').length,   icon: Activity,   color: '#22C55E', bg: 'bg-green-50',   text: 'text-green-600',  tooltip: 'Users with an active paid subscription'              },
-    { label: 'Trialing',    value: props.users.filter(u => u.subscription?.status === 'trialing').length, icon: TrendingUp, color: '#F59E0B', bg: 'bg-yellow-50',  text: 'text-yellow-600', tooltip: 'Users currently in a free trial'                     },
-    { label: 'Stories',     value: props.stats.stories,                                                   icon: BookOpen,   color: '#6366F1', bg: 'bg-indigo-50',  text: 'text-indigo-600', tooltip: 'Total stories generated across all users'            },
+    { label: 'Verified Business Partners',     value: props.users.filter(u => u.is_verified_partner).length,  icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Verified business partners'                       },
+    { label: 'Non-Verified Business Partners', value: props.users.filter(u => !u.is_verified_partner).length, icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are not verified partners'           },
+    { label: 'Total Sold Packs',   value: props.stats.sold_packs,                                 icon: Package,  color: '#6366F1', bg: 'bg-indigo-50', text: 'text-indigo-600', tooltip: 'Packs purchased across all users'                 },
+    { label: 'Stories',            value: props.stats.stories,                                    icon: BookOpen, color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-600', tooltip: 'Total stories generated across the platform'      },
 ]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const statusMeta = (status) => ({
-    active:    { class: 'bg-green-100 text-green-700 border-green-200',    label: 'Active'    },
-    trialing:  { class: 'bg-yellow-100 text-yellow-700 border-yellow-200', label: 'Trialing'  },
-    cancelled: { class: 'bg-red-100 text-red-700 border-red-200',          label: 'Cancelled' },
-    expired:   { class: 'bg-gray-100 text-gray-500 border-gray-200',       label: 'Expired'   },
-})[status] ?? { class: 'bg-gray-100 text-gray-500 border-gray-200', label: 'No Plan' };
-
 const tierMeta = (tier) => ({
-    super_admin: { label: 'Super Admin', class: 'bg-red-100 text-red-700 border-red-200'       },
-    admin:       { label: 'Admin',       class: 'bg-purple-100 text-purple-700 border-purple-200' },
-    user:        { label: 'User',        class: 'bg-gray-100 text-gray-600 border-gray-200'       },
+    super_admin: { label: 'Super Admin', class: 'bg-red-100 text-red-700 border-red-200'          },
+    admin:       { label: 'Admin',       class: 'bg-purple-100 text-purple-700 border-purple-200'  },
+    user:        { label: 'User',        class: 'bg-gray-100 text-gray-600 border-gray-200'         },
 })[tier] ?? { label: tier, class: 'bg-gray-100 text-gray-500 border-gray-200' };
 
 const toggleStatus = (user) => {
     router.post(route('admin.users.toggle-status', user.id), {}, { preserveScroll: true });
+};
+
+const togglePartner = (user) => {
+    router.post(route('admin.users.toggle-partner', user.id), {}, { preserveScroll: true });
 };
 
 const initials    = (name) => name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
@@ -116,47 +114,10 @@ const avatarColor = (name) => {
     return colors[name.charCodeAt(0) % colors.length];
 };
 
-const planPrice = (planId, interval) => {
-    const plan = props.plans.find(p => p.id === planId);
-    if (!plan) return null;
-    if (interval === 'yearly') return plan.price_yearly  > 0 ? `$${plan.price_yearly}/yr`  : 'Free';
-    return plan.price_monthly > 0 ? `$${plan.price_monthly}/mo` : 'Free';
-};
-
-const storyBarWidth = (sub) => {
-    if (!sub.stories_per_month) return '0%';
-    const used = sub.stories_per_month - sub.story_credits;
-    return (Math.min(used / sub.stories_per_month, 1) * 100) + '%';
-};
-
-const storyBarColor = (sub) => {
-    if (sub.story_credits === 0) return '#EF4444';
-    if (sub.story_credits * 2 <= sub.stories_per_month) return '#F59E0B';
-    return 'url(#gold)';
-};
-
 // ── Per-user forms ────────────────────────────────────────────────────────────
 
-const planForms   = ref({});
-const statusForms = ref({});
-const tierForms   = ref({});
-
-const getPlanForm = (user) => {
-    if (!planForms.value[user.id]) {
-        planForms.value[user.id] = useForm({
-            plan_id:          user.subscription?.plan_id ?? '',
-            billing_interval: user.subscription?.billing_interval ?? 'monthly',
-        });
-    }
-    return planForms.value[user.id];
-};
-
-const getStatusForm = (user) => {
-    if (!statusForms.value[user.id]) {
-        statusForms.value[user.id] = useForm({ status: user.subscription?.status ?? 'active' });
-    }
-    return statusForms.value[user.id];
-};
+const tierForms  = ref({});
+const grantForms = ref({});
 
 const getTierForm = (user) => {
     if (!tierForms.value[user.id]) {
@@ -165,16 +126,86 @@ const getTierForm = (user) => {
     return tierForms.value[user.id];
 };
 
-const saveAll = (user) => {
-    const hasPlan = !!getPlanForm(user).plan_id;
-    let remaining = hasPlan ? 3 : 2;
-    const done = () => { if (--remaining === 0) flash(user.id); };
-
-    getStatusForm(user).patch(route('admin.users.subscription', user.id), { onSuccess: done, onError: done });
-    getTierForm(user).patch(route('admin.users.update', user.id), { onSuccess: done, onError: done });
-    if (hasPlan) {
-        getPlanForm(user).post(route('admin.users.assign-plan', user.id), { onSuccess: done, onError: done });
+const getGrantForm = (user) => {
+    if (!grantForms.value[user.id]) {
+        grantForms.value[user.id] = useForm({ pack_id: '' });
     }
+    return grantForms.value[user.id];
+};
+
+const giftForms = ref({});
+const getGiftForm = (user) => {
+    if (!giftForms.value[user.id]) {
+        giftForms.value[user.id] = useForm({ credits: null });
+    }
+    return giftForms.value[user.id];
+};
+
+const giftCredits = (user) => {
+    const form = getGiftForm(user);
+    if (!form.credits || form.credits < 1) return;
+    form.post(route('admin.users.gift-credits', user.id), {
+        preserveScroll: true,
+        onSuccess: () => { form.reset(); flash(user.id); },
+    });
+};
+
+const trialForms = ref({});
+const getTrialForm = (user) => {
+    if (!trialForms.value[user.id]) {
+        trialForms.value[user.id] = useForm({ trial_allowance: user.trial_allowance ?? 0 });
+    }
+    return trialForms.value[user.id];
+};
+
+// A cached form keeps whatever allowance it was built with, so a reload that
+// changes the allowance elsewhere (the provisioning API, another admin) would
+// leave this input showing a stale number next to a fresh badge.
+watch(() => props.users, (users) => {
+    for (const user of users) {
+        const form = trialForms.value[user.id];
+        if (!form || form.processing) continue;
+
+        const incoming = user.trial_allowance ?? 0;
+        if (form.trial_allowance !== incoming) {
+            form.defaults({ trial_allowance: incoming });
+            form.reset();
+        }
+    }
+}, { deep: true });
+
+const trialToggles = ref({});
+const toggleTrial = (user) => {
+    if (trialToggles.value[user.id]) return;
+    trialToggles.value[user.id] = true;
+    router.post(route('admin.users.toggle-trial', user.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => flash(user.id),
+        onFinish: () => { trialToggles.value[user.id] = false; },
+    });
+};
+
+const saveTrialAllowance = (user) => {
+    getTrialForm(user).post(route('admin.users.trial-allowance', user.id), {
+        preserveScroll: true,
+        onSuccess: () => flash(user.id),
+    });
+};
+
+const saveRole = (user) => {
+    getTierForm(user).patch(route('admin.users.update', user.id), {
+        preserveScroll: true,
+        onSuccess: () => flash(user.id),
+    });
+};
+
+const grantPack = (user) => {
+    const form = getGrantForm(user);
+    if (!form.pack_id) return;
+    form.post(route('admin.users.assign-plan', user.id), {
+        preserveScroll: true,
+        onSuccess: () => { form.reset(); flash(user.id); },
+    });
 };
 
 const toggleExpand = (id) => {
@@ -189,7 +220,7 @@ const userModalUser     = ref(null);
 const passwordModalOpen = ref(false);
 const passwordModalUser = ref(null);
 
-const userForm     = useForm({ name: '', email: '', tier: 'user' });
+const userForm     = useForm({ name: '', email: '', tier: 'user', is_active: true, is_verified_partner: false, pack_id: '' });
 const passwordForm = useForm({});
 
 const openCreate = () => {
@@ -247,8 +278,8 @@ const impersonate = (userId) => {
         <!-- Page header -->
         <div class="flex items-start justify-between mb-6">
             <div>
-                <h1 class="text-lg font-black text-[#1A1A1A]">Users & Plans</h1>
-                <p class="text-xs mt-0.5 text-muted-foreground">Manage accounts, roles, and subscriptions.</p>
+                <h1 class="text-lg font-black text-[#1A1A1A]">Users & Credits</h1>
+                <p class="text-xs mt-0.5 text-muted-foreground">Manage accounts, roles, and StoryBot credits.</p>
             </div>
             <Button
                 class="shrink-0 gap-2 font-semibold bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 transition-all duration-300"
@@ -312,15 +343,29 @@ const impersonate = (userId) => {
                     <div class="flex-1 min-w-0">
                         <div class="flex items-center gap-2 flex-wrap">
                             <span class="font-bold text-sm text-[#1A1A1A]">{{ user.name }}</span>
-                            <Badge variant="outline" :class="statusMeta(user.subscription?.status).class" class="text-[10px] px-1.5 py-0">
-                                {{ statusMeta(user.subscription?.status).label }}
-                            </Badge>
                             <Badge variant="outline" :class="tierMeta(user.tier).class" class="text-[10px] px-1.5 py-0">
                                 {{ tierMeta(user.tier).label }}
                             </Badge>
-                            <Badge v-if="user.subscription" variant="outline" class="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0">
-                                {{ user.subscription.plan_label }}
-                                <span v-if="user.subscription.billing_interval === 'yearly'" class="opacity-60 ml-0.5">· yr</span>
+                            <Badge
+                                v-if="user.is_verified_partner"
+                                variant="outline"
+                                class="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0"
+                            >
+                                Verified Partner
+                            </Badge>
+                            <Badge
+                                v-if="user.is_trial"
+                                variant="outline"
+                                class="bg-purple-50 text-purple-700 border-purple-200 text-[10px] px-1.5 py-0"
+                            >
+                                Trial · {{ user.trial_allowance }} left
+                            </Badge>
+                            <Badge
+                                v-if="user.current_pack"
+                                variant="outline"
+                                class="bg-blue-50 text-blue-700 border-blue-200 text-[10px] px-1.5 py-0"
+                            >
+                                Current Pack: {{ user.current_pack }}
                             </Badge>
                         </div>
                         <div class="flex items-center gap-1 mt-1">
@@ -332,26 +377,15 @@ const impersonate = (userId) => {
 
                     <!-- Usage chips + actions -->
                     <div class="shrink-0 flex items-center gap-1.5" @click.stop>
-                        <template v-if="user.subscription">
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <div class="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F8F8F8] text-xs font-semibold text-[#555555] cursor-default">
-                                        <BookOpen class="w-3 h-3 shrink-0" />
-                                        <span>{{ user.subscription.story_credits }}/{{ user.subscription.stories_per_month }}</span>
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>Story credits remaining this period</TooltipContent>
-                            </Tooltip>
-                            <Tooltip>
-                                <TooltipTrigger as-child>
-                                    <div class="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F8F8F8] text-xs font-semibold text-[#555555] cursor-default">
-                                        <Coins class="w-3 h-3 shrink-0" />
-                                        <span>{{ user.subscription.refine_credits }}</span>
-                                    </div>
-                                </TooltipTrigger>
-                                <TooltipContent>Refine credits remaining</TooltipContent>
-                            </Tooltip>
-                        </template>
+                        <Tooltip v-if="user.tier === 'user'">
+                            <TooltipTrigger as-child>
+                                <div class="hidden lg:flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F8F8F8] text-xs font-semibold text-[#555555] cursor-default">
+                                    <Coins class="w-3 h-3 shrink-0" />
+                                    <span>{{ user.credits }}</span>
+                                </div>
+                            </TooltipTrigger>
+                            <TooltipContent>Credits remaining</TooltipContent>
+                        </Tooltip>
 
                         <Tooltip>
                             <TooltipTrigger as-child>
@@ -425,70 +459,9 @@ const impersonate = (userId) => {
                     v-show="expandedUser === user.id"
                     class="border-t border-[#F0F0F0] bg-[#FAFAF8]"
                 >
-                    <!-- Unified form -->
+                    <!-- Role + account + grant -->
                     <div class="px-5 py-5 space-y-4">
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                            <!-- Plan -->
-                            <div class="space-y-1.5">
-                                <Label class="text-xs text-[#555555]">Plan</Label>
-                                <Select
-                                    :model-value="String(getPlanForm(user).plan_id)"
-                                    @update:model-value="val => getPlanForm(user).plan_id = val"
-                                >
-                                    <SelectTrigger class="w-full bg-white">
-                                        <SelectValue placeholder="— Select —" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem
-                                            v-for="plan in plans.filter(p => p.is_active)"
-                                            :key="plan.id"
-                                            :value="String(plan.id)"
-                                        >{{ plan.label }}</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
-                            <!-- Billing interval -->
-                            <div class="space-y-1.5">
-                                <Label class="text-xs text-[#555555]">
-                                    Billing
-                                    <span v-if="getPlanForm(user).plan_id" class="ml-1 font-bold text-[#F5A000]">
-                                        · {{ planPrice(Number(getPlanForm(user).plan_id), getPlanForm(user).billing_interval) }}
-                                    </span>
-                                </Label>
-                                <div class="flex rounded-lg p-0.5 h-9" style="background: #EBEBEB;">
-                                    <button
-                                        class="flex-1 rounded-md text-xs font-semibold transition-all cursor-pointer"
-                                        :class="getPlanForm(user).billing_interval === 'monthly' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#888888]'"
-                                        @click="getPlanForm(user).billing_interval = 'monthly'"
-                                    >Monthly</button>
-                                    <button
-                                        class="flex-1 rounded-md text-xs font-semibold transition-all cursor-pointer"
-                                        :class="getPlanForm(user).billing_interval === 'yearly' ? 'bg-white text-[#1A1A1A] shadow-sm' : 'text-[#888888]'"
-                                        @click="getPlanForm(user).billing_interval = 'yearly'"
-                                    >Yearly</button>
-                                </div>
-                            </div>
-
-                            <!-- Status -->
-                            <div class="space-y-1.5">
-                                <Label class="text-xs text-[#555555]">Subscription Status</Label>
-                                <Select
-                                    :model-value="getStatusForm(user).status"
-                                    @update:model-value="val => getStatusForm(user).status = val"
-                                >
-                                    <SelectTrigger class="w-full bg-white">
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="active">Active</SelectItem>
-                                        <SelectItem value="trialing">Trialing</SelectItem>
-                                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                                        <SelectItem value="expired">Expired</SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            </div>
-
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             <!-- Role -->
                             <div class="space-y-1.5">
                                 <Label class="text-xs text-[#555555]">Role</Label>
@@ -506,129 +479,176 @@ const impersonate = (userId) => {
                                     </SelectContent>
                                 </Select>
                             </div>
+
+                            <!-- Account active -->
+                            <div class="space-y-1.5">
+                                <Label class="text-xs text-[#555555]">Account</Label>
+                                <button
+                                    type="button"
+                                    class="w-full h-9 inline-flex items-center justify-center gap-2 text-xs font-semibold px-3 rounded-lg border transition-all cursor-pointer"
+                                    :class="user.is_active
+                                        ? 'text-green-700 border-green-200 bg-green-50 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
+                                        : 'text-red-600 border-red-200 bg-red-50 hover:bg-green-50 hover:text-green-700 hover:border-green-200'"
+                                    @click.stop="toggleStatus(user)"
+                                >
+                                    <span class="w-2 h-2 rounded-full" :class="user.is_active ? 'bg-green-500' : 'bg-red-400'" />
+                                    {{ user.is_active ? 'Active' : 'Inactive' }}
+                                </button>
+                            </div>
+
+                            <!-- Save role -->
+                            <div class="space-y-1.5 flex flex-col justify-end">
+                                <Button
+                                    :disabled="getTierForm(user).processing"
+                                    class="gap-1.5 font-semibold bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 transition-all duration-300 disabled:opacity-40"
+                                    @click="saveRole(user)"
+                                >
+                                    <Check class="w-3.5 h-3.5" /> Save Role
+                                </Button>
+                            </div>
                         </div>
 
-                        <!-- Save + Status toggle -->
-                        <div class="flex items-center justify-between gap-3 flex-wrap">
+                        <!-- Grant credits + partner toggle -->
+                        <div class="flex flex-wrap items-end gap-3 pt-1">
+                            <div class="space-y-1.5 flex-1 min-w-[16rem] max-w-xs">
+                                <Label class="text-xs text-[#555555]">Grant Credits (pick a pack)</Label>
+                                <Select
+                                    :model-value="getGrantForm(user).pack_id"
+                                    @update:model-value="val => getGrantForm(user).pack_id = val"
+                                >
+                                    <SelectTrigger class="w-full bg-white">
+                                        <SelectValue placeholder="— Select pack —" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem
+                                            v-for="pack in creditPacks"
+                                            :key="pack.id"
+                                            :value="String(pack.id)"
+                                        >{{ pack.label }} — {{ pack.credits }} credits ({{ pack.type }})</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button
+                                variant="outline"
+                                :disabled="!getGrantForm(user).pack_id || getGrantForm(user).processing"
+                                class="shrink-0 gap-1.5 font-semibold border-[#F5A000] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
+                                @click="grantPack(user)"
+                            >
+                                <Gift class="w-3.5 h-3.5" /> Grant
+                            </Button>
+
+                            <div class="space-y-1.5 w-[9rem]">
+                                <Label class="text-xs text-[#555555]">Gift Credits (any amount)</Label>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    step="1"
+                                    placeholder="e.g. 25"
+                                    :value="getGiftForm(user).credits"
+                                    @input="e => getGiftForm(user).credits = e.target.value ? parseInt(e.target.value, 10) : null"
+                                    class="h-9 w-full px-3 rounded-lg text-sm outline-none bg-white"
+                                    style="border: 1px solid #DDDDDD; color: #1A1A1A;"
+                                />
+                            </div>
+                            <Button
+                                variant="outline"
+                                :disabled="!getGiftForm(user).credits || getGiftForm(user).processing"
+                                class="shrink-0 gap-1.5 font-semibold border-[#F5A000] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
+                                @click="giftCredits(user)"
+                            >
+                                <Gift class="w-3.5 h-3.5" /> Gift
+                            </Button>
+
                             <button
                                 type="button"
-                                class="inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all cursor-pointer"
-                                :class="user.is_active
-                                    ? 'text-green-700 border-green-200 bg-green-50 hover:bg-red-50 hover:text-red-600 hover:border-red-200'
-                                    : 'text-red-600 border-red-200 bg-red-50 hover:bg-green-50 hover:text-green-700 hover:border-green-200'"
-                                @click.stop="toggleStatus(user)"
+                                class="h-9 inline-flex items-center gap-2 text-xs font-semibold px-3 rounded-lg border transition-all cursor-pointer"
+                                :class="user.is_verified_partner
+                                    ? 'text-amber-700 border-amber-200 bg-amber-50 hover:bg-gray-50'
+                                    : 'text-[#555555] border-[#DDDDDD] bg-white hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'"
+                                @click.stop="togglePartner(user)"
                             >
-                                <span class="w-2 h-2 rounded-full" :class="user.is_active ? 'bg-green-500' : 'bg-red-400'" />
-                                {{ user.is_active ? 'Active' : 'Inactive' }}
+                                <Package class="w-3.5 h-3.5" />
+                                {{ user.is_verified_partner ? 'Verified Partner ✓' : 'Mark as Partner' }}
                             </button>
-                            <Button
-                                :disabled="getPlanForm(user).processing || getStatusForm(user).processing || getTierForm(user).processing"
-                                class="gap-1.5 font-semibold bg-gradient-to-r hover:bg-gradient-to-br from-[#FFC837] to-[#F5A000] text-[#1A1A1A] border-0 transition-all duration-300 disabled:opacity-40"
-                                @click="saveAll(user)"
+
+                            <button
+                                type="button"
+                                :disabled="trialToggles[user.id]"
+                                class="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-semibold border transition-colors cursor-pointer disabled:opacity-40"
+                                :class="user.is_trial
+                                    ? 'text-amber-700 border-amber-200 bg-amber-50 hover:bg-amber-100'
+                                    : 'text-[#555555] border-[#DDDDDD] bg-white hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'"
+                                @click.stop="toggleTrial(user)"
                             >
-                                <Check class="w-3.5 h-3.5" /> Save Changes
+                                <Lock class="w-3.5 h-3.5" />
+                                {{ user.is_trial ? 'Trial User ✓' : 'Make Trial User' }}
+                            </button>
+
+                            <div class="flex-1 min-w-[130px]">
+                                <label class="block text-[10px] font-semibold text-[#555555] mb-1">Trial allowance</label>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="1"
+                                    :value="getTrialForm(user).trial_allowance"
+                                    @input="e => getTrialForm(user).trial_allowance = e.target.value === '' ? 0 : parseInt(e.target.value, 10)"
+                                    class="h-9 w-full px-3 rounded-lg text-sm outline-none bg-white"
+                                    style="border: 1px solid #DDDDDD; color: #1A1A1A;"
+                                />
+                            </div>
+                            <Button
+                                variant="outline"
+                                :disabled="getTrialForm(user).processing"
+                                class="shrink-0 gap-1.5 font-semibold border-[#DDDDDD] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
+                                @click="saveTrialAllowance(user)"
+                            >
+                                <Lock class="w-3.5 h-3.5" /> Set
                             </Button>
+                        </div>
+                        <p class="text-[10px] text-muted-foreground">Granting adds the pack's credits to the user's wallet (free). Gifting adds any number of credits directly. Partner status unlocks discounted partner pricing in the shop. Trial allowance is how many stories a trial member may still generate — setting it above zero puts the account into trial, and buying any main pack ends the trial and unlocks their library.</p>
+                    </div>
+
+                    <!-- Credits / usage section -->
+                    <div class="border-t border-[#EBEBEB] px-5 py-4 space-y-3">
+                        <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Wallet</p>
+
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <!-- Credits -->
+                            <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+                                    <Coins class="w-4 h-4 text-[#F5A000]" />
+                                </div>
+                                <div>
+                                    <p class="text-xs text-[#555555] font-semibold">StoryBot Credits</p>
+                                    <p class="text-lg font-black text-[#1A1A1A] leading-tight">
+                                        <span v-if="user.tier !== 'user'" class="text-purple-600">∞</span>
+                                        <span v-else>{{ user.credits }}</span>
+                                    </p>
+                                    <p v-if="user.tier === 'user'" class="text-[10px] text-muted-foreground">1 credit = 1 episode (generate or refine)</p>
+                                </div>
+                            </div>
+
+                            <!-- Total stories generated -->
+                            <Link
+                                :href="route('admin.stories.index', { user_id: user.id })"
+                                class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3 transition hover:ring-[#F5A000] hover:bg-[#FFFBF0]"
+                            >
+                                <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
+                                    <BookOpen class="w-4 h-4 text-emerald-500" />
+                                </div>
+                                <div>
+                                    <p class="text-xs text-[#555555] font-semibold">Stories Made</p>
+                                    <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.stories_total }}</p>
+                                    <p class="text-[10px] text-muted-foreground">all time</p>
+                                </div>
+                            </Link>
                         </div>
                     </div>
 
-                    <!-- Usage section -->
-                    <template v-if="user.subscription">
-                        <div class="border-t border-[#EBEBEB] px-5 py-4 space-y-3">
-                            <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Usage This Period</p>
-
-                            <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
-                                <!-- Stories progress -->
-                                <div class="col-span-1 bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB]">
-                                    <div class="flex items-center justify-between mb-2">
-                                        <div class="flex items-center gap-1.5">
-                                            <BookMarked class="w-3.5 h-3.5 text-muted-foreground" />
-                                            <span class="text-xs font-semibold text-[#555555]">Stories</span>
-                                        </div>
-                                        <span v-if="user.tier === 'admin' || user.tier === 'super_admin'" class="text-xs font-bold text-purple-600">Unlimited</span>
-                                        <span v-else class="text-xs font-bold" :class="user.subscription.story_credits === 0 ? 'text-red-500' : 'text-[#F5A000]'">
-                                            {{ user.subscription.story_credits }} left
-                                        </span>
-                                    </div>
-                                    <template v-if="user.tier !== 'admin' && user.tier !== 'super_admin'">
-                                        <div class="h-1.5 rounded-full overflow-hidden bg-gray-100">
-                                            <div
-                                                class="h-full rounded-full transition-all duration-300"
-                                                :style="{
-                                                    width: storyBarWidth(user.subscription),
-                                                    background: user.subscription.story_credits === 0
-                                                        ? '#EF4444'
-                                                        : 'linear-gradient(to right, #FFC837, #F5A000)',
-                                                }"
-                                            />
-                                        </div>
-                                        <p class="text-[10px] text-muted-foreground mt-1.5">
-                                            {{ user.subscription.stories_per_month - user.subscription.story_credits }} of {{ user.subscription.stories_per_month }} used
-                                        </p>
-                                    </template>
-                                </div>
-
-                                <!-- Refine credits -->
-                                <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
-                                        <Coins class="w-4 h-4 text-indigo-500" />
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-[#555555] font-semibold">Refine Credits</p>
-                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">
-                                            <span v-if="user.tier === 'admin' || user.tier === 'super_admin'" class="text-purple-600">∞</span>
-                                            <span v-else>{{ user.subscription.refine_credits }}</span>
-                                        </p>
-                                        <p class="text-[10px] text-muted-foreground">+{{ user.subscription.refine_monthly }}/mo</p>
-                                    </div>
-                                </div>
-
-                                <!-- Episode limit -->
-                                <div class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3">
-                                    <div class="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
-                                        <Layers class="w-4 h-4 text-amber-500" />
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-[#555555] font-semibold">Episodes / Story</p>
-                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">
-                                            <span v-if="user.tier === 'admin' || user.tier === 'super_admin'" class="text-purple-600">∞</span>
-                                            <span v-else>{{ user.subscription.effective_episode_limit }}</span>
-                                        </p>
-                                        <p class="text-[10px] text-muted-foreground">max per story</p>
-                                    </div>
-                                </div>
-
-                                <!-- Total stories generated -->
-                                <Link
-                                    :href="route('admin.stories.index', { user_id: user.id })"
-                                    class="bg-white rounded-xl p-3.5 ring-1 ring-[#EBEBEB] flex items-center gap-3 transition hover:ring-[#F5A000] hover:bg-[#FFFBF0]"
-                                >
-                                    <div class="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center shrink-0">
-                                        <BookOpen class="w-4 h-4 text-emerald-500" />
-                                    </div>
-                                    <div>
-                                        <p class="text-xs text-[#555555] font-semibold">Stories Made</p>
-                                        <p class="text-lg font-black text-[#1A1A1A] leading-tight">{{ user.stories_total }}</p>
-                                        <p class="text-[10px] text-muted-foreground">all time</p>
-                                    </div>
-                                </Link>
-                            </div>
-
-                            <div class="flex items-center gap-4 text-xs text-muted-foreground flex-wrap">
-                                <span v-if="user.subscription.starts_at">Started {{ user.subscription.starts_at }}</span>
-                                <span v-if="user.subscription.expires_at">Expires {{ user.subscription.expires_at }}</span>
-                            </div>
-                        </div>
-                    </template>
-                    <template v-else>
-                        <div class="border-t border-[#EBEBEB] px-5 py-3">
-                            <p class="text-xs text-muted-foreground">No active subscription — assign a plan above.</p>
-                        </div>
-                    </template>
-
-                    <!-- Billing / Invoices -->
+                    <!-- Purchases & Grants -->
                     <div class="border-t border-[#EBEBEB] px-5 py-4">
                         <div class="flex items-center justify-between mb-3">
-                            <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Billing / Invoices</p>
+                            <p class="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">Purchases &amp; Grants</p>
                         </div>
 
                         <!-- Loading -->
@@ -638,49 +658,47 @@ const impersonate = (userId) => {
                             <div class="w-3 h-3 rounded-full bg-[#F5A000] animate-bounce" style="animation-delay:300ms" />
                         </div>
 
-                        <!-- No Stripe -->
-                        <template v-else-if="invoicesCache[user.id] && !invoicesCache[user.id].has_stripe">
-                            <p class="text-xs text-muted-foreground">No Stripe account — this user was assigned a plan manually.</p>
-                        </template>
-
-                        <!-- Invoices -->
+                        <!-- Purchases -->
                         <template v-else-if="invoicesCache[user.id]">
-                            <template v-if="invoicesCache[user.id].invoices.length === 0">
-                                <p class="text-xs text-muted-foreground">No invoices found.</p>
+                            <template v-if="invoicesCache[user.id].purchases.length === 0">
+                                <p class="text-xs text-muted-foreground">No purchases or grants yet.</p>
                             </template>
                             <template v-else>
                                 <div class="space-y-1.5">
                                     <div
-                                        v-for="inv in (invoicesExpanded[user.id] ? invoicesCache[user.id].invoices : invoicesCache[user.id].invoices.slice(0, 3))"
-                                        :key="inv.id"
+                                        v-for="p in (invoicesExpanded[user.id] ? invoicesCache[user.id].purchases : invoicesCache[user.id].purchases.slice(0, 3))"
+                                        :key="p.id"
                                         class="flex items-center justify-between px-3 py-2.5 rounded-lg"
                                         style="background-color: #F8F8F8;"
                                     >
                                         <div class="flex items-center gap-2.5">
                                             <Receipt class="w-3.5 h-3.5 text-muted-foreground shrink-0" />
                                             <div>
-                                                <p class="text-xs font-semibold text-[#1A1A1A]">{{ inv.number }}</p>
-                                                <p class="text-[10px] text-muted-foreground">{{ inv.date }}</p>
+                                                <p class="text-xs font-semibold text-[#1A1A1A]">
+                                                    {{ p.pack_label }}
+                                                    <span class="text-muted-foreground font-normal">· {{ p.credits }} credits</span>
+                                                </p>
+                                                <p class="text-[10px] text-muted-foreground">{{ p.date }}</p>
                                             </div>
                                         </div>
                                         <div class="flex items-center gap-3">
                                             <span
-                                                class="text-[10px] font-bold px-1.5 py-0.5 rounded capitalize"
-                                                :class="inv.status === 'paid' ? 'bg-emerald-50 text-emerald-600' : 'bg-gray-100 text-gray-500'"
-                                            >{{ inv.status }}</span>
-                                            <span class="text-xs font-bold text-[#1A1A1A]">{{ inv.total }}</span>
+                                                class="text-[10px] font-bold px-1.5 py-0.5 rounded"
+                                                :class="p.source === 'online' ? 'bg-emerald-50 text-emerald-600' : 'bg-indigo-50 text-indigo-600'"
+                                            >{{ p.source === 'online' ? 'Paid' : 'Granted' }}</span>
+                                            <span class="text-xs font-bold text-[#1A1A1A]">{{ p.amount ?? 'Free' }}</span>
                                         </div>
                                     </div>
                                 </div>
 
                                 <button
-                                    v-if="invoicesCache[user.id].invoices.length > 3"
+                                    v-if="invoicesCache[user.id].purchases.length > 3"
                                     class="mt-2.5 text-xs font-semibold transition hover:opacity-70 flex items-center gap-1"
                                     style="color: #F5A000;"
                                     @click="invoicesExpanded[user.id] = !invoicesExpanded[user.id]"
                                 >
                                     <ExternalLink class="w-3 h-3" />
-                                    {{ invoicesExpanded[user.id] ? 'Show less' : `View all ${invoicesCache[user.id].invoices.length} invoices` }}
+                                    {{ invoicesExpanded[user.id] ? 'Show less' : `View all ${invoicesCache[user.id].purchases.length}` }}
                                 </button>
                             </template>
                         </template>
@@ -753,6 +771,40 @@ const impersonate = (userId) => {
                         </Select>
                         <p v-if="userForm.errors.tier" class="text-xs text-destructive">{{ userForm.errors.tier }}</p>
                     </div>
+
+                    <template v-if="userModalMode === 'create'">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <Label>Account active</Label>
+                                <p class="text-xs text-muted-foreground">Inactive accounts can't sign in.</p>
+                            </div>
+                            <Switch v-model="userForm.is_active" :class="userForm.is_active ? '!bg-green-500' : '!bg-gray-300'" />
+                        </div>
+
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <Label>Verified Partner</Label>
+                                <p class="text-xs text-muted-foreground">Unlocks discounted partner pricing.</p>
+                            </div>
+                            <Switch v-model="userForm.is_verified_partner" :class="userForm.is_verified_partner ? '!bg-[#F5A000]' : '!bg-gray-300'" />
+                        </div>
+
+                        <div class="space-y-1.5">
+                            <Label>Grant a Story Pack <span class="text-muted-foreground font-normal">(optional)</span></Label>
+                            <Select :model-value="userForm.pack_id" @update:model-value="val => userForm.pack_id = val">
+                                <SelectTrigger class="w-full"><SelectValue placeholder="— No pack —" /></SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem
+                                        v-for="pack in creditPacks"
+                                        :key="pack.id"
+                                        :value="String(pack.id)"
+                                    >{{ pack.label }} — {{ pack.credits }} credits ({{ pack.type }})</SelectItem>
+                                </SelectContent>
+                            </Select>
+                            <p v-if="userForm.errors.pack_id" class="text-xs text-destructive">{{ userForm.errors.pack_id }}</p>
+                            <p class="text-xs text-muted-foreground">Adds the pack's credits to the new user's wallet as a free grant.</p>
+                        </div>
+                    </template>
 
                     <p v-if="userModalMode === 'create'" class="text-xs" style="color: #888888;">A password reset link will be emailed to the user automatically.</p>
                 </div>

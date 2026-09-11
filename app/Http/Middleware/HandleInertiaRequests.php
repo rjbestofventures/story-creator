@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\SiteSetting;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -36,7 +37,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'auth' => [
                 'user' => $request->user() ? array_merge(
-                    $request->user()->only('id', 'name', 'email'),
+                    $request->user()->only('id', 'name', 'email', 'tour_completed_at'),
                     ['roles' => $request->user()->getRoleNames()->toArray()]
                 ) : null,
             ],
@@ -44,6 +45,9 @@ class HandleInertiaRequests extends Middleware
                 'admin_id' => $adminId,
                 'admin_name' => User::find($adminId)?->name,
             ] : null,
+            'features' => [
+                'buyCreditsButtonEnabled' => (bool) SiteSetting::get('buy_credits_button_enabled', true),
+            ],
         ];
     }
 }

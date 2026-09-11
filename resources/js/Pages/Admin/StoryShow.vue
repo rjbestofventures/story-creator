@@ -1,7 +1,7 @@
 <script setup>
 import { ref } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
-import { ChevronLeft, ChevronDown, ChevronUp, FileText } from '@lucide/vue';
+import { ChevronLeft, ChevronDown, ChevronUp, FileText, ClipboardList } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 
 const props = defineProps({
@@ -63,16 +63,26 @@ const formatLabel = (format) => {
                         <span class="text-xs" style="color: #888888;">{{ story.created_at }}</span>
                     </div>
                 </div>
-                <div class="flex items-center gap-2 shrink-0">
-                    <span
-                        class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize"
-                        :class="statusBadge(story.status)"
+                <div class="flex flex-col items-end gap-2 shrink-0">
+                    <div class="flex items-center gap-2">
+                        <span
+                            class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold capitalize"
+                            :class="statusBadge(story.status)"
+                        >
+                            {{ story.status }}
+                        </span>
+                        <span class="text-xs px-2.5 py-1 rounded-full font-bold" style="background-color: #F5F5F5; color: #555555;">
+                            {{ story.episodes.length }} episode{{ story.episodes.length !== 1 ? 's' : '' }}
+                        </span>
+                    </div>
+                    <Link
+                        :href="route('grill.show', story.id)"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition hover:bg-amber-50"
+                        style="border: 1.5px solid #F5A000; color: #F5A000;"
                     >
-                        {{ story.status }}
-                    </span>
-                    <span class="text-xs px-2.5 py-1 rounded-full font-bold" style="background-color: #F5F5F5; color: #555555;">
-                        {{ story.episodes.length }} episode{{ story.episodes.length !== 1 ? 's' : '' }}
-                    </span>
+                        <ClipboardList class="w-3.5 h-3.5" />
+                        View Answers
+                    </Link>
                 </div>
             </div>
         </div>
@@ -95,12 +105,6 @@ const formatLabel = (format) => {
                         <p class="text-sm font-semibold text-[#1A1A1A] truncate">{{ ep.title }}</p>
                         <p class="text-[10px] text-muted-foreground mt-0.5">{{ formatLabel(ep.format) }}</p>
                     </div>
-                    <span
-                        class="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold capitalize shrink-0"
-                        :class="statusBadge(ep.status)"
-                    >
-                        {{ ep.status }}
-                    </span>
                     <ChevronDown v-if="expanded !== ep.id" class="w-4 h-4 shrink-0 text-muted-foreground" />
                     <ChevronUp v-else class="w-4 h-4 shrink-0 text-muted-foreground" />
                 </button>

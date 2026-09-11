@@ -1,21 +1,28 @@
 <script setup>
-import { Link } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import { Link, usePage } from '@inertiajs/vue3';
 import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings, FileText } from '@lucide/vue';
 import { TooltipProvider } from '@/Components/ui/tooltip';
+import Footer from '@/Components/Footer.vue';
 
-const nav = [
-    { label: 'Users & Plans',   name: 'admin.users.index',   icon: Users,      match: 'admin.users.*'     },
-    { label: 'Manage Plans',    name: 'admin.plans.index',   icon: Layers,     match: 'admin.plans.*'     },
-    { label: 'All Stories',     name: 'admin.stories.index', icon: BookOpen,   match: 'admin.stories.*'   },
-    { label: 'Usage & Billing', name: 'admin.billing.index', icon: TrendingUp, match: 'admin.billing.*'   },
-    { label: 'Settings',        name: 'admin.settings.index', icon: Settings,  match: 'admin.settings.*'  },
+const page = usePage();
+const isSuperAdmin = computed(() => page.props.auth?.user?.roles?.includes('super_admin'));
+
+const allNav = [
+    { label: 'Users & Plans',   name: 'admin.users.index',    icon: Users,      match: 'admin.users.*',    superOnly: false },
+    { label: 'Credit Packs',    name: 'admin.packs.index',    icon: Layers,     match: 'admin.packs.*',    superOnly: true  },
+    { label: 'All Stories',     name: 'admin.stories.index',  icon: BookOpen,   match: 'admin.stories.*',  superOnly: false },
+    { label: 'Usage & Billing', name: 'admin.billing.index',  icon: TrendingUp, match: 'admin.billing.*',  superOnly: true  },
+    { label: 'Settings',        name: 'admin.settings.index', icon: Settings,   match: 'admin.settings.*', superOnly: true  },
 ];
+
+const nav = computed(() => allNav.filter(item => !item.superOnly || isSuperAdmin.value));
 
 const isActive = (item) => route().current(item.match);
 </script>
 
 <template>
-    <div class="min-h-screen" style="background-color: #FAFAF8;">
+    <div class="min-h-screen flex flex-col" style="background-color: #FAFAF8;">
 
         <!-- Top bar -->
         <div class="bg-white border-b px-4 md:px-8 py-4" style="border-color: #DDDDDD;">
@@ -63,11 +70,13 @@ const isActive = (item) => route().current(item.match);
             </div>
         </div>
 
-        <!-- Page content -->
+        <!-- Page content — grows so the footer is pinned to the bottom on short pages -->
         <TooltipProvider :delay-duration="300">
-            <div class="max-w-6xl mx-auto px-4 md:px-8 py-6">
+            <div class="flex-1 w-full max-w-6xl mx-auto px-4 md:px-8 py-6">
                 <slot />
             </div>
         </TooltipProvider>
+
+        <Footer />
     </div>
 </template>
