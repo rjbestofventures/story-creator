@@ -77,7 +77,7 @@ class StoryController extends Controller
      */
     private function resolveEpisodeCount(User $user, ?int $requested): int
     {
-        if ($user->is_trial) {
+        if ($user->spendsTrialAllowance()) {
             return Story::TRIAL_EPISODE_COUNT;
         }
 
@@ -93,7 +93,7 @@ class StoryController extends Controller
      */
     private function chargeForGeneration(User $user, int $count): void
     {
-        if ($user->is_trial) {
+        if ($user->spendsTrialAllowance()) {
             abort_if(
                 $user->trial_allowance < 1,
                 403,
@@ -164,6 +164,7 @@ class StoryController extends Controller
             'adminRole' => $user->hasRole('super_admin') ? 'super_admin' : ($user->hasRole('admin') ? 'admin' : null),
             'is_trial' => $user->is_trial,
             'trial_allowance' => $user->trial_allowance,
+            'is_verified_partner' => $user->is_verified_partner,
         ]);
     }
 
@@ -181,7 +182,7 @@ class StoryController extends Controller
             'credits' => $user->isAdmin() ? null : $user->credits,
             'episode_options' => $this->episodeOptionsFor($user),
             'max_episodes' => $user->maxEpisodes(),
-            'is_trial' => $user->is_trial,
+            'is_trial' => $user->spendsTrialAllowance(),
             'trial_episode_count' => Story::TRIAL_EPISODE_COUNT,
             'trial_unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
         ]);
@@ -202,7 +203,7 @@ class StoryController extends Controller
             'credits' => $user->isAdmin() ? null : $user->credits,
             'episode_options' => $this->episodeOptionsFor($user),
             'max_episodes' => $user->maxEpisodes(),
-            'is_trial' => $user->is_trial,
+            'is_trial' => $user->spendsTrialAllowance(),
             'trial_episode_count' => Story::TRIAL_EPISODE_COUNT,
             'trial_unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
             'story' => [
@@ -327,7 +328,7 @@ class StoryController extends Controller
 
         $data = $request->validate([
             'format' => 'in:social,blog,linkedin',
-            'episode_count' => $user->is_trial
+            'episode_count' => $user->spendsTrialAllowance()
                 ? 'nullable|integer'
                 : 'required|integer|in:'.implode(',', self::EPISODE_OPTIONS),
         ]);
@@ -428,7 +429,7 @@ class StoryController extends Controller
             'messages.*.role' => 'required|in:user,assistant',
             'messages.*.content' => 'required|string',
             'format' => 'in:social,blog,linkedin',
-            'episode_count' => $user->is_trial
+            'episode_count' => $user->spendsTrialAllowance()
                 ? 'nullable|integer'
                 : 'required|integer|in:'.implode(',', self::EPISODE_OPTIONS),
         ]);
@@ -455,6 +456,7 @@ class StoryController extends Controller
             'title' => 'Generating…',
             'status' => 'generating',
             'episode_limit' => $count,
+            'created_on_trial' => $user->spendsTrialAllowance(),
         ]);
 
         GenerateStory::dispatch($story, $format);
@@ -513,7 +515,47 @@ class StoryController extends Controller
             'credits' => $user->isAdmin() ? null : $user->credits,
             'is_trial' => $user->is_trial,
             'unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
+            'locks_episodes' => $story->locksEpisodes(),
+            'unlock_cost' => $story->unlockCost(),
+            'episodes_hidden' => $story->hidesReadableEpisodes(),
         ]);
+    }
+
+    /**
+     * Open the rest of a trial library for credits. Priced per withheld
+     * episode, so it matches what the member is looking at on this page.
+     */
+    public function unlockEpisodes(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+
+        $user = $request->user();
+        $cost = $story->unlockCost();
+
+        abort_if($cost < 1, 400, 'This library is already unlocked.');
+        abort_if($user->credits < $cost, 403, 'You don\'t have enough credits to unlock this library.');
+
+        $user->decrement('credits', $cost);
+        $story->forceFill(['episodes_unlocked_at' => now()])->save();
+
+        return back();
+    }
+
+    /**
+     * Bring a quietened trial library back into view. The team is told a day
+     * later, which the scheduler handles.
+     */
+    public function reactivateEpisodes(Request $request, Story $story)
+    {
+        abort_unless($story->user_id === $request->user()->id, 403);
+        abort_unless($story->hidesReadableEpisodes(), 400, 'These episodes are already visible.');
+
+        $story->forceFill([
+            'episodes_reactivated_at' => now(),
+            'reactivation_notified_at' => null,
+        ])->save();
+
+        return back();
     }
 
     // -------------------------------------------------------------------------

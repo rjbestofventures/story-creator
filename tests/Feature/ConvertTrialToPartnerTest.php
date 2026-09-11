@@ -58,43 +58,36 @@ class ConvertTrialToPartnerTest extends TestCase
         return $story;
     }
 
-    public function test_it_confers_partner_status_and_ends_the_trial(): void
+    public function test_it_confers_partner_status_and_leaves_the_trial_running(): void
     {
         $user = $this->trialMember();
 
         $this->convert($user->email)
             ->assertOk()
             ->assertJsonPath('user.is_verified_partner', true)
-            ->assertJsonPath('user.is_trial', false)
-            ->assertJsonPath('user.trial_allowance', 0);
+            ->assertJsonPath('user.is_trial', true);
 
         $user->refresh();
 
         $this->assertTrue($user->is_verified_partner);
-        $this->assertFalse($user->is_trial);
-        $this->assertSame(0, $user->trial_allowance);
+        $this->assertTrue($user->is_trial);
     }
 
-    public function test_the_whole_library_unlocks_without_regenerating(): void
+    public function test_the_library_stays_locked_after_conversion(): void
     {
         $user = $this->trialMember();
         $story = $this->library($user);
-
-        $contentBefore = $story->episodes->pluck('content', 'episode_number')->all();
 
         $this->convert($user->email)->assertOk();
 
         $story = $story->fresh(['episodes', 'user']);
 
-        foreach ($story->episodes as $episode) {
-            $this->assertFalse($episode->isLocked());
-            $this->assertSame($contentBefore[$episode->episode_number], $episode->content);
-        }
-
-        $this->assertSame(Story::TRIAL_EPISODE_COUNT, $story->episodes->count());
+        $this->assertTrue($story->locksEpisodes());
+        $this->assertTrue($story->episodes->last()->isLocked());
+        $this->assertFalse($story->episodes->first()->isLocked());
     }
 
-    public function test_unlocked_content_reaches_the_page_after_conversion(): void
+    public function test_withheld_content_still_does_not_reach_the_page(): void
     {
         $user = $this->trialMember();
         $story = $this->library($user);
@@ -104,19 +97,30 @@ class ConvertTrialToPartnerTest extends TestCase
         $this->actingAs($user->fresh())
             ->get(route('stories.show', $story))
             ->assertInertia(fn ($page) => $page
-                ->where('story.episodes.11.content', 'Secret content for episode 12')
-                ->where('story.episodes.11.locked', false)
+                ->where('story.episodes.11.locked', true)
+                ->missing('story.episodes.11.content')
             );
     }
 
-    public function test_it_grants_no_credits(): void
+    public function test_it_grants_the_partner_conversion_credits(): void
     {
         $user = $this->trialMember();
 
-        $this->convert($user->email)->assertOk()->assertJsonPath('user.credits', 0);
+        $this->convert($user->email)
+            ->assertOk()
+            ->assertJsonPath('user.credits', User::PARTNER_CONVERSION_CREDITS);
 
-        $this->assertSame(0, $user->fresh()->credits);
-        $this->assertSame(0, $user->purchases()->count());
+        $this->assertSame(User::PARTNER_CONVERSION_CREDITS, $user->fresh()->credits);
+    }
+
+    public function test_repeating_it_does_not_grant_the_credits_twice(): void
+    {
+        $user = $this->trialMember();
+
+        $this->convert($user->email)->assertOk();
+        $this->convert($user->email)->assertOk();
+
+        $this->assertSame(User::PARTNER_CONVERSION_CREDITS, $user->fresh()->credits);
     }
 
     public function test_the_converted_member_is_offered_partner_pricing(): void
@@ -133,7 +137,7 @@ class ConvertTrialToPartnerTest extends TestCase
         $user = $this->trialMember();
 
         $this->convert($user->email)->assertOk();
-        $this->convert($user->email)->assertOk()->assertJsonPath('user.is_trial', false);
+        $this->convert($user->email)->assertOk()->assertJsonPath('user.is_verified_partner', true);
 
         $this->assertTrue($user->fresh()->is_verified_partner);
     }
@@ -148,7 +152,7 @@ class ConvertTrialToPartnerTest extends TestCase
 
         $this->assertTrue($user->is_verified_partner);
         $this->assertFalse($user->is_trial);
-        $this->assertSame(20, $user->credits);
+        $this->assertSame(20 + User::PARTNER_CONVERSION_CREDITS, $user->credits);
     }
 
     public function test_verify_partner_still_leaves_a_trial_running(): void

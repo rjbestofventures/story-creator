@@ -1414,7 +1414,8 @@ const formats = [
                             </p>
                             <p class="text-xs text-[#555555] mt-1">
                                 StoryBot writes all {{ trial_episode_count }} episodes from your interview. The first
-                                {{ trial_unlocked_episodes }} are yours to read straight away, and the rest unlock when you buy a pack.
+                                {{ trial_unlocked_episodes }} are yours to read straight away, and the rest unlock when you
+                                become a Verified Business Partner.
                             </p>
                         </div>
 
@@ -1572,7 +1573,7 @@ const formats = [
                         <ul v-if="isTrial" class="mt-2 space-y-1 list-disc list-inside">
                             <li>This uses your trial and costs no credits.</li>
                             <li>The first <strong class="text-[#1A1A1A]">{{ trial_unlocked_episodes }}</strong> episodes are readable right away.</li>
-                            <li>The rest unlock when you buy any pack — they are written either way.</li>
+                            <li>The rest unlock when you become a Verified Business Partner — they are written either way.</li>
                         </ul>
                         <ul v-else-if="!isUnlimited" class="mt-2 space-y-1 list-disc list-inside">
                             <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditBalance }}</strong></li>

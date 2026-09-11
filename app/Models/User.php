@@ -26,6 +26,9 @@ class User extends Authenticatable implements MustVerifyEmail
     /** Stories a newly provisioned Trial Member may generate before converting. */
     public const DEFAULT_TRIAL_ALLOWANCE = 1;
 
+    /** Credits a trial member is given when they convert to a partner. */
+    public const PARTNER_CONVERSION_CREDITS = 45;
+
     protected function casts(): array
     {
         return [
@@ -93,6 +96,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function canCreateStory(): bool
     {
         return $this->isAdmin() || $this->credits > 0;
+    }
+
+    /**
+     * Whether generations still come out of the trial allowance. Becoming a
+     * partner moves them onto credits — only their episode locks stay behind,
+     * until they pay to open them.
+     */
+    public function spendsTrialAllowance(): bool
+    {
+        return $this->is_trial && ! $this->is_verified_partner;
     }
 
     public function canRefine(): bool

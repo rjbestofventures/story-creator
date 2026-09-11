@@ -87,6 +87,8 @@ Route::middleware(['auth', 'verified', 'requires.credits'])->group(function () {
     Route::post('/stories/{story}/episodes/{episode}/refine', [StoryController::class, 'refineEpisodeTone'])->name('stories.episode.refine');
     Route::patch('/stories/{story}/episodes/{episode}/refine-instruction', [StoryController::class, 'saveRefineInstruction'])->name('stories.episode.refine-instruction');
     Route::post('/stories/{story}/episodes/bulk-refine', [StoryController::class, 'bulkRefineEpisodes'])->name('stories.episodes.bulk-refine');
+    Route::post('/stories/{story}/unlock', [StoryController::class, 'unlockEpisodes'])->name('stories.unlock');
+    Route::post('/stories/{story}/reactivate', [StoryController::class, 'reactivateEpisodes'])->name('stories.reactivate');
 });
 
 // Stories read-only by ID — wildcard routes, registered after literal /stories/create
@@ -151,6 +153,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::post('/users/{user}/grant-pack', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
     Route::post('/users/{user}/gift-credits', [AdminController::class, 'giftCredits'])->name('users.gift-credits');
     Route::post('/users/{user}/trial-allowance', [AdminController::class, 'setTrialAllowance'])->name('users.trial-allowance');
+    Route::post('/users/{user}/toggle-trial', [AdminController::class, 'toggleTrial'])->name('users.toggle-trial');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/impersonate', [AdminController::class, 'impersonate'])->name('users.impersonate');
     Route::get('/users/{user}/invoices', [AdminController::class, 'userInvoices'])->name('users.invoices');
