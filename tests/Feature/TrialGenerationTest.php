@@ -165,6 +165,65 @@ class TrialGenerationTest extends TestCase
         $this->assertSame(Story::TRIAL_EPISODE_COUNT - Story::TRIAL_UNLOCKED_EPISODES, $locked->count());
     }
 
+    /**
+     * The story() fixture helper sets created_on_trial at build time, which
+     * is not how a real interview creates a story — StoryController::init()
+     * makes the row before generation, leaving created_on_trial at its
+     * database default. This drives generate() the way the UI actually does,
+     * against a story that starts without the flag, to catch generate()
+     * silently leaving it unset (it did, once).
+     */
+    public function test_generating_through_the_real_endpoint_locks_the_library(): void
+    {
+        $user = $this->trialMember();
+        $profile = BusinessProfile::factory()->for($user)->create();
+
+        // Mirrors what StoryController::init() persists: no created_on_trial.
+        $story = Story::factory()->for($user)->for($profile)->create([
+            'status' => 'interview_complete',
+        ]);
+        $this->assertFalse($story->fresh()->created_on_trial);
+
+        $mock = Mockery::mock(StoryGeneratorService::class);
+        $mock->shouldReceive('generate')
+            ->once()
+            ->andReturnUsing(function ($profile, int $count) {
+                $episodes = [];
+                for ($i = 1; $i <= $count; $i++) {
+                    $episodes[] = ['episode_number' => $i, 'title' => "Episode $i", 'content' => "Content $i"];
+                }
+
+                return ['story_title' => 'Trial Story', '_tokens_input' => 0, '_tokens_output' => 0, 'episodes' => $episodes];
+            });
+        $this->app->instance(StoryGeneratorService::class, $mock);
+
+        // phpunit.xml sets QUEUE_CONNECTION=sync, so this dispatch — the real
+        // one generate() makes, not a manually-run job — executes inline
+        // against the mock bound above before the response comes back.
+        $this->actingAs($user)
+            ->post(route('stories.generate', $story), ['format' => 'social'])
+            ->assertRedirect(route('stories.show', $story));
+
+        $story = $story->fresh(['episodes', 'user']);
+
+        $this->assertTrue($story->created_on_trial);
+        $this->assertTrue($story->locksEpisodes());
+
+        $locked = $story->episodes->filter(fn ($ep) => $ep->isLocked());
+        $this->assertSame(Story::TRIAL_EPISODE_COUNT - Story::TRIAL_UNLOCKED_EPISODES, $locked->count());
+
+        // And the page the member actually lands on agrees.
+        $this->actingAs($user->fresh())
+            ->get(route('stories.show', $story))
+            ->assertInertia(fn ($page) => $page
+                ->where('locks_episodes', true)
+                ->where('unlock_cost', Story::TRIAL_EPISODE_COUNT - Story::TRIAL_UNLOCKED_EPISODES)
+                ->where('story.episodes.11.locked', true)
+                ->missing('story.episodes.11.content')
+                ->where('story.episodes.0.locked', false)
+            );
+    }
+
     public function test_the_trial_story_appears_in_the_members_own_story_list(): void
     {
         $user = $this->trialMember();
