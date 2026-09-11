@@ -111,11 +111,10 @@ class ProvisionController extends Controller
 
     /**
      * Convert a vetted trial member into a verified business partner: they get
-     * partner pricing and their trial ends, which unlocks their whole library.
-     * No credits are granted — they hold none until they buy a pack.
+     * partner pricing and a starting wallet. The trial does not end here, so
+     * their library stays locked — they spend those credits to open it.
      *
-     * Distinct from verifyPartner, which sets pricing alone and is what to call
-     * when a trial member should keep their locked library at partner prices.
+     * Distinct from verifyPartner, which sets pricing alone and grants nothing.
      */
     public function convertToPartner(Request $request): JsonResponse
     {
@@ -125,8 +124,13 @@ class ProvisionController extends Controller
 
         $user = User::where('email', $validated['email'])->firstOrFail();
 
+        // The grant belongs to the conversion, not the call, so repeating this
+        // endpoint confirms partner status without topping the wallet up again.
+        if (! $user->is_verified_partner) {
+            $user->increment('credits', User::PARTNER_CONVERSION_CREDITS);
+        }
+
         $user->update(['is_verified_partner' => true]);
-        $user->endTrial();
 
         return response()->json([
             'user' => $this->summarize($user->fresh()),

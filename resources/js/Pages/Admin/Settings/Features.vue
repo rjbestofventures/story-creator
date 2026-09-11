@@ -2,14 +2,16 @@
 import { ref, watch } from 'vue';
 import { Head, useForm } from '@inertiajs/vue3';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
-import { ShoppingBag } from '@lucide/vue';
+import { ShoppingBag, Mail } from '@lucide/vue';
 
 const props = defineProps({
     buy_credits_button_enabled: Boolean,
+    admin_notification_email: String,
 });
 
 const form = useForm({
     buy_credits_button_enabled: props.buy_credits_button_enabled,
+    admin_notification_email: props.admin_notification_email,
 });
 
 const saved = ref(false);
@@ -60,6 +62,29 @@ watch(() => form.recentlySuccessful, (v) => {
                             :class="form.buy_credits_button_enabled ? 'translate-x-6' : 'translate-x-0'"
                         />
                     </button>
+                </div>
+
+                <!-- Where trial reactivation notices are sent -->
+                <div class="pt-5" style="border-top:1px solid #DDDDDD;">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:#FEF9EC;">
+                            <Mail class="w-4 h-4" style="color:#F5A000;" />
+                        </div>
+                        <div>
+                            <h2 class="text-sm font-black" style="color:#1A1A1A;">Admin notification email</h2>
+                            <p class="text-xs" style="color:#555555;">Where the team is told when a trial member reactivates their episodes.</p>
+                        </div>
+                    </div>
+                    <input
+                        v-model="form.admin_notification_email"
+                        type="email"
+                        required
+                        class="w-full px-3 py-2.5 rounded-lg text-sm outline-none"
+                        style="border:1px solid #DDDDDD; color:#1A1A1A; background:#FFFFFF;"
+                    />
+                    <p v-if="form.errors.admin_notification_email" class="mt-1.5 text-xs" style="color:#EF4444;">
+                        {{ form.errors.admin_notification_email }}
+                    </p>
                 </div>
 
                 <!-- Save -->

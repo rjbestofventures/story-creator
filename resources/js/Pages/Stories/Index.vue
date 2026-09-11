@@ -25,6 +25,7 @@ const props = defineProps({
     adminRole: String,
     is_trial:        { type: Boolean, default: false },
     trial_allowance: { type: Number,  default: 0 },
+    is_verified_partner: { type: Boolean, default: false },
 });
 
 const buyCreditsButtonEnabled = computed(() => usePage().props.features?.buyCreditsButtonEnabled ?? true);
@@ -34,19 +35,23 @@ const creditBalance  = computed(() => props.credits ?? 0);
 const generatedCount = computed(() =>
     props.stories.filter(s => s.status !== 'interviewing' && s.status !== 'interview_complete').length
 );
+// Becoming a partner moves a member onto credits and makes the shop useful
+// again; only their episode locks stay behind until they pay to open them.
+const onTrialOffer = computed(() => props.is_trial && !props.is_verified_partner);
+
 // Smallest story is 12 episodes (1 credit each), so below 12 a new story can't be afforded.
 const MIN_STORY_CREDITS = 12;
 // A trial member spends trial allowance rather than credits, so the credit floor
 // does not apply to them — their allowance does.
 const canCreateStory = computed(() => {
-    if (props.is_trial) return props.trial_allowance > 0;
+    if (onTrialOffer.value) return props.trial_allowance > 0;
     return props.isAdmin || creditBalance.value >= MIN_STORY_CREDITS;
 });
 
 // A trial member who has spent their allowance already has their story; point
 // them at it rather than refusing them blankly.
 const trialStory = computed(() => props.stories.find(s => s.status !== 'interviewing' && s.status !== 'interview_complete'));
-const trialSpent = computed(() => props.is_trial && props.trial_allowance < 1);
+const trialSpent = computed(() => onTrialOffer.value && props.trial_allowance < 1);
 
 // A trial member has no use for the credit shop — becoming a partner is what
 // opens their library — so every buy button becomes the partner apply form.
@@ -153,7 +158,7 @@ onMounted(() => {
 
                         <!-- Trial member: partner status is what opens their library -->
                         <Button
-                            v-else-if="is_trial"
+                            v-else-if="onTrialOffer"
                             @click="partnerOpen = true"
                             class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer"
                         >
@@ -177,37 +182,62 @@ onMounted(() => {
                 <!-- Stats row -->
                 <div class="grid grid-cols-1 gap-4">
                     <!-- StoryBot credits -->
-                    <div id="tour-credits" class="bg-white rounded-2xl border border-[#DDDDDD] p-4 flex items-center justify-between">
-                        <div>
-                            <div class="flex items-center gap-2 mb-1">
-                                <Zap class="w-4 h-4 text-[#F5A000]" />
-                                <span class="text-xs font-semibold text-[#555555] uppercase tracking-wide">StoryBot Credits</span>
-                                <TooltipProvider>
-                                    <Tooltip :delay-duration="100">
-                                        <TooltipTrigger as-child>
-                                            <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help transition-colors" />
-                                        </TooltipTrigger>
-                                        <TooltipContent side="bottom" class="max-w-xs p-3">
-                                            <p class="text-xs leading-relaxed">
-                                                Credits power everything. <strong>1 credit generates 1 episode</strong>, and
-                                                <strong>1 credit refines or redoes</strong> a episode. Choose 12, 18, or 24 episodes per story.
-                                                Credits never expire.
-                                            </p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </TooltipProvider>
+                    <div id="tour-credits" class="bg-white rounded-2xl border border-[#DDDDDD] p-5 flex flex-col md:flex-row md:items-center gap-5">
+                        <!-- Balance -->
+                        <div class="flex items-center gap-4 md:w-1/2 md:pr-6 md:border-r md:border-[#EEEEEE]">
+                            <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-amber-50">
+                                <Zap class="w-5 h-5 text-[#F5A000]" />
                             </div>
-                            <div class="flex items-baseline gap-2">
-                                <span class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</span>
-                                <span v-if="is_trial" class="text-sm font-bold text-[#F5A000]">{{ trialTokenLabel }}</span>
-                            </div>
-                            <div v-if="!isAdmin" id="tour-credit-info">
-                                <div class="text-xs text-[#555555] mt-0.5">1 AI Refine = 1 StoryBot Credit</div>
-                                <div class="text-xs text-[#555555]">1 Episode Generation = 1 StoryBot Credit (ex: 12 episode story = 12 StoryBot Credits)</div>
+                            <div class="min-w-0">
+                                <div class="flex items-baseline gap-2">
+                                    <span class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</span>
+                                    <span class="text-sm text-[#555555]">StoryBot Credits</span>
+                                    <TooltipProvider>
+                                        <Tooltip :delay-duration="100">
+                                            <TooltipTrigger as-child>
+                                                <CircleHelp class="w-3.5 h-3.5 text-[#AAAAAA] hover:text-[#F5A000] cursor-help transition-colors" />
+                                            </TooltipTrigger>
+                                            <TooltipContent side="bottom" class="max-w-xs p-3">
+                                                <p class="text-xs leading-relaxed">
+                                                    Credits power everything. <strong>1 credit generates 1 episode</strong>, and
+                                                    <strong>1 credit refines or redoes</strong> a episode. Choose 12, 18, or 24 episodes per story.
+                                                    Credits never expire.
+                                                </p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </TooltipProvider>
+                                </div>
+                                <span
+                                    v-if="onTrialOffer"
+                                    class="inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-[#F5A000]"
+                                >
+                                    {{ trialTokenLabel }}
+                                </span>
+                                <span
+                                    v-else-if="!isAdmin && creditBalance === 0"
+                                    class="inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-[#F5A000]"
+                                >
+                                    • Out of credits — buy more to continue
+                                </span>
                             </div>
                         </div>
+
+                        <!-- What a credit covers -->
+                        <div v-if="!isAdmin" id="tour-credit-info" class="flex-1 min-w-0">
+                            <p class="text-sm font-bold text-[#1A1A1A] mb-2">What a credit covers</p>
+                            <div class="flex items-baseline justify-between gap-4">
+                                <span class="text-sm text-[#555555]">AI Refine</span>
+                                <span class="text-sm font-bold text-[#1A1A1A] shrink-0">1 credit</span>
+                            </div>
+                            <div class="flex items-baseline justify-between gap-4 mt-1">
+                                <span class="text-sm text-[#555555]">Episode generation</span>
+                                <span class="text-sm font-bold text-[#1A1A1A] shrink-0">1 credit / episode</span>
+                            </div>
+                            <p class="text-xs text-[#AAAAAA] mt-2">Example: a 12-episode story costs 12 credits to generate.</p>
+                        </div>
+
                         <Button
-                            v-if="!isAdmin && buyCreditsButtonEnabled && is_trial"
+                            v-if="!isAdmin && buyCreditsButtonEnabled && onTrialOffer"
                             @click="partnerOpen = true"
                             class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer"
                         >
@@ -345,13 +375,22 @@ onMounted(() => {
                                         >
                                             Ready to Generate
                                         </span>
-                                        <Badge
-                                            v-else-if="story.episodes?.[0]?.format"
-                                            :class="formatColor[story.episodes[0].format]"
-                                            class="text-xs font-semibold border"
-                                        >
-                                            {{ formatLabel[story.episodes[0].format] ?? story.episodes[0].format }}
-                                        </Badge>
+                                        <template v-else>
+                                            <!-- Marks a library made on trial; drops away once they are a partner -->
+                                            <Badge
+                                                v-if="story.created_on_trial && !is_verified_partner"
+                                                class="text-xs font-semibold border bg-amber-50 text-[#F5A000] border-amber-200"
+                                            >
+                                                Trial
+                                            </Badge>
+                                            <Badge
+                                                v-if="story.episodes?.[0]?.format"
+                                                :class="formatColor[story.episodes[0].format]"
+                                                class="text-xs font-semibold border"
+                                            >
+                                                {{ formatLabel[story.episodes[0].format] ?? story.episodes[0].format }}
+                                            </Badge>
+                                        </template>
                                     </div>
                                 </div>
 
@@ -412,7 +451,7 @@ onMounted(() => {
                         </div>
                     </div>
                     <Button
-                        v-if="is_trial"
+                        v-if="onTrialOffer"
                         @click="partnerOpen = true"
                         class="shrink-0 text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
                     >

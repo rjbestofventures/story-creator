@@ -158,6 +158,33 @@ const getTrialForm = (user) => {
     return trialForms.value[user.id];
 };
 
+// A cached form keeps whatever allowance it was built with, so a reload that
+// changes the allowance elsewhere (the provisioning API, another admin) would
+// leave this input showing a stale number next to a fresh badge.
+watch(() => props.users, (users) => {
+    for (const user of users) {
+        const form = trialForms.value[user.id];
+        if (!form || form.processing) continue;
+
+        const incoming = user.trial_allowance ?? 0;
+        if (form.trial_allowance !== incoming) {
+            form.defaults({ trial_allowance: incoming });
+            form.reset();
+        }
+    }
+}, { deep: true });
+
+const trialToggles = ref({});
+const toggleTrial = (user) => {
+    if (trialToggles.value[user.id]) return;
+    trialToggles.value[user.id] = true;
+    router.post(route('admin.users.toggle-trial', user.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => flash(user.id),
+        onFinish: () => { trialToggles.value[user.id] = false; },
+    });
+};
+
 const saveTrialAllowance = (user) => {
     getTrialForm(user).post(route('admin.users.trial-allowance', user.id), {
         preserveScroll: true,
@@ -542,6 +569,19 @@ const impersonate = (userId) => {
                             >
                                 <Package class="w-3.5 h-3.5" />
                                 {{ user.is_verified_partner ? 'Verified Partner ✓' : 'Mark as Partner' }}
+                            </button>
+
+                            <button
+                                type="button"
+                                :disabled="trialToggles[user.id]"
+                                class="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-semibold border transition-colors cursor-pointer disabled:opacity-40"
+                                :class="user.is_trial
+                                    ? 'text-amber-700 border-amber-200 bg-amber-50 hover:bg-amber-100'
+                                    : 'text-[#555555] border-[#DDDDDD] bg-white hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'"
+                                @click.stop="toggleTrial(user)"
+                            >
+                                <Lock class="w-3.5 h-3.5" />
+                                {{ user.is_trial ? 'Trial User ✓' : 'Make Trial User' }}
                             </button>
 
                             <div class="flex-1 min-w-[130px]">

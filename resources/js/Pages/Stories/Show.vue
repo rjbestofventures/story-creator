@@ -20,6 +20,9 @@ const props = defineProps({
     credits: { type: Number, default: null },
     is_trial: { type: Boolean, default: false },
     unlocked_episodes: { type: Number, default: 3 },
+    locks_episodes: { type: Boolean, default: false },
+    unlock_cost: { type: Number, default: 0 },
+    episodes_hidden: { type: Boolean, default: false },
 });
 
 const isDemo       = props.story.is_demo ?? false;
@@ -49,6 +52,29 @@ const closeUnlock = () => { unlockStep.value = null; };
 const openPartnerApply = () => {
     unlockStep.value  = null;
     partnerOpen.value = true;
+};
+
+// ─── Paying to open the rest of the library ──────────────────────────────────
+const unlockAllOpen = ref(false);
+const unlocking     = ref(false);
+
+const confirmUnlockAll = () => {
+    unlocking.value = true;
+    router.post(route('stories.unlock', props.story.id), {}, {
+        preserveScroll: true,
+        onFinish: () => { unlocking.value = false; unlockAllOpen.value = false; },
+    });
+};
+
+// ─── A quietened trial library, and the button that brings it back ───────────
+const reactivating = ref(false);
+
+const reactivateEpisodes = () => {
+    reactivating.value = true;
+    router.post(route('stories.reactivate', props.story.id), {}, {
+        preserveScroll: true,
+        onFinish: () => { reactivating.value = false; },
+    });
 };
 
 // Local, mutable copy of the credit balance so it updates immediately after a
@@ -821,6 +847,16 @@ const restoreRevision = async (ep) => {
                             <ClipboardList class="w-4 h-4" />
                             View My Answers
                         </Link>
+
+                        <button
+                            v-if="locks_episodes && unlock_cost > 0"
+                            type="button"
+                            @click="unlockAllOpen = true"
+                            class="inline-flex items-center gap-2 px-6 py-3 rounded-full font-bold text-sm bg-white text-[#1A1A1A] border border-[#DDDDDD] transition-all duration-200 hover:bg-[#FAFAF8] cursor-pointer"
+                        >
+                            <Lock class="w-4 h-4 text-[#F5A000]" />
+                            Unlock All Episodes
+                        </button>
                     </div>
                 </div>
 
@@ -932,8 +968,37 @@ const restoreRevision = async (ep) => {
                     <button type="button" @click="speakError = null" class="text-red-400 hover:text-red-600 cursor-pointer text-xs font-semibold">Dismiss</button>
                 </div>
 
+                <!-- A trial library goes quiet after a month until it is asked for -->
+                <div v-if="episodes_hidden" class="relative">
+                    <div class="absolute inset-0 z-10 flex flex-col items-center justify-center text-center px-6">
+                        <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-white mb-4 shadow-sm">
+                            <Lock class="w-6 h-6" style="color:#F5A000;" />
+                        </div>
+                        <h3 class="text-xl font-black text-[#1A1A1A] mb-2">Your episodes are resting</h3>
+                        <p class="text-[#555555] mb-5 max-w-md">
+                            Your trial library has been quiet for a while. Bring it back whenever you want to read it again.
+                        </p>
+                        <Button
+                            :disabled="reactivating"
+                            @click="reactivateEpisodes"
+                            class="font-bold h-11 px-8 rounded-xl bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
+                        >
+                            <Loader2 v-if="reactivating" class="w-4 h-4 mr-2 animate-spin" />
+                            {{ reactivating ? 'Bringing them back…' : 'View Episodes' }}
+                        </Button>
+                    </div>
+                    <div class="blur-md select-none pointer-events-none space-y-6" aria-hidden="true">
+                        <div v-for="n in unlocked_episodes" :key="`veil-${n}`" class="bg-white rounded-2xl border border-[#DDDDDD] px-6 py-8">
+                            <div class="h-4 w-40 rounded bg-[#EEEEEE] mb-4" />
+                            <div class="h-3 w-full rounded bg-[#F3F3F3] mb-2" />
+                            <div class="h-3 w-11/12 rounded bg-[#F3F3F3] mb-2" />
+                            <div class="h-3 w-10/12 rounded bg-[#F3F3F3]" />
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Episodes -->
-                <div class="space-y-6">
+                <div v-else class="space-y-6">
                   <template v-for="ep in episodes" :key="ep.id">
 
                     <!-- Locked: written and waiting. Only the number and title
@@ -1203,7 +1268,7 @@ const restoreRevision = async (ep) => {
 
                 <!-- One unlock message for the whole library, not one per card -->
                 <div
-                    v-if="lockedEpisodes.length"
+                    v-if="lockedEpisodes.length && !episodes_hidden"
                     class="mt-8 rounded-2xl border p-6 sm:p-8 text-center"
                     style="background:#FEF9EC; border-color:#F5A000;"
                 >
@@ -1360,10 +1425,9 @@ const restoreRevision = async (ep) => {
         <Dialog :open="unlockStep === 'ask'" @update:open="closeUnlock">
             <DialogContent class="max-w-sm">
                 <DialogHeader>
-                    <p class="text-sm font-semibold text-[#555555]">Episode {{ unlockEpisode?.episode_number }} — Locked</p>
                     <DialogTitle class="text-xl text-[#1A1A1A]">Want to see the full version?</DialogTitle>
                     <DialogDescription class="text-[#555555]">
-                        "{{ unlockEpisode?.title }}" continues for members only. Unlock it as a Verified Business Partner.
+                        Full Episodes continues for members only. Unlock it as a Verified Business Partner.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">
@@ -1387,7 +1451,7 @@ const restoreRevision = async (ep) => {
                     <p class="text-sm font-semibold text-[#555555]">Verified Business Partner</p>
                     <DialogTitle class="text-xl text-[#1A1A1A]">Become a VBP to unlock every episode</DialogTitle>
                     <DialogDescription class="text-[#555555]">
-                        Get "{{ unlockEpisode?.title }}" and the rest of the story, plus category exclusivity and
+                        Get the rest of the story, plus category exclusivity and
                         first placement across Best of Delray Beach.
                     </DialogDescription>
                 </DialogHeader>
@@ -1405,6 +1469,43 @@ const restoreRevision = async (ep) => {
                 >
                     Not right now
                 </button>
+            </DialogContent>
+        </Dialog>
+
+        <!-- Paying to open the rest of the library -->
+        <Dialog v-model:open="unlockAllOpen">
+            <DialogContent class="max-w-md">
+                <DialogHeader>
+                    <div class="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-amber-50 mb-2">
+                        <Lock class="w-6 h-6 text-[#F5A000]" />
+                    </div>
+                    <DialogTitle class="text-[#1A1A1A]">Unlock all episodes?</DialogTitle>
+                    <DialogDescription as="div" class="text-[#555555]">
+                        <p>
+                            Unlocking all episodes will cost you
+                            <strong class="text-[#1A1A1A]">{{ unlock_cost }} Credits</strong>.
+                            Nothing is regenerated — the episodes are already written.
+                        </p>
+                        <ul class="mt-2 space-y-1 list-disc list-inside">
+                            <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditsBalance }}</strong></li>
+                            <li>Cost: <strong class="text-[#1A1A1A]">{{ unlock_cost }} credit{{ unlock_cost === 1 ? '' : 's' }}</strong></li>
+                            <li>Remaining Balance After Unlock: <strong class="text-[#1A1A1A]">{{ creditsBalance - unlock_cost }} credit{{ (creditsBalance - unlock_cost) === 1 ? '' : 's' }}</strong></li>
+                        </ul>
+                        <p v-if="creditsBalance < unlock_cost" class="mt-2 text-xs" style="color:#EF4444;">
+                            You do not have enough credits to unlock this library yet.
+                        </p>
+                    </DialogDescription>
+                </DialogHeader>
+                <DialogFooter class="gap-2">
+                    <Button variant="outline" @click="unlockAllOpen = false" class="cursor-pointer">Cancel</Button>
+                    <Button
+                        :disabled="unlocking || creditsBalance < unlock_cost"
+                        @click="confirmUnlockAll"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer disabled:opacity-50"
+                    >
+                        {{ unlocking ? 'Unlocking…' : 'Yes, unlock them' }}
+                    </Button>
+                </DialogFooter>
             </DialogContent>
         </Dialog>
 

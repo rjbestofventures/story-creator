@@ -10,6 +10,7 @@ use App\Models\Story;
 use App\Models\User;
 use App\Models\UserCredit;
 use App\Notifications\AccountCreatedNotification;
+use App\Notifications\EpisodesReactivatedNotification;
 use App\Services\ElevenLabsService;
 use App\Services\TextToSpeechService;
 use Illuminate\Http\JsonResponse;
@@ -444,6 +445,7 @@ class AdminController extends Controller
     {
         return Inertia::render('Admin/Settings/Features', [
             'buy_credits_button_enabled' => (bool) SiteSetting::get('buy_credits_button_enabled', true),
+            'admin_notification_email' => SiteSetting::get('admin_notification_email', EpisodesReactivatedNotification::FALLBACK_EMAIL),
         ]);
     }
 
@@ -451,9 +453,11 @@ class AdminController extends Controller
     {
         $data = $request->validate([
             'buy_credits_button_enabled' => 'required|boolean',
+            'admin_notification_email' => 'required|email|max:255',
         ]);
 
         SiteSetting::set('buy_credits_button_enabled', $data['buy_credits_button_enabled'] ? '1' : '0');
+        SiteSetting::set('admin_notification_email', $data['admin_notification_email']);
 
         return back();
     }
@@ -637,6 +641,27 @@ class AdminController extends Controller
         $user->update([
             'trial_allowance' => $allowance,
             'is_trial' => $allowance > 0,
+        ]);
+
+        return back();
+    }
+
+    /**
+     * Move an account between Trial Member and ordinary User. Turning a trial on
+     * seeds the standard allowance; turning it off ends the trial, which opens
+     * whatever their library was still withholding.
+     */
+    public function toggleTrial(Request $request, User $user)
+    {
+        if ($user->is_trial) {
+            $user->endTrial();
+
+            return back();
+        }
+
+        $user->update([
+            'is_trial' => true,
+            'trial_allowance' => max($user->trial_allowance, User::DEFAULT_TRIAL_ALLOWANCE),
         ]);
 
         return back();
