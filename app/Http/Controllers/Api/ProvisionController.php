@@ -130,7 +130,7 @@ class ProvisionController extends Controller
             $user->increment('credits', User::PARTNER_CONVERSION_CREDITS);
         }
 
-        $user->update(['is_verified_partner' => true]);
+        $user->becomePartner();
 
         return response()->json([
             'user' => $this->summarize($user->fresh()),

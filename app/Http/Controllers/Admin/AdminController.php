@@ -707,7 +707,15 @@ class AdminController extends Controller
 
     public function togglePartner(User $user)
     {
-        $user->update(['is_verified_partner' => ! $user->is_verified_partner]);
+        if ($user->is_verified_partner) {
+            $user->update(['is_verified_partner' => false]);
+
+            return back();
+        }
+
+        // Partner status ends the trial with it, so the account stops reading as
+        // both at once. Their library stays shut until they pay to open it.
+        $user->becomePartner();
 
         return back();
     }

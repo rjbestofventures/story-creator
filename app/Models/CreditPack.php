@@ -56,11 +56,14 @@ class CreditPack extends Model
             $user->increment('credits', $this->credits);
 
             if ($this->type === 'partner') {
-                $user->forceFill(['is_verified_partner' => true])->save();
+                $user->becomePartner();
             }
 
+            // A main pack is paid for, so it opens the library whether or not a
+            // trial was still running when it was bought.
             if ($this->isMainPack()) {
                 $user->endTrial();
+                $user->unlockTrialLibraries();
             }
         });
     }

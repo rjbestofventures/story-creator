@@ -60,13 +60,13 @@ class Story extends Model
 
     /**
      * Whether episodes in this story are withheld beyond the unlocked few.
-     * Derived from the owner's trial state, so buying a pack unlocks every
-     * story at once — except that paying to unlock this one story is recorded
-     * here and survives the account staying on trial.
+     * A library written on trial stays withheld until someone pays to open it,
+     * which is why this hangs off the story rather than the owner's trial flag:
+     * becoming a partner ends the trial but leaves the library shut.
      */
     public function locksEpisodes(): bool
     {
-        return (bool) $this->user?->is_trial && $this->episodes_unlocked_at === null;
+        return $this->created_on_trial && $this->episodes_unlocked_at === null;
     }
 
     /** Cost in credits to open the episodes this story still withholds. */

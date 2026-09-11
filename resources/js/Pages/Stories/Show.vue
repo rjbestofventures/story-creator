@@ -19,6 +19,7 @@ const props = defineProps({
     isAdmin: Boolean,
     credits: { type: Number, default: null },
     is_trial: { type: Boolean, default: false },
+    is_verified_partner: { type: Boolean, default: false },
     unlocked_episodes: { type: Number, default: 3 },
     locks_episodes: { type: Boolean, default: false },
     unlock_cost: { type: Number, default: 0 },
@@ -35,24 +36,9 @@ const unlockedEpisodes = computed(() => episodes.value.filter((ep) => !ep.locked
 const lockedEpisodes   = computed(() => episodes.value.filter((ep) => ep.locked));
 const storyTitle   = computed(() => props.story.title ?? `The Story of ${businessName}`);
 
-// ─── Locked episode → VBP funnel ─────────────────────────────────────────────
-// Three steps: ask if they want the full version, pitch VBP, then the same
-// apply form the sign-up page shows.
-const unlockEpisode = ref(null);
-const unlockStep    = ref(null);
-const partnerOpen   = ref(false);
-
-const openUnlock = (ep) => {
-    unlockEpisode.value = ep;
-    unlockStep.value    = 'ask';
-};
-
-const closeUnlock = () => { unlockStep.value = null; };
-
-const openPartnerApply = () => {
-    unlockStep.value  = null;
-    partnerOpen.value = true;
-};
+// Someone who is already a partner has nothing left to apply for, so every
+// pitch on this page turns into the price of opening the library instead.
+const onTrialOffer = computed(() => ! props.is_verified_partner);
 
 // ─── Paying to open the rest of the library ──────────────────────────────────
 const unlockAllOpen = ref(false);
@@ -64,6 +50,33 @@ const confirmUnlockAll = () => {
         preserveScroll: true,
         onFinish: () => { unlocking.value = false; unlockAllOpen.value = false; },
     });
+};
+
+// ─── Locked episode → VBP funnel ─────────────────────────────────────────────
+// Three steps for someone still being pitched: ask if they want the full
+// version, pitch VBP, then the sign-up page's apply form. A partner skips all
+// of it and goes straight to what unlocking costs.
+const unlockEpisode = ref(null);
+const unlockStep    = ref(null);
+const partnerOpen   = ref(false);
+
+const openUnlock = (ep) => {
+    unlockEpisode.value = ep;
+
+    if (! onTrialOffer.value) {
+        unlockAllOpen.value = true;
+
+        return;
+    }
+
+    unlockStep.value = 'ask';
+};
+
+const closeUnlock = () => { unlockStep.value = null; };
+
+const openPartnerApply = () => {
+    unlockStep.value  = null;
+    partnerOpen.value = true;
 };
 
 // ─── A quietened trial library, and the button that brings it back ───────────
@@ -1278,13 +1291,18 @@ const restoreRevision = async (ep) => {
                     <h3 class="text-xl font-black text-[#1A1A1A] mb-2">
                         {{ lockedEpisodes.length }} more episodes are already written
                     </h3>
-                    <p class="text-[#555555] mb-6 max-w-lg mx-auto">
+                    <p v-if="onTrialOffer" class="text-[#555555] mb-6 max-w-lg mx-auto">
                         Your whole library was written from your interview — you are reading the first
                         {{ unlocked_episodes }}. Become a Best of Local Verified Business Partner and the rest open
                         straight away. Nothing is regenerated, and nothing changes.
                     </p>
+                    <p v-else class="text-[#555555] mb-6 max-w-lg mx-auto">
+                        Your whole library was written from your interview — you are reading the first
+                        {{ unlocked_episodes }}. Opening the rest costs {{ unlock_cost }} credits. Nothing is
+                        regenerated, and nothing changes.
+                    </p>
                     <Button
-                        @click="partnerOpen = true"
+                        @click="onTrialOffer ? partnerOpen = true : unlockAllOpen = true"
                         class="inline-flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold h-11 px-8 rounded-xl transition-all duration-300 cursor-pointer"
                     >
                         <Sparkles class="w-4 h-4" />

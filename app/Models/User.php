@@ -114,9 +114,12 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * End this member's trial. Because lock state is derived from trial state
-     * rather than stored per episode, this unlocks their whole library at once —
-     * nothing is regenerated and no content changes.
+     * End this member's trial by paying for it — buying a main pack — which
+     * opens every library they were still waiting on. Nothing is regenerated
+     * and no content changes.
+     *
+     * Becoming a partner is the other way out of a trial; that one uses
+     * becomePartner() and deliberately leaves the library shut.
      */
     public function endTrial(): void
     {
@@ -125,6 +128,31 @@ class User extends Authenticatable implements MustVerifyEmail
         }
 
         $this->forceFill(['is_trial' => false, 'trial_allowance' => 0])->save();
+
+        $this->unlockTrialLibraries();
+    }
+
+    /** Open every library this member is still waiting on. Safe to repeat. */
+    public function unlockTrialLibraries(): void
+    {
+        $this->stories()
+            ->where('created_on_trial', true)
+            ->whereNull('episodes_unlocked_at')
+            ->update(['episodes_unlocked_at' => now()]);
+    }
+
+    /**
+     * Confer partner status. The trial ends with it — they are a partner now,
+     * not a trial member — but their library stays withheld until they spend
+     * credits to open it.
+     */
+    public function becomePartner(): void
+    {
+        $this->forceFill([
+            'is_verified_partner' => true,
+            'is_trial' => false,
+            'trial_allowance' => 0,
+        ])->save();
     }
 
     /**
