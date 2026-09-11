@@ -338,7 +338,11 @@ class StoryController extends Controller
 
         $this->chargeForGeneration($user, $count);
 
-        $story->update(['status' => 'generating', 'episode_limit' => $count]);
+        $story->update([
+            'status' => 'generating',
+            'episode_limit' => $count,
+            'created_on_trial' => $user->spendsTrialAllowance(),
+        ]);
         GenerateStory::dispatch($story, $format);
 
         return to_route('stories.show', $story->id);
