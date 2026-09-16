@@ -3,6 +3,7 @@ import { computed, ref, onMounted } from 'vue';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
+import HowCreditsWorkDialog from '@/Components/HowCreditsWorkDialog.vue';
 import { runTour, runTourWhenReady } from '@/lib/tour';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
@@ -56,9 +57,15 @@ const trialSpent = computed(() => onTrialOffer.value && props.trial_allowance < 
 // A trial member has no use for the credit shop — becoming a partner is what
 // opens their library — so every buy button becomes the partner apply form.
 const partnerOpen = ref(false);
-const trialTokenLabel = computed(
-    () => `Trial (${props.trial_allowance} FREE Story Token${props.trial_allowance === 1 ? '' : 's'})`
+const trialCreditNote = computed(
+    () => `Includes ${props.trial_allowance} free trial credit${props.trial_allowance === 1 ? '' : 's'}`
 );
+
+// A trial member's free credit lives in trial_allowance, not credits, so the
+// card would otherwise read "0 credits available" beside "includes 1 free credit".
+const displayCredits = computed(() => (onTrialOffer.value ? props.trial_allowance : creditBalance.value));
+const creditsLabel   = computed(() => `credit${displayCredits.value === 1 ? '' : 's'} available`);
+const creditsInfoOpen = ref(false);
 
 // Format labels
 const formatLabel = {
@@ -133,7 +140,8 @@ onMounted(() => {
                         <Sparkles class="w-5 h-5" style="color: #F5A000;" />
                         <h1 class="text-lg font-black" style="color: #1A1A1A;">
                             My
-                            <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Storybot Library</span>
+                            <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Storybot</span>
+                            Library
                         </h1>
                         <span class="text-xs text-[#555555]">· {{ generatedCount }} {{ generatedCount === 1 ? 'story' : 'stories' }} generated</span>
                         <button
@@ -147,51 +155,69 @@ onMounted(() => {
                         </button>
                     </div>
 
-                    <div id="tour-new-story" class="flex items-center gap-2">
-                        <!-- Has credits (or admin): create a story -->
-                        <Link v-if="canCreateStory" :href="route('stories.create')">
-                            <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
-                                <Plus class="w-4 h-4" />
-                                New Story
-                            </Button>
-                        </Link>
+                    <div id="tour-new-story" class="flex flex-col items-end gap-1">
+                        <div class="flex items-center gap-2">
+                            <!-- Has credits (or admin): create a story -->
+                            <Link v-if="canCreateStory" :href="route('stories.create')">
+                                <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                                    <Plus class="w-4 h-4" />
+                                    New Story
+                                </Button>
+                            </Link>
 
-                        <!-- Trial member: partner status is what opens their library -->
-                        <Button
-                            v-else-if="onTrialOffer"
-                            @click="partnerOpen = true"
-                            class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer"
-                        >
-                            <Sparkles class="w-4 h-4" />
-                            Become a VBP
-                        </Button>
-
-                        <!-- Out of credits: buy more -->
-                        <Link v-else :href="route('shop.index')">
-                            <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
-                                <ShoppingBag class="w-4 h-4" />
-                                Buy StoryBot Credits
+                            <!-- Trial member: partner status is what opens their library -->
+                            <Button
+                                v-else-if="onTrialOffer"
+                                @click="partnerOpen = true"
+                                class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer"
+                            >
+                                <Sparkles class="w-4 h-4" />
+                                Become a VBP
                             </Button>
-                        </Link>
+
+                            <!-- Out of credits: buy more -->
+                            <Link v-else :href="route('shop.index')">
+                                <Button class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer">
+                                    <ShoppingBag class="w-4 h-4" />
+                                    Buy StoryBot Credits
+                                </Button>
+                            </Link>
+                        </div>
+                        <span v-if="canCreateStory" class="text-xs text-[#AAAAAA]">uses 1 credit</span>
                     </div>
                 </div>
             </div>
 
             <div class="max-w-4xl mx-auto px-4 md:px-8 py-6 space-y-6">
 
+                <div class="bg-[#FEF9EC] rounded-2xl px-5 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <p class="text-sm text-[#555555]">
+                        <strong class="font-bold text-[#1A1A1A]">Welcome to StoryCreator.Bot —</strong>
+                        episodes and refinements are paid for with credits.
+                    </p>
+                    <button
+                        type="button"
+                        @click="creditsInfoOpen = true"
+                        class="shrink-0 inline-flex items-center gap-0.5 text-sm font-bold text-[#F5A000] hover:text-[#D98C00] transition-colors cursor-pointer"
+                    >
+                        Learn how credits work
+                        <ChevronRight class="w-4 h-4" />
+                    </button>
+                </div>
+
                 <!-- Stats row -->
                 <div class="grid grid-cols-1 gap-4">
                     <!-- StoryBot credits -->
                     <div id="tour-credits" class="bg-white rounded-2xl border border-[#DDDDDD] p-5 flex flex-col md:flex-row md:items-center gap-5">
                         <!-- Balance -->
-                        <div class="flex items-center gap-4 md:w-1/2 md:pr-6 md:border-r md:border-[#EEEEEE]">
+                        <div class="flex items-center gap-4 md:w-2/5 md:pr-6 md:border-r md:border-[#EEEEEE]">
                             <div class="shrink-0 w-11 h-11 rounded-xl flex items-center justify-center bg-amber-50">
                                 <Zap class="w-5 h-5 text-[#F5A000]" />
                             </div>
                             <div class="min-w-0">
                                 <div class="flex items-baseline gap-2">
-                                    <span class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : creditBalance }}</span>
-                                    <span class="text-sm text-[#555555]">StoryBot Credits</span>
+                                    <span class="text-2xl font-black text-[#1A1A1A]">{{ isAdmin ? '∞' : displayCredits }}</span>
+                                    <span class="text-sm text-[#555555]">{{ creditsLabel }}</span>
                                     <TooltipProvider>
                                         <Tooltip :delay-duration="100">
                                             <TooltipTrigger as-child>
@@ -207,12 +233,7 @@ onMounted(() => {
                                         </Tooltip>
                                     </TooltipProvider>
                                 </div>
-                                <span
-                                    v-if="onTrialOffer"
-                                    class="inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-[#F5A000]"
-                                >
-                                    {{ trialTokenLabel }}
-                                </span>
+                                <p v-if="onTrialOffer" class="text-xs text-[#AAAAAA] mt-1">{{ trialCreditNote }}</p>
                                 <span
                                     v-else-if="!isAdmin && creditBalance === 0"
                                     class="inline-block mt-1 text-xs font-bold px-2 py-0.5 rounded-full bg-amber-50 text-[#F5A000]"
@@ -233,7 +254,17 @@ onMounted(() => {
                                 <span class="text-sm text-[#555555]">Episode generation</span>
                                 <span class="text-sm font-bold text-[#1A1A1A] shrink-0">1 credit / episode</span>
                             </div>
-                            <p class="text-xs text-[#AAAAAA] mt-2">Example: a 12-episode story costs 12 credits to generate.</p>
+                            <div class="border-t border-[#EEEEEE] mt-3 pt-3 flex items-center justify-between gap-4">
+                                <p class="text-xs text-[#AAAAAA]">A 12-episode story costs 12 credits total.</p>
+                                <button
+                                    type="button"
+                                    @click="creditsInfoOpen = true"
+                                    class="shrink-0 inline-flex items-center gap-0.5 text-xs font-bold text-[#F5A000] hover:text-[#D98C00] transition-colors cursor-pointer"
+                                >
+                                    Learn more
+                                    <ChevronRight class="w-3.5 h-3.5" />
+                                </button>
+                            </div>
                         </div>
 
                         <Button
@@ -495,6 +526,8 @@ onMounted(() => {
         </Dialog>
 
         <PartnerApplyDialog v-model:open="partnerOpen" />
+
+        <HowCreditsWorkDialog v-model:open="creditsInfoOpen" />
 
     </AuthenticatedLayout>
 </template>
