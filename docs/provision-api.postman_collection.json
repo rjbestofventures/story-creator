@@ -1,0 +1,411 @@
+{
+  "info": {
+    "name": "StoryCreator.Bot Provision API",
+    "description": "Set base_url and provision_token in the collection variables. Requests run in order: create a Temporary VBP, then convert it.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{provision_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8123"
+    },
+    {
+      "key": "provision_token",
+      "value": ""
+    },
+    {
+      "key": "temp_email",
+      "value": "temp.vbp@example.com"
+    }
+  ],
+  "item": [
+    {
+      "name": "Temporary VBP",
+      "item": [
+        {
+          "name": "Create Temporary VBP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Tess Temp\",\n    \"email\": \"{{temp_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/temporary-vbp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "temporary-vbp"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Convert Temporary VBP to Gold VBP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{temp_email}}\",\n    \"vbp_plan\": \"gold\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/convert-to-partner",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "convert-to-partner"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "VBP plan",
+      "item": [
+        {
+          "name": "Create user as Silver VBP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Sal Silver\",\n    \"email\": \"sal.silver@example.com\",\n    \"vbp_plan\": \"silver\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "user"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create user as Gold VBP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Gia Gold\",\n    \"email\": \"gia.gold@example.com\",\n    \"vbp_plan\": \"gold\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "user"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Convert trial member to Silver VBP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"trial.member@example.com\",\n    \"vbp_plan\": \"silver\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/convert-to-partner",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "convert-to-partner"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Verify partner and record plan",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"sal.silver@example.com\",\n    \"vbp_plan\": \"gold\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/verify-partner",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "verify-partner"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Convert without plan (expect 422)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{temp_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/convert-to-partner",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "convert-to-partner"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Existing",
+      "item": [
+        {
+          "name": "Create trial member",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Trial Member\",\n    \"email\": \"trial.member@example.com\",\n    \"trial\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "user"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Deactivate account",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"sal.silver@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/deactivate",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "deactivate"
+              ]
+            }
+          }
+        },
+        {
+          "name": "No token (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"X\",\n    \"email\": \"x@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/temporary-vbp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "temporary-vbp"
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

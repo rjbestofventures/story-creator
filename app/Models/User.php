@@ -16,7 +16,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Cashier\Billable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'is_active', 'credits', 'is_verified_partner', 'is_trial', 'trial_allowance'])]
+#[Fillable(['name', 'email', 'password', 'is_active', 'credits', 'is_verified_partner', 'vbp_plan', 'is_trial', 'trial_allowance', 'is_temporary_vbp', 'temporary_vbp_expires_at'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -26,8 +26,17 @@ class User extends Authenticatable implements MustVerifyEmail
     /** Stories a newly provisioned Trial Member may generate before converting. */
     public const DEFAULT_TRIAL_ALLOWANCE = 1;
 
-    /** Credits a trial member is given when they convert to a partner. */
-    public const PARTNER_CONVERSION_CREDITS = 45;
+    /** Credits a member is given when they become a partner on each VBP plan. */
+    public const VBP_PLAN_CREDITS = ['gold' => 48, 'silver' => 36];
+
+    /** Credits a Temporary VBP starts with: one 6-episode story, then 6 refines. */
+    public const TEMPORARY_VBP_CREDITS = 12;
+
+    /** The only episode count a Temporary VBP may generate. */
+    public const TEMPORARY_VBP_EPISODES = 6;
+
+    /** How long a Temporary VBP account lasts before it is deactivated. */
+    public const TEMPORARY_VBP_MONTHS = 3;
 
     protected function casts(): array
     {
@@ -41,6 +50,9 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_verified_partner' => 'boolean',
             'is_trial' => 'boolean',
             'trial_allowance' => 'integer',
+            'is_temporary_vbp' => 'boolean',
+            'temporary_vbp_expires_at' => 'datetime',
+            'temporary_story_generated_at' => 'datetime',
         ];
     }
 
@@ -152,7 +164,63 @@ class User extends Authenticatable implements MustVerifyEmail
             'is_verified_partner' => true,
             'is_trial' => false,
             'trial_allowance' => 0,
+            'is_temporary_vbp' => false,
+            'temporary_vbp_expires_at' => null,
         ])->save();
+    }
+
+    /**
+     * Make this member a full partner on a VBP plan. The plan's credits are
+     * granted once, on the way in, so repeating this for someone who is already
+     * a full partner only records the plan. A Temporary VBP converting keeps
+     * whatever credits they had left, and an account their expiry already shut
+     * is opened again.
+     */
+    public function convertToPartner(string $plan): void
+    {
+        $alreadyPartner = $this->is_verified_partner && ! $this->is_temporary_vbp;
+
+        if (! $alreadyPartner) {
+            $this->increment('credits', self::VBP_PLAN_CREDITS[$plan]);
+        }
+
+        if ($this->is_temporary_vbp) {
+            $this->forceFill(['is_active' => true]);
+        }
+
+        $this->forceFill(['vbp_plan' => $plan]);
+
+        $this->becomePartner();
+    }
+
+    /**
+     * Start a Temporary VBP: a starting wallet for one 6-episode story plus
+     * refines, and a clock after which the account shuts unless converted.
+     */
+    public function becomeTemporaryPartner(): void
+    {
+        $this->forceFill([
+            'is_temporary_vbp' => true,
+            'temporary_vbp_expires_at' => now()->addMonths(self::TEMPORARY_VBP_MONTHS),
+            'is_verified_partner' => false,
+            'is_trial' => false,
+            'trial_allowance' => 0,
+            'credits' => $this->credits + self::TEMPORARY_VBP_CREDITS,
+        ])->save();
+    }
+
+    public function endTemporaryPartnership(): void
+    {
+        $this->forceFill([
+            'is_temporary_vbp' => false,
+            'temporary_vbp_expires_at' => null,
+        ])->save();
+    }
+
+    /** A Temporary VBP gets one story; deleting it does not give it back. */
+    public function hasUsedTemporaryStory(): bool
+    {
+        return $this->is_temporary_vbp && $this->temporary_story_generated_at !== null;
     }
 
     /**
@@ -177,6 +245,10 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         if ($this->isAdmin()) {
             return null;
+        }
+
+        if ($this->is_temporary_vbp) {
+            return self::TEMPORARY_VBP_EPISODES;
         }
 
         $latest = $this->purchases()

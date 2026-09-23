@@ -16,6 +16,7 @@ use App\Services\TextToSpeechService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
@@ -48,6 +49,10 @@ class AdminController extends Controller
                 'tier' => $user->roles->first()?->name ?? 'user',
                 'is_active' => $user->is_active,
                 'is_verified_partner' => $user->is_verified_partner,
+                'vbp_plan' => $user->vbp_plan,
+                'is_temporary_vbp' => $user->is_temporary_vbp,
+                'temporary_vbp_expires_at' => $user->temporary_vbp_expires_at?->toDateString(),
+                'temporary_story_used' => $user->hasUsedTemporaryStory(),
                 'is_trial' => $user->is_trial,
                 'trial_allowance' => $user->trial_allowance,
                 'credits' => $user->credits,
@@ -538,6 +543,7 @@ class AdminController extends Controller
             'tier' => 'required|in:super_admin,admin,user',
             'is_active' => 'required|boolean',
             'is_verified_partner' => 'required|boolean',
+            'is_temporary_vbp' => 'sometimes|boolean',
             'pack_id' => 'nullable|exists:credit_packs,id',
         ]);
 
@@ -557,6 +563,10 @@ class AdminController extends Controller
 
         if (! empty($validated['pack_id'])) {
             CreditPack::findOrFail($validated['pack_id'])->grantTo($user);
+        }
+
+        if (($validated['is_temporary_vbp'] ?? false) && ! $user->is_verified_partner) {
+            $user->becomeTemporaryPartner();
         }
 
         $token = Password::createToken($user);
@@ -663,6 +673,61 @@ class AdminController extends Controller
             'is_trial' => true,
             'trial_allowance' => max($user->trial_allowance, User::DEFAULT_TRIAL_ALLOWANCE),
         ]);
+
+        return back();
+    }
+
+    /**
+     * Turning Temporary VBP on starts the three-month clock and adds the
+     * starting credits; turning it off keeps the credits and stops the clock.
+     * A full partner is never demoted to temporary.
+     */
+    public function toggleTemporaryVbp(User $user)
+    {
+        if ($user->is_temporary_vbp) {
+            $user->endTemporaryPartnership();
+
+            return back();
+        }
+
+        abort_if($user->is_verified_partner, 422, 'A Verified Business Partner cannot be made temporary.');
+
+        $user->becomeTemporaryPartner();
+
+        return back();
+    }
+
+    /** Move a Temporary VBP's deactivation date; a future date reopens the account. */
+    public function setTemporaryVbpExpiry(Request $request, User $user)
+    {
+        abort_unless($user->is_temporary_vbp, 422, 'This account is not a Temporary VBP.');
+
+        $validated = $request->validate([
+            'temporary_vbp_expires_at' => 'required|date',
+        ]);
+
+        $expiresAt = Carbon::parse($validated['temporary_vbp_expires_at'])->endOfDay();
+
+        $user->forceFill([
+            'temporary_vbp_expires_at' => $expiresAt,
+            'is_active' => $expiresAt->isFuture() ? true : $user->is_active,
+        ])->save();
+
+        return back();
+    }
+
+    /**
+     * Put a member on a VBP plan. Someone not yet a full partner, including a
+     * Temporary VBP, is converted and given the plan's credits; an existing
+     * partner only has their plan changed.
+     */
+    public function setVbpPlan(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'vbp_plan' => ['required', Rule::in(array_keys(User::VBP_PLAN_CREDITS))],
+        ]);
+
+        $user->convertToPartner($validated['vbp_plan']);
 
         return back();
     }

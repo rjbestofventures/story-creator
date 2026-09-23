@@ -48,6 +48,16 @@ class StoryController extends Controller
      */
     private function episodeOptionsFor(User $user): array
     {
+        // A Temporary VBP writes a 6-episode story; the regular sizes are shown
+        // locked behind becoming a full partner rather than behind a pack.
+        if ($user->is_temporary_vbp) {
+            return array_map(fn (int $count) => [
+                'count' => $count,
+                'locked' => $count !== User::TEMPORARY_VBP_EPISODES,
+                'unlock_label' => null,
+            ], $this->episodeCountsFor($user));
+        }
+
         $max = $user->maxEpisodes(); // null = unlimited (admins)
 
         $packs = CreditPack::query()
@@ -69,6 +79,14 @@ class StoryController extends Controller
                 'unlock_label' => $unlock,
             ];
         }, self::EPISODE_OPTIONS);
+    }
+
+    /** @return list<int> */
+    private function episodeCountsFor(User $user): array
+    {
+        return $user->is_temporary_vbp
+            ? [User::TEMPORARY_VBP_EPISODES, ...self::EPISODE_OPTIONS]
+            : self::EPISODE_OPTIONS;
     }
 
     /**
@@ -109,9 +127,19 @@ class StoryController extends Controller
             return;
         }
 
+        abort_if(
+            $user->hasUsedTemporaryStory(),
+            403,
+            'Your Temporary VBP story has already been created. Your remaining credits are for AI Refine.'
+        );
+
         abort_if($user->credits < $count, 403, 'You don\'t have enough credits to generate this story.');
 
         $user->decrement('credits', $count);
+
+        if ($user->is_temporary_vbp) {
+            $user->forceFill(['temporary_story_generated_at' => now()])->save();
+        }
     }
 
     /**
@@ -124,6 +152,12 @@ class StoryController extends Controller
 
         if ($max === null || $count <= $max) {
             return;
+        }
+
+        if ($user->is_temporary_vbp) {
+            throw ValidationException::withMessages([
+                'episode_count' => 'Temporary VBPs generate '.User::TEMPORARY_VBP_EPISODES.'-episode stories. Become a Verified Business Partner to unlock '.$count.' episodes.',
+            ]);
         }
 
         $unlock = CreditPack::query()
@@ -165,6 +199,9 @@ class StoryController extends Controller
             'is_trial' => $user->is_trial,
             'trial_allowance' => $user->trial_allowance,
             'is_verified_partner' => $user->is_verified_partner,
+            'is_temporary_vbp' => $user->is_temporary_vbp,
+            'temporary_story_used' => $user->hasUsedTemporaryStory(),
+            'temporary_vbp_episodes' => User::TEMPORARY_VBP_EPISODES,
         ]);
     }
 
@@ -176,6 +213,10 @@ class StoryController extends Controller
     {
         $user = $request->user();
 
+        if ($user->hasUsedTemporaryStory()) {
+            return to_route('stories.index');
+        }
+
         return Inertia::render('Stories/Create', [
             'profile' => null,
             'story' => null,
@@ -183,6 +224,7 @@ class StoryController extends Controller
             'episode_options' => $this->episodeOptionsFor($user),
             'max_episodes' => $user->maxEpisodes(),
             'is_trial' => $user->spendsTrialAllowance(),
+            'is_temporary_vbp' => $user->is_temporary_vbp,
             'trial_episode_count' => Story::TRIAL_EPISODE_COUNT,
             'trial_unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
         ]);
@@ -204,6 +246,7 @@ class StoryController extends Controller
             'episode_options' => $this->episodeOptionsFor($user),
             'max_episodes' => $user->maxEpisodes(),
             'is_trial' => $user->spendsTrialAllowance(),
+            'is_temporary_vbp' => $user->is_temporary_vbp,
             'trial_episode_count' => Story::TRIAL_EPISODE_COUNT,
             'trial_unlocked_episodes' => Story::TRIAL_UNLOCKED_EPISODES,
             'story' => [
@@ -330,7 +373,7 @@ class StoryController extends Controller
             'format' => 'in:social,blog,linkedin',
             'episode_count' => $user->spendsTrialAllowance()
                 ? 'nullable|integer'
-                : 'required|integer|in:'.implode(',', self::EPISODE_OPTIONS),
+                : 'required|integer|in:'.implode(',', $this->episodeCountsFor($user)),
         ]);
         $format = $data['format'] ?? 'social';
 
@@ -435,7 +478,7 @@ class StoryController extends Controller
             'format' => 'in:social,blog,linkedin',
             'episode_count' => $user->spendsTrialAllowance()
                 ? 'nullable|integer'
-                : 'required|integer|in:'.implode(',', self::EPISODE_OPTIONS),
+                : 'required|integer|in:'.implode(',', $this->episodeCountsFor($user)),
         ]);
 
         $count = $this->resolveEpisodeCount($user, $data['episode_count'] ?? null);

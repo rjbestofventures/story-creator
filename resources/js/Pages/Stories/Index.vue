@@ -27,6 +27,9 @@ const props = defineProps({
     is_trial:        { type: Boolean, default: false },
     trial_allowance: { type: Number,  default: 0 },
     is_verified_partner: { type: Boolean, default: false },
+    is_temporary_vbp:       { type: Boolean, default: false },
+    temporary_story_used:   { type: Boolean, default: false },
+    temporary_vbp_episodes: { type: Number,  default: 6 },
 });
 
 const buyCreditsButtonEnabled = computed(() => usePage().props.features?.buyCreditsButtonEnabled ?? true);
@@ -46,8 +49,13 @@ const MIN_STORY_CREDITS = 12;
 // does not apply to them — their allowance does.
 const canCreateStory = computed(() => {
     if (onTrialOffer.value) return props.trial_allowance > 0;
+    if (props.is_temporary_vbp) return !props.temporary_story_used && creditBalance.value >= props.temporary_vbp_episodes;
     return props.isAdmin || creditBalance.value >= MIN_STORY_CREDITS;
 });
+
+// A Temporary VBP gets more stories by converting, not from the shop, so they
+// are sent to the partner apply form just like a trial member.
+const routesToPartner = computed(() => onTrialOffer.value || props.is_temporary_vbp);
 
 // A trial member who has spent their allowance already has their story; point
 // them at it rather than refusing them blankly.
@@ -167,7 +175,7 @@ onMounted(() => {
 
                             <!-- Trial member: partner status is what opens their library -->
                             <Button
-                                v-else-if="onTrialOffer"
+                                v-else-if="routesToPartner"
                                 @click="partnerOpen = true"
                                 class="flex items-center gap-2 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-white font-bold h-10 px-5 rounded-xl transition-all duration-300 cursor-pointer"
                             >
@@ -268,7 +276,7 @@ onMounted(() => {
                         </div>
 
                         <Button
-                            v-if="!isAdmin && buyCreditsButtonEnabled && onTrialOffer"
+                            v-if="!isAdmin && buyCreditsButtonEnabled && routesToPartner"
                             @click="partnerOpen = true"
                             class="flex items-center gap-2 bg-white border border-[#DDDDDD] hover:border-[#F5A000] text-[#1A1A1A] font-bold h-10 px-4 rounded-xl transition-all duration-200 cursor-pointer"
                         >
@@ -282,6 +290,26 @@ onMounted(() => {
                             </Button>
                         </Link>
                     </div>
+                </div>
+
+                <!-- Temporary VBP spent: their one story exists; credits left are for refining -->
+                <div
+                    v-if="is_temporary_vbp && temporary_story_used"
+                    class="rounded-2xl border px-5 py-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                    style="background:#FEF9EC; border-color:#F5A000;"
+                >
+                    <p class="text-sm text-[#555555]">
+                        <strong class="font-bold text-[#1A1A1A]">Your Temporary VBP story is made.</strong>
+                        Your remaining {{ creditBalance }} credit{{ creditBalance === 1 ? '' : 's' }} are for AI Refine.
+                        Become a Verified Business Partner to create more stories.
+                    </p>
+                    <Button
+                        @click="partnerOpen = true"
+                        class="shrink-0 font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
+                    >
+                        <Sparkles class="w-4 h-4 mr-2" />
+                        Become a VBP
+                    </Button>
                 </div>
 
                 <!-- Trial spent: their story already exists, so point at it -->
@@ -482,7 +510,7 @@ onMounted(() => {
                         </div>
                     </div>
                     <Button
-                        v-if="onTrialOffer"
+                        v-if="routesToPartner"
                         @click="partnerOpen = true"
                         class="shrink-0 text-xs font-bold h-9 px-4 rounded-lg bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] border-0 cursor-pointer"
                     >

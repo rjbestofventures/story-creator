@@ -64,14 +64,21 @@ Layer 3 — What They Do Now:
 Bring the story into the present. Connect the past experience directly to what the narrator does today and how they do it. The reader should understand clearly what problem this person solves and who they solve it for. It must never feel like a pitch. It should feel like the natural conclusion of the story that came before it.
 
 Layer 4 — The Closing Call to Action (required on every episode, no exceptions):
-At the end of every generated episode, include a short and natural call-to-action paragraph that encourages reader engagement while subtly supporting the business, brand, product, or service being promoted within the story. The CTA should feel conversational and smoothly connected to the episode without sounding overly promotional, salesy, or forced.
-Encourage the reader to interact by sharing their thoughts, reactions, opinions, or predictions about the episode. You may also naturally guide the reader toward learning more about the featured business, product, or service through soft, engagement-focused language.
-The CTA should vary between episodes to avoid repetition and should always match the tone, mood, and emotional pacing of the story. Keep it immersive, modern, audience-friendly, and concise, around one to three sentences at most. The CTA is always about the narrator's own business and work, never about StoryCreator.Bot or any tool used to write it. Do not include hard sell instructions to buy, book, or sign up.
+Every single episode ends with a call to action. An episode without one is incomplete and must not be returned.
+The CTA should feel like a good salesperson naturally wrapping up a sales conversation: someone who has just shared something real, reads the room, and offers the natural next step. It is never a scripted advertisement.
+- Keep each CTA authentic, conversational, and relevant to that specific episode. It should grow out of the story that came before it, so it could not be moved to another episode unchanged.
+- Never repeat the same words, phrases, sentence structures, or CTA patterns across episodes. Before finalizing the library, compare every closing against every other closing. If two open the same way, ask the same kind of question, follow the same shape, or reuse a phrase, rewrite one of them.
+- Make every CTA feel fresh, natural, and appropriate to the context and emotional pacing of the episode.
+- Avoid overly promotional, pushy, or generic language. No hard instructions to buy, book, call, or sign up.
+- The CTA should create a natural next step for the reader without sounding forced. That step can be sharing a reaction, answering a question, telling their own version of the story, stopping by, asking the narrator about something, or learning more about the narrator's work.
+- Keep it concise, one to three sentences at most.
+- The CTA is always about the narrator's own business and work, never about StoryCreator.Bot or any tool used to write it.
 
-Wrong closing (salesy and generic): "If you are struggling with your brand story, reach out and let us talk. Book a call today."
-Correct closing (invites reaction): "I still catch myself testing new blends at midnight, chasing that one cup that finally tastes like home. If you have ever gone that far for something small, I would genuinely love to hear what it was."
-Correct closing (soft guide to the work): "Every table by the window at Cravepresso started as a question I could not stop asking. Come see which corner becomes your own, and tell me what you notice first."
-Correct closing (invites a prediction): "I keep wondering which detail people will remember a year from now. What would you bet on, the coffee or the quiet?"
+Wrong closing (scripted and pushy): "If you are struggling with your brand story, reach out and let us talk. Book a call today."
+The closings below only illustrate the range of tone. Never copy their wording or structure.
+Right closing (invites reaction): "I still catch myself testing new blends at midnight, chasing that one cup that finally tastes like home. If you have ever gone that far for something small, I would genuinely love to hear what it was."
+Right closing (natural next step): "Every table by the window at Cravepresso started as a question I could not stop asking. Come see which corner becomes your own, and tell me what you notice first."
+Right closing (invites a prediction): "I keep wondering which detail people will remember a year from now. What would you bet on, the coffee or the quiet?"
 
 VOICE AND IMMERSION RULES:
 - Always write in first-person present tense. This rule applies to every sentence in every paragraph in every episode. No exceptions.
@@ -184,6 +191,7 @@ INTERVIEW TRANSCRIPT:
 Generate exactly {$episodeCount} story episodes. Target length per episode: {$lengthGuide}.
 Draw from the full interview — use specific details, moments, and the owner's own words.
 Apply all episode architecture, voice, and distribution rules.
+Every episode must end with its own call to action (Layer 4), and no two episodes may share CTA wording, sentence structure, or pattern.
 PROMPT;
 
         $model = SiteSetting::get('generation_model', 'claude-sonnet-4-6');
@@ -272,7 +280,7 @@ NOTE
             : '';
 
         $ctaNote = $tone === 'less_cta' ? '' : <<<'NOTE'
- Keep the closing call to action described in Layer 4 of your instructions: end the episode with a short, natural CTA of one to three sentences that invites the reader to react or share their thoughts and softly supports the narrator's business, never salesy or a hard pitch.
+ Keep the closing call to action described in Layer 4 of your instructions: end the episode with a short, natural CTA of one to three sentences that reads like a salesperson naturally wrapping up a conversation, fits this episode specifically, and offers the reader a natural next step, never pushy, generic, or a hard pitch.
 NOTE;
 
         $userPrompt = <<<PROMPT
