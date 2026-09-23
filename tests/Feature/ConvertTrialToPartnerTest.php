@@ -21,10 +21,10 @@ class ConvertTrialToPartnerTest extends TestCase
         config(['app.provision_api_token' => 'test-token']);
     }
 
-    private function convert(string $email): TestResponse
+    private function convert(string $email, string $plan = 'gold'): TestResponse
     {
         return $this->withHeader('Authorization', 'Bearer test-token')
-            ->postJson('/api/provision/convert-to-partner', ['email' => $email]);
+            ->postJson('/api/provision/convert-to-partner', ['email' => $email, 'vbp_plan' => $plan]);
     }
 
     private function trialMember(): User
@@ -105,15 +105,43 @@ class ConvertTrialToPartnerTest extends TestCase
             );
     }
 
-    public function test_it_grants_the_partner_conversion_credits(): void
+    public function test_it_grants_the_gold_plan_credits(): void
     {
         $user = $this->trialMember();
 
-        $this->convert($user->email)
+        $this->convert($user->email, 'gold')
             ->assertOk()
-            ->assertJsonPath('user.credits', User::PARTNER_CONVERSION_CREDITS);
+            ->assertJsonPath('user.credits', 48)
+            ->assertJsonPath('user.vbp_plan', 'gold');
 
-        $this->assertSame(User::PARTNER_CONVERSION_CREDITS, $user->fresh()->credits);
+        $this->assertSame(48, $user->fresh()->credits);
+    }
+
+    public function test_it_grants_the_silver_plan_credits(): void
+    {
+        $user = $this->trialMember();
+
+        $this->convert($user->email, 'silver')
+            ->assertOk()
+            ->assertJsonPath('user.credits', 36)
+            ->assertJsonPath('user.vbp_plan', 'silver');
+    }
+
+    public function test_the_plan_is_required(): void
+    {
+        $user = $this->trialMember();
+
+        $this->withHeader('Authorization', 'Bearer test-token')
+            ->postJson('/api/provision/convert-to-partner', ['email' => $user->email])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('vbp_plan');
+
+        $this->withHeader('Authorization', 'Bearer test-token')
+            ->postJson('/api/provision/convert-to-partner', ['email' => $user->email, 'vbp_plan' => 'platinum'])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('vbp_plan');
+
+        $this->assertTrue($user->fresh()->is_trial);
     }
 
     public function test_repeating_it_does_not_grant_the_credits_twice(): void
@@ -121,9 +149,9 @@ class ConvertTrialToPartnerTest extends TestCase
         $user = $this->trialMember();
 
         $this->convert($user->email)->assertOk();
-        $this->convert($user->email)->assertOk();
+        $this->convert($user->email, 'silver')->assertOk()->assertJsonPath('user.vbp_plan', 'silver');
 
-        $this->assertSame(User::PARTNER_CONVERSION_CREDITS, $user->fresh()->credits);
+        $this->assertSame(48, $user->fresh()->credits);
     }
 
     public function test_the_converted_member_is_offered_partner_pricing(): void
@@ -155,7 +183,7 @@ class ConvertTrialToPartnerTest extends TestCase
 
         $this->assertTrue($user->is_verified_partner);
         $this->assertFalse($user->is_trial);
-        $this->assertSame(20 + User::PARTNER_CONVERSION_CREDITS, $user->credits);
+        $this->assertSame(20 + 48, $user->credits);
     }
 
     public function test_verify_partner_still_leaves_a_trial_running(): void

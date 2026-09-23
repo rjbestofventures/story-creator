@@ -5,7 +5,7 @@ import {
     Users, BookOpen, Activity, Package, Coins,
     Search, UserPlus, CircleUser, KeyRound, Trash2, Mail,
     ChevronDown, Check, LogIn, Gift, Lock,
-    Receipt, ExternalLink,
+    Receipt, ExternalLink, Clock, Award,
 } from '@lucide/vue';
 import AdminLayout from '@/Layouts/AdminLayout.vue';
 import { Button } from '@/Components/ui/button';
@@ -81,12 +81,15 @@ const filtered = computed(() =>
     props.users.filter(u =>
         u.name.toLowerCase().includes(search.value.toLowerCase()) ||
         u.email.toLowerCase().includes(search.value.toLowerCase()) ||
-        u.tier.toLowerCase().includes(search.value.toLowerCase())
+        u.tier.toLowerCase().includes(search.value.toLowerCase()) ||
+        (u.vbp_plan ?? '').includes(search.value.toLowerCase()) ||
+        (u.is_temporary_vbp && 'temporary vbp'.includes(search.value.toLowerCase()))
     )
 );
 
 const kpis = computed(() => [
     { label: 'Verified Business Partners',     value: props.users.filter(u => u.is_verified_partner).length,  icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Verified business partners'                       },
+    { label: 'Temporary VBPs',                 value: props.users.filter(u => u.is_temporary_vbp).length,     icon: Clock,    color: '#0EA5E9', bg: 'bg-sky-50',    text: 'text-sky-600',    tooltip: 'Temporary VBPs, deactivated after 3 months unless converted' },
     { label: 'Non-Verified Business Partners', value: props.users.filter(u => !u.is_verified_partner).length, icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are not verified partners'           },
     { label: 'Total Sold Packs',   value: props.stats.sold_packs,                                 icon: Package,  color: '#6366F1', bg: 'bg-indigo-50', text: 'text-indigo-600', tooltip: 'Packs purchased across all users'                 },
     { label: 'Stories',            value: props.stats.stories,                                    icon: BookOpen, color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-600', tooltip: 'Total stories generated across the platform'      },
@@ -192,6 +195,73 @@ const saveTrialAllowance = (user) => {
     });
 };
 
+const planLabel = (plan) => ({ gold: 'Gold', silver: 'Silver' })[plan] ?? plan;
+
+const planForms = ref({});
+const getPlanForm = (user) => {
+    if (!planForms.value[user.id]) {
+        planForms.value[user.id] = useForm({ vbp_plan: user.vbp_plan ?? '' });
+    }
+    return planForms.value[user.id];
+};
+
+// Saving a plan on someone who is not yet a full partner converts them and
+// grants the plan's credits, so the button says so.
+const isFullPartner = (user) => user.is_verified_partner && !user.is_temporary_vbp;
+
+const saveVbpPlan = (user) => {
+    const form = getPlanForm(user);
+    if (!form.vbp_plan) return;
+    form.post(route('admin.users.vbp-plan', user.id), {
+        preserveScroll: true,
+        onSuccess: () => flash(user.id),
+    });
+};
+
+const temporaryToggles = ref({});
+const toggleTemporaryVbp = (user) => {
+    if (temporaryToggles.value[user.id]) return;
+    temporaryToggles.value[user.id] = true;
+    router.post(route('admin.users.toggle-temporary-vbp', user.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => flash(user.id),
+        onFinish: () => { temporaryToggles.value[user.id] = false; },
+    });
+};
+
+const expiryForms = ref({});
+const getExpiryForm = (user) => {
+    if (!expiryForms.value[user.id]) {
+        expiryForms.value[user.id] = useForm({ temporary_vbp_expires_at: user.temporary_vbp_expires_at ?? '' });
+    }
+    return expiryForms.value[user.id];
+};
+
+watch(() => props.users, (users) => {
+    for (const user of users) {
+        const plan = planForms.value[user.id];
+        if (plan && !plan.processing && plan.vbp_plan !== (user.vbp_plan ?? '')) {
+            plan.defaults({ vbp_plan: user.vbp_plan ?? '' });
+            plan.reset();
+        }
+
+        const expiry = expiryForms.value[user.id];
+        if (expiry && !expiry.processing && expiry.temporary_vbp_expires_at !== (user.temporary_vbp_expires_at ?? '')) {
+            expiry.defaults({ temporary_vbp_expires_at: user.temporary_vbp_expires_at ?? '' });
+            expiry.reset();
+        }
+    }
+}, { deep: true });
+
+const saveExpiry = (user) => {
+    const form = getExpiryForm(user);
+    if (!form.temporary_vbp_expires_at) return;
+    form.post(route('admin.users.temporary-vbp-expiry', user.id), {
+        preserveScroll: true,
+        onSuccess: () => flash(user.id),
+    });
+};
+
 const saveRole = (user) => {
     getTierForm(user).patch(route('admin.users.update', user.id), {
         preserveScroll: true,
@@ -220,7 +290,7 @@ const userModalUser     = ref(null);
 const passwordModalOpen = ref(false);
 const passwordModalUser = ref(null);
 
-const userForm     = useForm({ name: '', email: '', tier: 'user', is_active: true, is_verified_partner: false, pack_id: '' });
+const userForm     = useForm({ name: '', email: '', tier: 'user', is_active: true, is_verified_partner: false, is_temporary_vbp: false, pack_id: '' });
 const passwordForm = useForm({});
 
 const openCreate = () => {
@@ -291,7 +361,7 @@ const impersonate = (userId) => {
         </div>
 
         <!-- KPI cards -->
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+        <div class="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-5 gap-3 mb-6">
             <Tooltip v-for="kpi in kpis" :key="kpi.label">
                 <TooltipTrigger as-child>
                     <div class="bg-white rounded-2xl px-5 py-4 flex items-center gap-4 ring-1 ring-[#DDDDDD] cursor-default">
@@ -352,6 +422,21 @@ const impersonate = (userId) => {
                                 class="bg-amber-50 text-amber-700 border-amber-200 text-[10px] px-1.5 py-0"
                             >
                                 Verified Partner
+                            </Badge>
+                            <Badge
+                                v-if="user.vbp_plan"
+                                variant="outline"
+                                :class="user.vbp_plan === 'gold' ? 'bg-yellow-50 text-yellow-700 border-yellow-300' : 'bg-slate-50 text-slate-600 border-slate-300'"
+                                class="text-[10px] px-1.5 py-0"
+                            >
+                                VBP Plan: {{ planLabel(user.vbp_plan) }}
+                            </Badge>
+                            <Badge
+                                v-if="user.is_temporary_vbp"
+                                variant="outline"
+                                class="bg-sky-50 text-sky-700 border-sky-200 text-[10px] px-1.5 py-0"
+                            >
+                                Temporary VBP · until {{ user.temporary_vbp_expires_at }}
                             </Badge>
                             <Badge
                                 v-if="user.is_trial"
@@ -605,6 +690,72 @@ const impersonate = (userId) => {
                                 <Lock class="w-3.5 h-3.5" /> Set
                             </Button>
                         </div>
+                        <!-- VBP program: plan + Temporary VBP -->
+                        <div class="flex flex-wrap items-end gap-3 pt-1">
+                            <div class="space-y-1.5 w-[12rem]">
+                                <Label class="text-xs text-[#555555]">VBP Plan</Label>
+                                <Select
+                                    :model-value="getPlanForm(user).vbp_plan"
+                                    @update:model-value="val => getPlanForm(user).vbp_plan = val"
+                                >
+                                    <SelectTrigger class="w-full bg-white">
+                                        <SelectValue placeholder="— No plan —" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="gold">Gold — 48 credits</SelectItem>
+                                        <SelectItem value="silver">Silver — 36 credits</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Button
+                                variant="outline"
+                                :disabled="!getPlanForm(user).vbp_plan || getPlanForm(user).processing"
+                                class="shrink-0 gap-1.5 font-semibold border-[#F5A000] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
+                                @click="saveVbpPlan(user)"
+                            >
+                                <Award class="w-3.5 h-3.5" />
+                                {{ isFullPartner(user) ? 'Save Plan' : 'Convert to VBP' }}
+                            </Button>
+
+                            <button
+                                v-if="!isFullPartner(user)"
+                                type="button"
+                                :disabled="temporaryToggles[user.id]"
+                                class="shrink-0 inline-flex items-center gap-1.5 h-9 px-3 rounded-lg text-sm font-semibold border transition-colors cursor-pointer disabled:opacity-40"
+                                :class="user.is_temporary_vbp
+                                    ? 'text-sky-700 border-sky-200 bg-sky-50 hover:bg-sky-100'
+                                    : 'text-[#555555] border-[#DDDDDD] bg-white hover:bg-sky-50 hover:text-sky-700 hover:border-sky-200'"
+                                @click.stop="toggleTemporaryVbp(user)"
+                            >
+                                <Clock class="w-3.5 h-3.5" />
+                                {{ user.is_temporary_vbp ? 'Temporary VBP ✓' : 'Make Temporary VBP' }}
+                            </button>
+
+                            <template v-if="user.is_temporary_vbp">
+                                <div class="w-[10rem]">
+                                    <label class="block text-[10px] font-semibold text-[#555555] mb-1">Deactivates on</label>
+                                    <Input
+                                        type="date"
+                                        :model-value="getExpiryForm(user).temporary_vbp_expires_at"
+                                        @update:model-value="val => getExpiryForm(user).temporary_vbp_expires_at = val"
+                                        class="h-9 bg-white"
+                                    />
+                                </div>
+                                <Button
+                                    variant="outline"
+                                    :disabled="!getExpiryForm(user).temporary_vbp_expires_at || getExpiryForm(user).processing"
+                                    class="shrink-0 gap-1.5 font-semibold border-[#DDDDDD] text-[#1A1A1A] hover:bg-amber-50 disabled:opacity-40"
+                                    @click="saveExpiry(user)"
+                                >
+                                    <Check class="w-3.5 h-3.5" /> Set
+                                </Button>
+                                <span class="text-xs text-[#555555]">
+                                    Story {{ user.temporary_story_used ? 'used' : 'not used yet' }}
+                                </span>
+                            </template>
+                        </div>
+                        <p class="text-[10px] text-muted-foreground">Convert to VBP makes the member a Verified Business Partner and adds the plan's credits (Gold 48, Silver 36); on an existing partner it only changes the plan. A Temporary VBP gets 12 credits, one 6-episode story, and is deactivated on the date shown unless converted. Moving the date into the future reactivates the account.</p>
+
                         <p class="text-[10px] text-muted-foreground">Granting adds the pack's credits to the user's wallet (free). Gifting adds any number of credits directly. Partner status unlocks discounted partner pricing in the shop. Trial allowance is how many stories a trial member may still generate — setting it above zero puts the account into trial, and buying any main pack ends the trial and unlocks their library.</p>
                     </div>
 
@@ -787,6 +938,14 @@ const impersonate = (userId) => {
                                 <p class="text-xs text-muted-foreground">Unlocks discounted partner pricing.</p>
                             </div>
                             <Switch v-model="userForm.is_verified_partner" :class="userForm.is_verified_partner ? '!bg-[#F5A000]' : '!bg-gray-300'" />
+                        </div>
+
+                        <div v-if="!userForm.is_verified_partner" class="flex items-center justify-between">
+                            <div>
+                                <Label>Temporary VBP</Label>
+                                <p class="text-xs text-muted-foreground">12 credits, one 6-episode story, deactivated after 3 months.</p>
+                            </div>
+                            <Switch v-model="userForm.is_temporary_vbp" :class="userForm.is_temporary_vbp ? '!bg-sky-500' : '!bg-gray-300'" />
                         </div>
 
                         <div class="space-y-1.5">

@@ -18,9 +18,15 @@ use Stripe\Webhook;
 
 class ShopController extends Controller
 {
-    public function index(Request $request): \Inertia\Response
+    public function index(Request $request): \Inertia\Response|RedirectResponse
     {
         $user = $request->user();
+
+        // A Temporary VBP's way to more stories is converting to a full partner,
+        // not buying a pack that would leave them capped at one 6-episode story.
+        if ($user->is_temporary_vbp) {
+            return to_route('stories.index');
+        }
         $audience = CreditPack::audienceType($user); // 'partner' | 'storybot'
 
         $packs = CreditPack::active()->ofType($audience)->orderBy('price')
@@ -66,6 +72,8 @@ class ShopController extends Controller
 
         $pack = CreditPack::where('id', $data['pack_id'])->active()->firstOrFail();
         $user = $request->user();
+
+        abort_if($user->is_temporary_vbp, 403, 'Temporary VBPs become a Verified Business Partner to get more credits.');
 
         // Add-on can only be bought once the user holds a main pack
         // (verified partners qualify automatically).

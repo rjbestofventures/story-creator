@@ -154,6 +154,9 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::post('/users/{user}/gift-credits', [AdminController::class, 'giftCredits'])->name('users.gift-credits');
     Route::post('/users/{user}/trial-allowance', [AdminController::class, 'setTrialAllowance'])->name('users.trial-allowance');
     Route::post('/users/{user}/toggle-trial', [AdminController::class, 'toggleTrial'])->name('users.toggle-trial');
+    Route::post('/users/{user}/toggle-temporary-vbp', [AdminController::class, 'toggleTemporaryVbp'])->name('users.toggle-temporary-vbp');
+    Route::post('/users/{user}/temporary-vbp-expiry', [AdminController::class, 'setTemporaryVbpExpiry'])->name('users.temporary-vbp-expiry');
+    Route::post('/users/{user}/vbp-plan', [AdminController::class, 'setVbpPlan'])->name('users.vbp-plan');
     Route::delete('/users/{user}', [AdminController::class, 'destroy'])->name('users.destroy');
     Route::post('/users/{user}/impersonate', [AdminController::class, 'impersonate'])->name('users.impersonate');
     Route::get('/users/{user}/invoices', [AdminController::class, 'userInvoices'])->name('users.invoices');

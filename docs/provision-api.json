@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "StoryCreator.Bot Provision API",
-    "version": "1.2.0",
-    "description": "Machine-to-machine API for creating StoryCreator.Bot accounts, granting credit packs, marking accounts as verified business partners, and deactivating accounts.\n\nThere is no user session — every request authenticates with a static bearer token held on the server.\n\n**Trial members.** An account created with `trial: true` completes the full interview and receives a complete 12-episode story generated from their own answers. The first 3 episodes are readable; the remaining 9 are written, stored, and locked. A trial member holds no credits and generates without spending any.\n\n**Trial and partner status are independent.** `is_trial` decides whether a member's episodes are locked. `is_verified_partner` decides which pack prices they are offered. They compose freely — a member may be either, both, or neither.\n\n**Ending a trial unlocks the whole library.** Three things end one: the member buys a main pack, an admin grants a main pack, or you call `POST /api/provision/convert-to-partner`. All three unlock every locked episode in the same moment; nothing is regenerated. Only the first two grant credits. Add-ons never end a trial, and trial members cannot buy them."
+    "version": "1.3.0",
+    "description": "Machine-to-machine API for creating StoryCreator.Bot accounts, granting credit packs, marking accounts as verified business partners, and deactivating accounts.\n\nThere is no user session — every request authenticates with a static bearer token held on the server.\n\n**Trial members.** An account created with `trial: true` completes the full interview and receives a complete 12-episode story generated from their own answers. The first 3 episodes are readable; the remaining 9 are written, stored, and locked. A trial member holds no credits and generates without spending any.\n\n**Trial and partner status are independent.** `is_trial` decides whether a member's episodes are locked. `is_verified_partner` decides which pack prices they are offered. They compose freely — a member may be either, both, or neither.\n\n**Ending a trial unlocks the whole library.** Three things end one: the member buys a main pack, an admin grants a main pack, or you call `POST /api/provision/convert-to-partner`. All three unlock every locked episode in the same moment; nothing is regenerated. Only the first two grant credits. Add-ons never end a trial, and trial members cannot buy them.\n\n**Temporary VBPs.** `POST /api/provision/temporary-vbp` creates an account with 12 credits that may generate one 6-episode story and keeps the rest for AI Refine. It is deactivated 3 months after creation unless converted with `POST /api/provision/convert-to-partner`.\n\n**VBP plans.** A Verified Business Partner is on the `gold` (48 credits) or `silver` (36 credits) plan. Convert to Partner requires `vbp_plan`."
   },
   "servers": [
     {
@@ -162,6 +162,67 @@
         }
       }
     },
+    "/api/provision/temporary-vbp": {
+      "post": {
+        "tags": [
+          "Accounts"
+        ],
+        "summary": "Create a Temporary VBP",
+        "operationId": "createTemporaryVbp",
+        "description": "Creates a Temporary VBP with 12 credits: one 6-episode story, the rest for AI Refine. The account is deactivated 3 months after creation unless converted with convert-to-partner. Emails the user a password-setup link.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TemporaryVbpRequest"
+              },
+              "example": {
+                "name": "Tess Temp",
+                "email": "tess@example.com"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Temporary VBP created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "user": {
+                      "$ref": "#/components/schemas/User"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Missing or invalid bearer token",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/provision/verify-partner": {
       "post": {
         "tags": [
@@ -175,10 +236,11 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EmailRequest"
+                "$ref": "#/components/schemas/VerifyPartnerRequest"
               },
               "example": {
-                "email": "jane@example.com"
+                "email": "jane@example.com",
+                "vbp_plan": "silver"
               }
             }
           }
@@ -231,16 +293,17 @@
         ],
         "summary": "Convert a trial member to a verified business partner",
         "operationId": "convertToPartner",
-        "description": "Converts a vetted trial member into a verified business partner: they are offered partner pricing **and their trial ends**, which unlocks their whole library immediately. Nothing is regenerated — the locked episodes were written during the trial and simply become readable.\n\nNo credits are granted. The member can read and copy all 12 episodes, but cannot refine them or start another story until they buy a pack.\n\nUse this when someone has trialled the product, passed vetting, and should be given their library as part of onboarding. Use `verify-partner` instead when a trial member should keep their locked library and merely see partner prices.\n\nSafe to repeat, and safe to call on a member who was never in a trial — they simply become a verified partner.",
+        "description": "Converts a trial member or Temporary VBP into a Verified Business Partner on a VBP plan and grants the plan's credits (Gold 48, Silver 36). A Temporary VBP keeps leftover credits, loses its deactivation date, and is reactivated if its expiry already shut the account. An existing full partner only has the plan changed.",
         "requestBody": {
           "required": true,
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/EmailRequest"
+                "$ref": "#/components/schemas/ConvertToPartnerRequest"
               },
               "example": {
-                "email": "jane@example.com"
+                "email": "tess@example.com",
+                "vbp_plan": "gold"
               }
             }
           }
@@ -401,6 +464,14 @@
             "type": "boolean",
             "default": false,
             "description": "Create the account as a trial member: episodes arrive locked past the first 3, no credits are held or spent, and `trial_allowance` is seeded to 1. Cannot be combined with `pack`."
+          },
+          "vbp_plan": {
+            "type": "string",
+            "enum": [
+              "gold",
+              "silver"
+            ],
+            "description": "Create the account as a Verified Business Partner on this plan and grant its credits. Cannot be combined with `trial` or `pack`."
           }
         }
       },
@@ -467,6 +538,31 @@
             "type": "integer",
             "minimum": 0,
             "description": "Credits held. 1 credit generates or refines 1 episode. Trial members hold none."
+          },
+          "is_active": {
+            "type": "boolean"
+          },
+          "vbp_plan": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "gold",
+              "silver",
+              null
+            ]
+          },
+          "is_temporary_vbp": {
+            "type": "boolean"
+          },
+          "temporary_vbp_expires_at": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "When a Temporary VBP is deactivated unless converted."
           }
         }
       },
@@ -534,6 +630,64 @@
         "properties": {
           "message": {
             "type": "string"
+          }
+        }
+      },
+      "TemporaryVbpRequest": {
+        "type": "object",
+        "required": [
+          "name",
+          "email"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "maxLength": 255
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        }
+      },
+      "ConvertToPartnerRequest": {
+        "type": "object",
+        "required": [
+          "email",
+          "vbp_plan"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "vbp_plan": {
+            "type": "string",
+            "enum": [
+              "gold",
+              "silver"
+            ],
+            "description": "VBP plan. Gold grants 48 credits, Silver 36."
+          }
+        }
+      },
+      "VerifyPartnerRequest": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "vbp_plan": {
+            "type": "string",
+            "enum": [
+              "gold",
+              "silver"
+            ],
+            "description": "Recorded on the account; no credits are granted."
           }
         }
       }

@@ -20,6 +20,7 @@ const props = defineProps({
     credits:         { type: Number, default: null },
     max_episodes:    { type: Number, default: null },
     is_trial:                 { type: Boolean, default: false },
+    is_temporary_vbp:         { type: Boolean, default: false },
     trial_episode_count:      { type: Number,  default: 12 },
     trial_unlocked_episodes:  { type: Number,  default: 3 },
     episode_options: {
@@ -1434,7 +1435,7 @@ const formats = [
                                 </span>
                             </div>
                             <TooltipProvider>
-                                <div class="grid grid-cols-3 gap-2">
+                                <div class="grid gap-2" :class="episodeOptions.length > 3 ? 'grid-cols-4' : 'grid-cols-3'">
                                     <Tooltip v-for="opt in episodeOptions" :key="opt.count" :delay-duration="100">
                                         <TooltipTrigger as-child>
                                             <button
@@ -1453,7 +1454,8 @@ const formats = [
                                                     v-if="!unlocked(opt)"
                                                     class="absolute top-0 inset-x-0 bg-[#1A1A1A] text-white text-[8px] font-bold uppercase tracking-wide py-0.5 truncate px-1"
                                                 >
-                                                    Buy {{ opt.unlock_label || 'Pro' }} to unlock
+                                                    <template v-if="is_temporary_vbp">VBP only</template>
+                                                    <template v-else>Buy {{ opt.unlock_label || 'Pro' }} to unlock</template>
                                                 </span>
                                                 <Lock v-if="!unlocked(opt)" class="absolute top-6 right-2 w-3 h-3 text-[#AAAAAA]" />
                                                 <span class="text-xl font-black text-[#1A1A1A]">{{ opt.count }}</span>
@@ -1463,7 +1465,11 @@ const formats = [
                                         </TooltipTrigger>
                                         <TooltipContent v-if="!unlocked(opt)" side="bottom" class="max-w-xs p-3 flex-col items-start gap-1">
                                             <p class="text-xs leading-relaxed text-white">
-                                                <template v-if="opt.unlock_label">
+                                                <template v-if="is_temporary_vbp">
+                                                    {{ opt.count }}-episode stories open once you become a
+                                                    <strong class="font-semibold text-white">Verified Business Partner</strong>.
+                                                </template>
+                                                <template v-else-if="opt.unlock_label">
                                                     Unlock {{ opt.count }}-episode stories with the
                                                     <strong class="font-semibold text-white">{{ opt.unlock_label }}</strong>.
                                                 </template>
@@ -1471,7 +1477,7 @@ const formats = [
                                                     This episode count requires a higher pack.
                                                 </template>
                                             </p>
-                                            <Link :href="route('shop.index')" class="text-xs font-semibold text-[#F5A000] hover:underline">
+                                            <Link v-if="!is_temporary_vbp" :href="route('shop.index')" class="text-xs font-semibold text-[#F5A000] hover:underline">
                                                 View packs →
                                             </Link>
                                         </TooltipContent>
