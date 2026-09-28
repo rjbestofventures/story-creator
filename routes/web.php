@@ -26,6 +26,7 @@ Route::get('/', function () {
 
 Route::get('/terms', fn () => Inertia::render('Terms'))->name('terms');
 Route::get('/privacy', fn () => Inertia::render('Privacy'))->name('privacy');
+Route::get('/docs/vbp-plans', fn () => Inertia::render('Docs/VbpPlans'))->name('docs.vbp-plans');
 
 Route::get('/verified-partner', function () {
     return Inertia::render('VerifiedPartner', [
