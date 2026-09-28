@@ -3,7 +3,7 @@
   "info": {
     "title": "StoryCreator.Bot Provision API",
     "version": "1.3.0",
-    "description": "Machine-to-machine API for creating StoryCreator.Bot accounts, granting credit packs, marking accounts as verified business partners, and deactivating accounts.\n\nThere is no user session — every request authenticates with a static bearer token held on the server.\n\n**Trial members.** An account created with `trial: true` completes the full interview and receives a complete 12-episode story generated from their own answers. The first 3 episodes are readable; the remaining 9 are written, stored, and locked. A trial member holds no credits and generates without spending any.\n\n**Trial and partner status are independent.** `is_trial` decides whether a member's episodes are locked. `is_verified_partner` decides which pack prices they are offered. They compose freely — a member may be either, both, or neither.\n\n**Ending a trial unlocks the whole library.** Three things end one: the member buys a main pack, an admin grants a main pack, or you call `POST /api/provision/convert-to-partner`. All three unlock every locked episode in the same moment; nothing is regenerated. Only the first two grant credits. Add-ons never end a trial, and trial members cannot buy them.\n\n**Temporary VBPs.** `POST /api/provision/temporary-vbp` creates an account with 12 credits that may generate one 6-episode story and keeps the rest for AI Refine. It is deactivated 3 months after creation unless converted with `POST /api/provision/convert-to-partner`.\n\n**VBP plans.** A Verified Business Partner is on the `gold` (48 credits) or `silver` (36 credits) plan. Convert to Partner requires `vbp_plan`."
+    "description": "Machine-to-machine API for creating StoryCreator.Bot accounts, granting credit packs, marking accounts as verified business partners, and deactivating accounts.\n\nThere is no user session — every request authenticates with a static bearer token held on the server.\n\n**Trial members.** An account created with `trial: true` completes the full interview and receives a complete 12-episode story generated from their own answers. The first 3 episodes are readable; the remaining 9 are written, stored, and locked. A trial member holds no credits and generates without spending any.\n\n**Trial and partner status are independent.** `is_trial` decides whether a member's episodes are locked. `is_verified_partner` decides which pack prices they are offered. They compose freely — a member may be either, both, or neither.\n\n**Ending a trial unlocks the whole library.** Three things end one: the member buys a main pack, an admin grants a main pack, or you call `POST /api/provision/convert-to-partner`. All three unlock every locked episode in the same moment; nothing is regenerated. Only the first two grant credits. Add-ons never end a trial, and trial members cannot buy them.\n\n**Temporary VBPs.** `POST /api/provision/temporary-vbp` creates an account with 12 credits that may generate one 6-episode story and keeps the rest for AI Refine. It is deactivated 3 months after creation unless converted with `POST /api/provision/convert-to-partner`.\n\n**VBP plans.** A Verified Business Partner is on the `gold` (36 credits), `silver` (24 credits), or `other` (36 credits) plan. Convert to Partner requires `vbp_plan`."
   },
   "servers": [
     {
@@ -293,7 +293,7 @@
         ],
         "summary": "Convert a trial member to a verified business partner",
         "operationId": "convertToPartner",
-        "description": "Converts a trial member or Temporary VBP into a Verified Business Partner on a VBP plan and grants the plan's credits (Gold 48, Silver 36). A Temporary VBP keeps leftover credits, loses its deactivation date, and is reactivated if its expiry already shut the account. An existing full partner only has the plan changed.",
+        "description": "Converts a trial member or Temporary VBP into a Verified Business Partner on a VBP plan and grants the plan's credits (Gold 36, Silver 24, Other 36). A Temporary VBP keeps leftover credits, loses its deactivation date, and is reactivated if its expiry already shut the account. An existing full partner only has the plan changed.",
         "requestBody": {
           "required": true,
           "content": {
@@ -469,7 +469,8 @@
             "type": "string",
             "enum": [
               "gold",
-              "silver"
+              "silver",
+              "other"
             ],
             "description": "Create the account as a Verified Business Partner on this plan and grant its credits. Cannot be combined with `trial` or `pack`."
           }
@@ -550,6 +551,7 @@
             "enum": [
               "gold",
               "silver",
+              "other",
               null
             ]
           },
@@ -665,9 +667,10 @@
             "type": "string",
             "enum": [
               "gold",
-              "silver"
+              "silver",
+              "other"
             ],
-            "description": "VBP plan. Gold grants 48 credits, Silver 36."
+            "description": "VBP plan. Gold grants 36 credits, Silver 24, Other 36."
           }
         }
       },
@@ -685,7 +688,8 @@
             "type": "string",
             "enum": [
               "gold",
-              "silver"
+              "silver",
+              "other"
             ],
             "description": "Recorded on the account; no credits are granted."
           }

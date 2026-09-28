@@ -30,7 +30,7 @@ Creates a new user account, optionally grants the specified credit pack, and sen
 | `email` | string | Yes | Email address (must be unique) |
 | `pack` | string | No | Credit pack slug — see [Packs](#packs). Omit to create the account with 0 credits and no pack. |
 | `trial` | boolean | No | Create the account as a Trial Member. Defaults to `false`. Cannot be combined with `pack`. |
-| `vbp_plan` | string | No | `gold` or `silver`. Creates the account as a Verified Business Partner on that plan and grants the plan's credits (Gold 48, Silver 36). Cannot be combined with `trial` or `pack`. |
+| `vbp_plan` | string | No | `gold`, `silver`, or `other`. Creates the account as a Verified Business Partner on that plan and grants the plan's credits (Gold 36, Silver 24, Other 36). Cannot be combined with `trial` or `pack`. |
 
 ### Example Request
 
@@ -207,8 +207,9 @@ Converts a trial member **or a Temporary VBP** into a Verified Business Partner 
 
 | `vbp_plan` | Credits granted |
 |---|---|
-| `gold` | 48 |
-| `silver` | 36 |
+| `gold` | 36 |
+| `silver` | 24 |
+| `other` | 36 |
 
 - **Trial member:** the trial ends, but the library stays locked. They spend the new credits to open it.
 - **Temporary VBP:** the temporary status and its deactivation date are cleared, leftover credits are kept, and the 6-episode / one-story limits are lifted. An account that the 3-month expiry already deactivated is reactivated.
@@ -221,7 +222,7 @@ Converts a trial member **or a Temporary VBP** into a Verified Business Partner 
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `email` | string | Yes | Email address of an existing account |
-| `vbp_plan` | string | Yes | `gold` or `silver` |
+| `vbp_plan` | string | Yes | `gold`, `silver`, or `other` |
 
 ### Example Request
 
@@ -252,7 +253,7 @@ Accept: application/json
         "temporary_vbp_expires_at": null,
         "is_trial": false,
         "trial_allowance": 0,
-        "credits": 54
+        "credits": 42
     }
 }
 ```
@@ -263,7 +264,7 @@ Accept: application/json
 |---|---|
 | `401` | Missing or invalid bearer token |
 | `404` | No account with that email |
-| `422` | Validation failed (`vbp_plan` missing or not `gold`/`silver`) |
+| `422` | Validation failed (`vbp_plan` missing or not `gold`/`silver`/`other`) |
 
 ---
 
@@ -273,7 +274,7 @@ Marks an existing account as a verified business partner, which governs **pack p
 
 To also end the trial and grant the plan's credits, call [Convert to Partner](#convert-to-partner) instead.
 
-Accepts an optional `vbp_plan` (`gold` or `silver`), which is recorded on the account without granting credits.
+Accepts an optional `vbp_plan` (`gold`, `silver`, or `other`), which is recorded on the account without granting credits.
 
 **`POST /api/provision/verify-partner`**
 

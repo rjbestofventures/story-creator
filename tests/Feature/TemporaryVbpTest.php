@@ -198,7 +198,7 @@ class TemporaryVbpTest extends TestCase
             ->assertJsonPath('user.is_temporary_vbp', false)
             ->assertJsonPath('user.temporary_vbp_expires_at', null)
             ->assertJsonPath('user.vbp_plan', 'gold')
-            ->assertJsonPath('user.credits', 6 + 48);
+            ->assertJsonPath('user.credits', 6 + 36);
 
         $user->refresh();
 
@@ -217,7 +217,7 @@ class TemporaryVbpTest extends TestCase
         $this->api('/api/provision/convert-to-partner', ['email' => $user->email, 'vbp_plan' => 'silver'])
             ->assertOk()
             ->assertJsonPath('user.is_active', true)
-            ->assertJsonPath('user.credits', 12 + 36);
+            ->assertJsonPath('user.credits', 12 + 24);
 
         $this->artisan('vbp:expire-temporary');
         $this->assertTrue($user->fresh()->is_active);
@@ -233,11 +233,11 @@ class TemporaryVbpTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('user.is_verified_partner', true)
             ->assertJsonPath('user.vbp_plan', 'gold')
-            ->assertJsonPath('user.credits', 48);
+            ->assertJsonPath('user.credits', 36);
 
         $this->api('/api/provision/user', ['name' => 'Sal Silver', 'email' => 'sal@example.com', 'vbp_plan' => 'silver'])
             ->assertCreated()
-            ->assertJsonPath('user.credits', 36);
+            ->assertJsonPath('user.credits', 24);
     }
 
     public function test_create_user_rejects_a_plan_with_a_trial_or_a_pack(): void
@@ -277,6 +277,6 @@ class TemporaryVbpTest extends TestCase
             ->assertCreated()
             ->assertJsonPath('vbp_plan', 'gold')
             ->assertJsonPath('is_verified_partner', true)
-            ->assertJsonPath('credits', 48);
+            ->assertJsonPath('credits', 36);
     }
 }

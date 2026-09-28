@@ -38,6 +38,29 @@ class AdminVbpManagementTest extends TestCase
             );
     }
 
+    public function test_every_page_is_told_each_plan_and_its_credits(): void
+    {
+        $this->get(route('welcome'))
+            ->assertInertia(fn ($page) => $page->where('vbpPlans', [
+                ['key' => 'gold', 'label' => 'Gold', 'credits' => 36],
+                ['key' => 'silver', 'label' => 'Silver', 'credits' => 24],
+                ['key' => 'other', 'label' => 'Other', 'credits' => 36],
+            ]));
+    }
+
+    public function test_an_admin_can_put_a_partner_on_the_other_plan(): void
+    {
+        $user = User::factory()->create(['credits' => 0]);
+
+        $this->actingAs($this->admin)
+            ->post(route('admin.users.vbp-plan', $user), ['vbp_plan' => 'other'])
+            ->assertRedirect();
+
+        $user->refresh();
+        $this->assertSame('other', $user->vbp_plan);
+        $this->assertSame(36, $user->credits);
+    }
+
     public function test_making_a_member_a_temporary_vbp_and_back(): void
     {
         $user = User::factory()->create(['credits' => 0]);
@@ -98,7 +121,7 @@ class AdminVbpManagementTest extends TestCase
         $this->assertTrue($user->is_verified_partner);
         $this->assertFalse($user->is_temporary_vbp);
         $this->assertSame('silver', $user->vbp_plan);
-        $this->assertSame(12 + 36, $user->credits);
+        $this->assertSame(12 + 24, $user->credits);
     }
 
     public function test_changing_an_existing_partners_plan_grants_nothing(): void
