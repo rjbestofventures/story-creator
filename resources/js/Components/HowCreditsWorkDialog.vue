@@ -1,10 +1,29 @@
 <script setup>
+import { computed } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 import { Zap, RotateCcw, AlignLeft } from 'lucide-vue-next';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
 } from '@/Components/ui/dialog';
 
 const open = defineModel('open', { default: false });
+
+const page = usePage();
+
+// The example starts from the credits the viewer's own plan grants; members
+// without a plan see a generic 48-credit pool.
+const example = computed(() => {
+    const user = page.props.auth?.user;
+    if (user?.is_temporary_vbp) {
+        return { heading: 'Your Temporary VBP', pool: page.props.temporaryVbpCredits, episodes: page.props.temporaryVbpEpisodes, refineOnly: true };
+    }
+    const plan = (page.props.vbpPlans ?? []).find(p => p.key === user?.vbp_plan);
+    if (plan) {
+        return { heading: `Your ${plan.label} plan`, pool: plan.credits, episodes: 12 };
+    }
+    return { heading: 'Example', pool: 48, episodes: 12 };
+});
+const leftOver = computed(() => example.value.pool - example.value.episodes);
 </script>
 
 <template>
@@ -53,21 +72,22 @@ const open = defineModel('open', { default: false });
             </div>
 
             <div class="bg-[#F5F5F5] rounded-2xl p-5 mt-5">
-                <p class="text-xs font-bold tracking-wider text-[#AAAAAA] uppercase mb-3">Example</p>
+                <p class="text-xs font-bold tracking-wider text-[#AAAAAA] uppercase mb-3">{{ example.heading }}</p>
                 <div class="flex items-baseline justify-between gap-4">
                     <span class="text-sm text-[#555555]">Starting pool</span>
-                    <span class="text-sm font-bold text-[#1A1A1A] shrink-0">48 credits</span>
+                    <span class="text-sm font-bold text-[#1A1A1A] shrink-0">{{ example.pool }} credits</span>
                 </div>
                 <div class="flex items-baseline justify-between gap-4 mt-2">
-                    <span class="text-sm text-[#555555]">One complete 12-episode story</span>
-                    <span class="text-sm font-bold text-[#1A1A1A] shrink-0">−12 credits</span>
+                    <span class="text-sm text-[#555555]">One complete {{ example.episodes }}-episode story</span>
+                    <span class="text-sm font-bold text-[#1A1A1A] shrink-0">−{{ example.episodes }} credits</span>
                 </div>
                 <div class="border-t border-[#DDDDDD] mt-3 pt-3 flex items-baseline justify-between gap-4">
                     <span class="text-sm font-bold text-[#1A1A1A]">Left in your pool</span>
-                    <span class="text-sm font-bold text-[#F5A000] shrink-0">36 credits</span>
+                    <span class="text-sm font-bold text-[#F5A000] shrink-0">{{ leftOver }} credits</span>
                 </div>
                 <p class="text-xs text-[#AAAAAA] mt-3">
-                    Use those 36 credits toward a new story, or toward refining episodes in this one.
+                    <template v-if="example.refineOnly">Use those {{ leftOver }} credits toward refining episodes in your story.</template>
+                    <template v-else>Use those {{ leftOver }} credits toward a new story, or toward refining episodes in this one.</template>
                 </p>
             </div>
         </DialogContent>

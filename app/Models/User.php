@@ -27,7 +27,9 @@ class User extends Authenticatable implements MustVerifyEmail
     public const DEFAULT_TRIAL_ALLOWANCE = 1;
 
     /** Credits a member is given when they become a partner on each VBP plan. */
-    public const VBP_PLAN_CREDITS = ['gold' => 48, 'silver' => 36];
+    public const VBP_PLAN_CREDITS = ['gold' => 36, 'silver' => 24, 'other' => 36];
+
+    public const VBP_PLAN_LABELS = ['gold' => 'Gold', 'silver' => 'Silver', 'other' => 'Other'];
 
     /** Credits a Temporary VBP starts with: one 6-episode story, then 6 refines. */
     public const TEMPORARY_VBP_CREDITS = 12;
@@ -191,6 +193,15 @@ class User extends Authenticatable implements MustVerifyEmail
         $this->forceFill(['vbp_plan' => $plan]);
 
         $this->becomePartner();
+    }
+
+    /** Every VBP plan with the credits it grants, in display order. */
+    public static function vbpPlans(): array
+    {
+        return array_map(
+            fn (string $key) => ['key' => $key, 'label' => self::VBP_PLAN_LABELS[$key], 'credits' => self::VBP_PLAN_CREDITS[$key]],
+            array_keys(self::VBP_PLAN_CREDITS),
+        );
     }
 
     /**

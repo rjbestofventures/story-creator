@@ -111,10 +111,10 @@ class ConvertTrialToPartnerTest extends TestCase
 
         $this->convert($user->email, 'gold')
             ->assertOk()
-            ->assertJsonPath('user.credits', 48)
+            ->assertJsonPath('user.credits', 36)
             ->assertJsonPath('user.vbp_plan', 'gold');
 
-        $this->assertSame(48, $user->fresh()->credits);
+        $this->assertSame(36, $user->fresh()->credits);
     }
 
     public function test_it_grants_the_silver_plan_credits(): void
@@ -123,8 +123,18 @@ class ConvertTrialToPartnerTest extends TestCase
 
         $this->convert($user->email, 'silver')
             ->assertOk()
-            ->assertJsonPath('user.credits', 36)
+            ->assertJsonPath('user.credits', 24)
             ->assertJsonPath('user.vbp_plan', 'silver');
+    }
+
+    public function test_it_grants_the_other_plan_credits(): void
+    {
+        $user = $this->trialMember();
+
+        $this->convert($user->email, 'other')
+            ->assertOk()
+            ->assertJsonPath('user.credits', 36)
+            ->assertJsonPath('user.vbp_plan', 'other');
     }
 
     public function test_the_plan_is_required(): void
@@ -151,7 +161,7 @@ class ConvertTrialToPartnerTest extends TestCase
         $this->convert($user->email)->assertOk();
         $this->convert($user->email, 'silver')->assertOk()->assertJsonPath('user.vbp_plan', 'silver');
 
-        $this->assertSame(48, $user->fresh()->credits);
+        $this->assertSame(36, $user->fresh()->credits);
     }
 
     public function test_the_converted_member_is_offered_partner_pricing(): void
@@ -183,7 +193,7 @@ class ConvertTrialToPartnerTest extends TestCase
 
         $this->assertTrue($user->is_verified_partner);
         $this->assertFalse($user->is_trial);
-        $this->assertSame(20 + 48, $user->credits);
+        $this->assertSame(20 + 36, $user->credits);
     }
 
     public function test_verify_partner_still_leaves_a_trial_running(): void

@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue';
-import { Head, Link, useForm, router } from '@inertiajs/vue3';
+import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import {
     Users, BookOpen, Activity, Package, Coins,
     Search, UserPlus, CircleUser, KeyRound, Trash2, Mail,
@@ -195,7 +195,9 @@ const saveTrialAllowance = (user) => {
     });
 };
 
-const planLabel = (plan) => ({ gold: 'Gold', silver: 'Silver' })[plan] ?? plan;
+const vbpPlans = computed(() => usePage().props.vbpPlans ?? []);
+const planLabel = (plan) => vbpPlans.value.find(p => p.key === plan)?.label ?? plan;
+const planCreditsSummary = computed(() => vbpPlans.value.map(p => `${p.label} ${p.credits}`).join(', '));
 
 const planForms = ref({});
 const getPlanForm = (user) => {
@@ -702,8 +704,7 @@ const impersonate = (userId) => {
                                         <SelectValue placeholder="— No plan —" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="gold">Gold — 48 credits</SelectItem>
-                                        <SelectItem value="silver">Silver — 36 credits</SelectItem>
+                                        <SelectItem v-for="plan in vbpPlans" :key="plan.key" :value="plan.key">{{ plan.label }} — {{ plan.credits }} credits</SelectItem>
                                     </SelectContent>
                                 </Select>
                             </div>
@@ -754,7 +755,7 @@ const impersonate = (userId) => {
                                 </span>
                             </template>
                         </div>
-                        <p class="text-[10px] text-muted-foreground">Convert to VBP makes the member a Verified Business Partner and adds the plan's credits (Gold 48, Silver 36); on an existing partner it only changes the plan. A Temporary VBP gets 12 credits, one 6-episode story, and is deactivated on the date shown unless converted. Moving the date into the future reactivates the account.</p>
+                        <p class="text-[10px] text-muted-foreground">Convert to VBP makes the member a Verified Business Partner and adds the plan's credits ({{ planCreditsSummary }}); on an existing partner it only changes the plan. A Temporary VBP gets 12 credits, one 6-episode story, and is deactivated on the date shown unless converted. Moving the date into the future reactivates the account.</p>
 
                         <p class="text-[10px] text-muted-foreground">Granting adds the pack's credits to the user's wallet (free). Gifting adds any number of credits directly. Partner status unlocks discounted partner pricing in the shop. Trial allowance is how many stories a trial member may still generate — setting it above zero puts the account into trial, and buying any main pack ends the trial and unlocks their library.</p>
                     </div>

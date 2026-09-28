@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, CircleHelp, ChevronDown } from '@lucide/vue';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
@@ -14,6 +14,8 @@ const props = defineProps({
     canRegister: Boolean,
     packs: Array,
 });
+
+const vbpPlans = computed(() => usePage().props.vbpPlans ?? []);
 
 const openFaq = ref(null);
 const learnMorePack = ref(null);
@@ -93,7 +95,7 @@ const tierContent = {
 // public pay-to-play packs, even though episode counts/credits line up 1:1.
 const partnerTierContent = {
     basic: {
-        blurb: 'THE BASIC PLAN is what you receive free when you sign up or resubscribe as a Verified Business Partner. Basic Plan StoryBot credits can also be purchased to enhance story and episodic customization.',
+        blurb: 'THE BASIC PLAN is what you receive when you resubscribe as a Verified Business Partner. Basic Plan StoryBot credits can also be purchased to enhance story and episodic customization.',
         episodes: '12 episodes per story',
         posts: '12 posts, about 6 months of content at 2 posts/month',
     },
@@ -361,6 +363,12 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                             <p class="text-base mb-1" style="color: #888888;">Verified Local Businesses get upto 1 year
                                 <span class="font-bold uppercase" style="color: #F5A000;">FREE CONTENT</span>
                             </p>
+                            <p class="text-sm mt-3" style="color: #AAAAAA;">Free StoryBot credits when you join, by plan:</p>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                <span v-for="plan in vbpPlans" :key="plan.key" class="px-3 py-1 rounded-lg text-sm font-bold" style="background-color: #2A2A2A; color: #FFFFFF;">
+                                    {{ plan.label }} <span style="color: #F5A000;">{{ plan.credits }} credits</span>
+                                </span>
+                            </div>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1.5 mt-4">
                                 <span v-for="f in partnerFeatures"
                                     :key="f" class="flex items-center gap-1.5 text-sm" style="color: #AAAAAA;">

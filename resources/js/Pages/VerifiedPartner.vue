@@ -1,6 +1,6 @@
 <script setup>
-import { ref } from 'vue';
-import { Head, Link } from '@inertiajs/vue3';
+import { ref, computed } from 'vue';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Check, ArrowRight, Star, Building2, Users, Zap, ShieldCheck, Calendar, TrendingUp, Radio, Award, Mail, Phone } from '@lucide/vue';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
@@ -43,14 +43,16 @@ const eligibility = [
     'Committed to publishing two stories monthly on Facebook',
 ];
 
-const perks = [
-    { icon: Calendar, title: 'Basic Pack Free', body: 'No credit card required at signup. Full access from day one.' },
+const planCredits = computed(() => (usePage().props.vbpPlans ?? []).map(p => `${p.label} ${p.credits}`).join(', '));
+
+const perks = computed(() => [
+    { icon: Calendar, title: 'Free Start-Up Credits', body: `Your plan's StoryBot credits are free at signup (${planCredits.value}). No credit card required.` },
     { icon: Zap, title: '12 Episodes per Story', body: 'Each story your bot generates is broken into 12 shareable chapters - ready for social, email, or your website.' },
     { icon: Building2, title: 'Business-First Content', body: 'Every story is written around your specific business, not generic templates. Your voice, your market, your story.' },
     { icon: ShieldCheck, title: 'Credits Accumulate', body: "Unused story and revision credits roll over - they never expire, so you're never left starting from zero." },
     { icon: Star, title: 'Verified Badge', body: 'Display the Best Local Verified Partner badge on your website and social profiles to build trust with local customers.' },
     { icon: Users, title: '2 Stories per Month', body: 'Publish two full stories every month, covering different angles, offers, or audiences.' },
-];
+]);
 
 const stats = [
     { value: '76K+', label: 'Facebook Group Members' },
