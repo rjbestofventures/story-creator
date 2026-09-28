@@ -182,6 +182,42 @@
           }
         },
         {
+          "name": "Create user as Other VBP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Oli Other\",\n    \"email\": \"oli.other@example.com\",\n    \"vbp_plan\": \"other\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/provision/user",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "provision",
+                "user"
+              ]
+            }
+          }
+        },
+        {
           "name": "Convert trial member to Silver VBP",
           "request": {
             "method": "POST",
