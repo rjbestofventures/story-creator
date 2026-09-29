@@ -5,6 +5,7 @@ import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, Circle
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
 import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
+import TrialSignupDialog from '@/Components/TrialSignupDialog.vue';
 
 defineProps({
     canLogin: Boolean,
@@ -34,6 +35,7 @@ const toggleCard = (i) => { expandedCards.value[i] = !expandedCards.value[i]; };
 // partner application dialog instead of routing to /register.
 const signUpOpen = ref(false);
 const contactOpen = ref(false);
+const trialOpen = ref(false);
 
 const faqs = [
     { q: 'How does StoryCreator.Bot work?', a: 'Answer a series of simple questions about your business, how you got started, and your goals. StoryCreator.Bot transforms your answers into a series of ready-to-publish posts and content ideas, all based on your unique story.' },
@@ -125,13 +127,14 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
             <!-- CTAs -->
             <p class="text-xs font-bold tracking-widest uppercase mb-4" style="color: #555555;">Use StoryCreator.Bot</p>
             <div class="flex flex-wrap items-center justify-center gap-4">
-                <Link
-                    :href="route('trial.signup')"
-                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
+                <button
+                    type="button"
+                    @click="trialOpen = true"
+                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50 cursor-pointer"
                     style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
                 >
                     Complementary Trial
-                </Link>
+                </button>
 
                 <Link
                     :href="route('demo')"
@@ -386,6 +389,7 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
 
         <PartnerApplyDialog v-model:open="signUpOpen" />
         <PartnerApplyDialog v-model:open="contactOpen" :show-checkout="false" />
+        <TrialSignupDialog v-model:open="trialOpen" />
 
     </div>
 </template>
