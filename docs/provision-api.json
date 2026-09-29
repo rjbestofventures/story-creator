@@ -3,7 +3,7 @@
   "info": {
     "title": "StoryCreator.Bot Provision API",
     "version": "1.3.0",
-    "description": "Machine-to-machine API for creating StoryCreator.Bot accounts, granting credit packs, marking accounts as verified business partners, and deactivating accounts.\n\nThere is no user session — every request authenticates with a static bearer token held on the server.\n\n**Trial members.** An account created with `trial: true` completes the full interview and receives a complete 12-episode story generated from their own answers. The first 3 episodes are readable; the remaining 9 are written, stored, and locked. A trial member holds no credits and generates without spending any.\n\n**Trial and partner status are independent.** `is_trial` decides whether a member's episodes are locked. `is_verified_partner` decides which pack prices they are offered. They compose freely — a member may be either, both, or neither.\n\n**Ending a trial unlocks the whole library.** Three things end one: the member buys a main pack, an admin grants a main pack, or you call `POST /api/provision/convert-to-partner`. All three unlock every locked episode in the same moment; nothing is regenerated. Only the first two grant credits. Add-ons never end a trial, and trial members cannot buy them.\n\n**Temporary VBPs.** `POST /api/provision/temporary-vbp` creates an account with 12 credits that may generate one 6-episode story and keeps the rest for AI Refine. It is deactivated 3 months after creation unless converted with `POST /api/provision/convert-to-partner`.\n\n**VBP plans.** A Verified Business Partner is on the `gold` (36 credits), `silver` (24 credits), or `other` (36 credits) plan. Convert to Partner requires `vbp_plan`."
+    "description": "Machine-to-machine API for creating StoryCreator.Bot accounts, granting credit packs, marking accounts as verified business partners, and deactivating accounts.\n\nThere is no user session — every request authenticates with a static bearer token held on the server.\n\n**Complementary Trials.** An account created with `trial: true` (or `POST /api/provision/temporary-vbp`) starts with 6 credits. Its one story is 12 episodes and costs 3 credits: the first 3 episodes are readable and the remaining 9 are written, stored, and locked. The remaining 3 credits can only be used for AI Refine. It is deactivated 3 months after creation unless converted.\n\n**Trial and partner status are independent.** `is_trial` (legacy) or `is_temporary_vbp` (Complementary Trial) decides whether a member's episodes are locked. `is_verified_partner` decides which pack prices they are offered. They compose freely — a member may be either, both, or neither.\n\n**Ending a trial.** Call `POST /api/provision/convert-to-partner`. Leftover credits are kept and the plan's credits are added. The locked episodes stay locked until the member spends credits to open them. A Complementary Trial cannot buy packs or unlock episodes with credits.\n\n**Legacy trial members.** Accounts created before the Complementary Trial as trial members (`is_trial: true`, no credits, a `trial_allowance`) keep the old behaviour. No new ones can be created.\n\n**VBP plans.** A Verified Business Partner is on the `gold` (36 credits), `silver` (24 credits), or `other` (36 credits) plan. Convert to Partner requires `vbp_plan`."
   },
   "servers": [
     {
@@ -40,7 +40,7 @@
         ],
         "summary": "Create an account",
         "operationId": "createUser",
-        "description": "Creates a new account, optionally grants a credit pack or marks it as a trial, and emails the user a password-setup link.\n\nThe account's email address is marked verified on creation — the user is vetted off-platform before provisioning, so there is nothing for them to confirm.\n\n`pack` and `trial` are mutually exclusive. A pack grants credits and ends a trial, while a trial holds no credits, so requesting both returns `422`.",
+        "description": "Creates a new account, optionally grants a credit pack or creates it as a Complementary Trial, and emails the user a password-setup link.\n\nThe account's email address is marked verified on creation — the user is vetted off-platform before provisioning, so there is nothing for them to confirm.\n\n`pack` and `trial` are mutually exclusive. A pack grants credits and ends a trial, so requesting both returns `422`. `trial` cannot be combined with `vbp_plan` either.",
         "requestBody": {
           "required": true,
           "content": {
@@ -50,8 +50,8 @@
               },
               "examples": {
                 "trialMember": {
-                  "summary": "Trial member (retail pricing)",
-                  "description": "Locked episodes, no credits, one story of trial allowance.",
+                  "summary": "Complementary Trial",
+                  "description": "6 credits, one 12-episode story with 3 readable episodes, the rest locked.",
                   "value": {
                     "name": "Jane Smith",
                     "email": "jane@example.com",
@@ -89,16 +89,17 @@
                 },
                 "examples": {
                   "trialMember": {
-                    "summary": "Trial member",
+                    "summary": "Complementary Trial",
                     "value": {
                       "user": {
                         "id": 43,
                         "name": "Jane Smith",
                         "email": "jane@example.com",
                         "is_verified_partner": false,
-                        "is_trial": true,
-                        "trial_allowance": 1,
-                        "credits": 0
+                        "is_temporary_vbp": true,
+                        "is_trial": false,
+                        "trial_allowance": 0,
+                        "credits": 6
                       },
                       "pack": null
                     }
@@ -147,10 +148,10 @@
                   "trialWithPack": {
                     "summary": "trial and pack sent together",
                     "value": {
-                      "message": "A trial member cannot be granted a pack. Provision the trial without a pack, or grant the pack without the trial flag.",
+                      "message": "A Complementary Trial cannot be granted a pack. Provision the trial without a pack, or grant the pack without the trial flag.",
                       "errors": {
                         "pack": [
-                          "A trial member cannot be granted a pack. Provision the trial without a pack, or grant the pack without the trial flag."
+                          "A Complementary Trial cannot be granted a pack. Provision the trial without a pack, or grant the pack without the trial flag."
                         ]
                       }
                     }
@@ -167,9 +168,9 @@
         "tags": [
           "Accounts"
         ],
-        "summary": "Create a Temporary VBP",
+        "summary": "Create a Complementary Trial",
         "operationId": "createTemporaryVbp",
-        "description": "Creates a Temporary VBP with 12 credits: one 6-episode story, the rest for AI Refine. The account is deactivated 3 months after creation unless converted with convert-to-partner. Emails the user a password-setup link.",
+        "description": "Creates a Complementary Trial with 6 credits: one 12-episode story costing 3 credits (3 episodes readable, 9 locked), the remaining 3 credits for AI Refine only. The account is deactivated 3 months after creation unless converted with convert-to-partner. Emails the user a password-setup link.",
         "requestBody": {
           "required": true,
           "content": {
@@ -186,7 +187,7 @@
         },
         "responses": {
           "201": {
-            "description": "Temporary VBP created",
+            "description": "Complementary Trial created",
             "content": {
               "application/json": {
                 "schema": {
@@ -291,9 +292,9 @@
         "tags": [
           "Status"
         ],
-        "summary": "Convert a trial member to a verified business partner",
+        "summary": "Convert a Complementary Trial to a verified business partner",
         "operationId": "convertToPartner",
-        "description": "Converts a trial member or Temporary VBP into a Verified Business Partner on a VBP plan and grants the plan's credits (Gold 36, Silver 24, Other 36). A Temporary VBP keeps leftover credits, loses its deactivation date, and is reactivated if its expiry already shut the account. An existing full partner only has the plan changed.",
+        "description": "Converts a Complementary Trial (or legacy trial member) into a Verified Business Partner on a VBP plan and grants the plan's credits (Gold 36, Silver 24, Other 36). A Complementary Trial keeps leftover credits, loses its deactivation date, and is reactivated if its expiry already shut the account. An existing full partner only has the plan changed.",
         "requestBody": {
           "required": true,
           "content": {
@@ -463,7 +464,7 @@
           "trial": {
             "type": "boolean",
             "default": false,
-            "description": "Create the account as a trial member: episodes arrive locked past the first 3, no credits are held or spent, and `trial_allowance` is seeded to 1. Cannot be combined with `pack`."
+            "description": "Create the account as a Complementary Trial: 6 credits, one 12-episode story costing 3 credits with only the first 3 episodes readable, and the remaining 3 credits for AI Refine only. Cannot be combined with `pack` or `vbp_plan`."
           },
           "vbp_plan": {
             "type": "string",
@@ -538,7 +539,7 @@
           "credits": {
             "type": "integer",
             "minimum": 0,
-            "description": "Credits held. 1 credit generates or refines 1 episode. Trial members hold none."
+            "description": "Credits held. 1 credit generates or refines 1 episode. A Complementary Trial starts with 6."
           },
           "is_active": {
             "type": "boolean"
@@ -564,7 +565,7 @@
               "null"
             ],
             "format": "date-time",
-            "description": "When a Temporary VBP is deactivated unless converted."
+            "description": "When a Complementary Trial is deactivated unless converted."
           }
         }
       },

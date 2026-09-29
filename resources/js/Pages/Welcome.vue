@@ -114,7 +114,7 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
             </div>
 
             <h1 class="text-4xl md:text-6xl font-black leading-tight max-w-4xl mb-4 text-[#1A1A1A]">
-                Your story is your<br /><span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">business</span>
+                Your Story is Your<br /><span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Business</span>
             </h1>
 
             <p class="text-lg font-bold max-w-xl mb-10 text-[#1A1A1A]">
