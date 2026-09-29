@@ -1,7 +1,7 @@
 {
   "info": {
     "name": "StoryCreator.Bot Provision API",
-    "description": "Set base_url and provision_token in the collection variables. Requests run in order: create a Temporary VBP, then convert it.",
+    "description": "Set base_url and provision_token in the collection variables. Requests run in order: create a Complementary Trial, then convert it.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "auth": {
@@ -30,10 +30,10 @@
   ],
   "item": [
     {
-      "name": "Temporary VBP",
+      "name": "Complementary Trial",
       "item": [
         {
-          "name": "Create Temporary VBP",
+          "name": "Create Complementary Trial",
           "request": {
             "method": "POST",
             "header": [
@@ -69,7 +69,7 @@
           }
         },
         {
-          "name": "Convert Temporary VBP to Gold VBP",
+          "name": "Convert Complementary Trial to Gold VBP",
           "request": {
             "method": "POST",
             "header": [
@@ -218,7 +218,7 @@
           }
         },
         {
-          "name": "Convert trial member to Silver VBP",
+          "name": "Convert Complementary Trial to Silver VBP",
           "request": {
             "method": "POST",
             "header": [
@@ -331,7 +331,7 @@
       "name": "Existing",
       "item": [
         {
-          "name": "Create trial member",
+          "name": "Create Complementary Trial (trial: true)",
           "request": {
             "method": "POST",
             "header": [

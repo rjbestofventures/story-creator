@@ -29,7 +29,7 @@ Creates a new user account, optionally grants the specified credit pack, and sen
 | `name` | string | Yes | Full name of the user |
 | `email` | string | Yes | Email address (must be unique) |
 | `pack` | string | No | Credit pack slug — see [Packs](#packs). Omit to create the account with 0 credits and no pack. |
-| `trial` | boolean | No | Create the account as a Trial Member. Defaults to `false`. Cannot be combined with `pack`. |
+| `trial` | boolean | No | Create the account as a [Complementary Trial](#create-a-complementary-trial). Defaults to `false`. Cannot be combined with `pack` or `vbp_plan`. |
 | `vbp_plan` | string | No | `gold`, `silver`, or `other`. Creates the account as a Verified Business Partner on that plan and grants the plan's credits (Gold 36, Silver 24, Other 36). Cannot be combined with `trial` or `pack`. |
 
 ### Example Request
@@ -85,73 +85,24 @@ Accept: application/json
 
 ---
 
-## Create a Trial Member
+## Create a Complementary Trial
 
-Pass `trial: true` to create the account as a **Trial Member**. They complete the full interview and receive a complete 12-episode story generated from their own answers, of which the first 3 are readable — the rest are locked until they buy a pack.
+There is one trial: the **Complementary Trial** (shown as the account type in the admin panel). Its credits are called **Complementary Credits** inside StoryBot. It replaces the old Trial Member and Temporary VBP, so both requests below create the same account. Either way, the user is emailed a password-setup link.
 
-**`POST /api/provision/user`**
+A Complementary Trial:
 
-```http
-POST /api/provision/user
-Authorization: Bearer your-secret-token
-Content-Type: application/json
-Accept: application/json
-
-{
-    "name": "Jane Smith",
-    "email": "jane@example.com",
-    "trial": true
-}
-```
-
-```json
-{
-    "user": {
-        "id": 43,
-        "name": "Jane Smith",
-        "email": "jane@example.com",
-        "is_verified_partner": false,
-        "is_trial": true,
-        "trial_allowance": 1,
-        "credits": 0
-    },
-    "pack": null
-}
-```
-
-- A Trial Member holds no credits and generates without spending any. `trial_allowance` bounds how many stories they may generate before converting; it starts at 1 and an admin can adjust it.
-- Trial members see **retail** pack pricing by default. To trial a prospective partner at partner pricing, provision the trial and then call [Verify Partner](#verify-partner) — the two are independent.
-- `trial` and `pack` are mutually exclusive and returning both yields `422`. A pack grants credits and ends a trial, so asking for both asks for opposite things.
-
-### How a trial ends
-
-Three ways, all of which unlock the member's whole library in the same moment. Nothing is regenerated — the locked episodes were written during the trial and simply become readable.
-
-| | What ends the trial | Credits granted |
-|---|---|---|
-| The member buys a main pack in the shop | Purchase | Yes, the pack's credits |
-| An admin grants a main pack | Grant | Yes, the pack's credits |
-| You call [Convert to Partner](#convert-to-partner) | Vetting | **No** |
-
-Add-ons never end a trial, and trial members cannot buy them.
-
-Setting `trial_allowance` to `0` in the admin panel is **not** a conversion — it stops the member starting another story but leaves their existing episodes locked. It is a brake.
-
----
-
-## Create a Temporary VBP
-
-Creates a Temporary VBP account and emails the user a password-setup link. A Temporary VBP:
-
-- starts with **12 StoryBot credits**
-- can generate **one story of 6 episodes** (6 credits). 12, 18 and 24 episodes are shown locked. Nothing in the story is locked the way a trial library is
-- keeps the other 6 credits for AI Refine. A second story is refused, even after deleting the first
-- cannot buy packs. The shop redirects them to their library
+- starts with **6 Complementary Credits**
+- generates **one story of 12 episodes** for **3 credits**. Only the first **3 episodes are readable**; the other **9 are locked** until the member becomes a Verified Business Partner
+- keeps the remaining **3 credits for AI Refine only**. Locked episodes cannot be refined. A second story is refused, even after deleting the first
+- cannot buy packs, and cannot unlock the locked episodes with credits. The shop redirects them to their library
 - is **deactivated automatically 3 months after creation** unless converted with [Convert to Partner](#convert-to-partner)
 
-**`POST /api/provision/temporary-vbp`**
+Two ways to create one:
 
-### Request Body
+- **`POST /api/provision/temporary-vbp`**, with `name` and `email` only.
+- **`POST /api/provision/user`** with `trial: true`, which also accepts the other create-user fields. `trial` cannot be combined with `pack` or `vbp_plan` (returns `422`).
+
+### Request Body (`/api/provision/temporary-vbp`)
 
 | Field | Type | Required | Description |
 |---|---|---|---|
@@ -167,7 +118,7 @@ Content-Type: application/json
 Accept: application/json
 
 {
-    "name": "Tess Temp",
+    "name": "Tess Trial",
     "email": "tess@example.com"
 }
 ```
@@ -178,32 +129,42 @@ Accept: application/json
 {
     "user": {
         "id": 51,
-        "name": "Tess Temp",
+        "name": "Tess Trial",
         "email": "tess@example.com",
         "is_active": true,
         "is_verified_partner": false,
         "vbp_plan": null,
         "is_temporary_vbp": true,
-        "temporary_vbp_expires_at": "2026-12-23T13:35:50+00:00",
+        "temporary_vbp_expires_at": "2026-12-29T13:35:50+00:00",
         "is_trial": false,
         "trial_allowance": 0,
-        "credits": 12
+        "credits": 6
     }
 }
 ```
+
+`is_temporary_vbp` is the flag that marks a Complementary Trial. `is_trial` and `trial_allowance` belong to the retired Trial Member and stay `false` / `0` for new accounts.
 
 ### Error Responses
 
 | Status | Cause |
 |---|---|
 | `401` | Missing or invalid bearer token |
-| `422` | Validation failed (for example, the email is already taken) |
+| `422` | Validation failed (for example, the email is already taken, or `trial` was combined with `pack` or `vbp_plan`) |
+
+### Public signup form
+
+The website's **Complementary Trial** button opens a form (first name, last name, phone, email) that creates the same account without the provision token. It emails the admin, and posts `first_name`, `last_name`, `phone`, `email` and `source: storybot_trial_signup` to the CRM webhook set in `CRM_TRIAL_WEBHOOK_URL`.
+
+### Legacy Trial Members
+
+Accounts created before this change as Trial Members (`is_trial: true`, no credits, a `trial_allowance`) keep working as before. No new ones can be created.
 
 ---
 
 ## Convert to Partner
 
-Converts a trial member **or a Temporary VBP** into a Verified Business Partner on a VBP plan. They get partner pricing and the plan's credits:
+Converts a **Complementary Trial** (or a legacy trial member) into a Verified Business Partner on a VBP plan. They get partner pricing and the plan's credits:
 
 | `vbp_plan` | Credits granted |
 |---|---|
@@ -211,8 +172,8 @@ Converts a trial member **or a Temporary VBP** into a Verified Business Partner 
 | `silver` | 24 |
 | `other` | 36 |
 
-- **Trial member:** the trial ends, but the library stays locked. They spend the new credits to open it.
-- **Temporary VBP:** the temporary status and its deactivation date are cleared, leftover credits are kept, and the 6-episode / one-story limits are lifted. An account that the 3-month expiry already deactivated is reactivated.
+- **Complementary Trial:** the trial status and its deactivation date are cleared, leftover credits are kept (a fresh trial has 3 left), and the one-story limit is lifted. The 9 locked episodes stay locked until they spend credits to open them. An account that the 3-month expiry already deactivated is reactivated.
+- **Legacy trial member:** the trial ends, but the library stays locked. They spend the new credits to open it.
 - **Already a full partner:** only the plan is changed. No credits are granted again.
 
 **`POST /api/provision/convert-to-partner`**
@@ -244,7 +205,7 @@ Accept: application/json
 {
     "user": {
         "id": 51,
-        "name": "Tess Temp",
+        "name": "Tess Trial",
         "email": "tess@example.com",
         "is_active": true,
         "is_verified_partner": true,
@@ -253,7 +214,7 @@ Accept: application/json
         "temporary_vbp_expires_at": null,
         "is_trial": false,
         "trial_allowance": 0,
-        "credits": 42
+        "credits": 39
     }
 }
 ```

@@ -13,6 +13,9 @@ const tempCost = computed(() => page.props.temporaryVbpStoryCost);
 
 const json = (value) => JSON.stringify(value, null, 4);
 
+// One request/response pair per plan, so every accepted vbp_plan value has a sample.
+const planVariants = (build) => plans.value.map(p => ({ plan: p.key, label: p.label, credits: p.credits, ...build(p) }));
+
 const accountTypes = computed(() => [
     {
         name: 'Verified Business Partner on a plan',
@@ -42,22 +45,24 @@ const endpoints = computed(() => [
         auth: 'Provision token',
         title: 'Create a user on a plan',
         planField: 'Optional',
-        effect: `Creates the account as a Verified Business Partner on the plan and grants its credits (Other: ${creditsFor('other')}).`,
+        effect: 'Creates the account as a Verified Business Partner on the plan and grants its credits.',
         rules: [
             'Cannot be combined with trial or pack — the plan grants its own credits. Returns 422.',
             'The user is emailed a link to set their password.',
         ],
-        request: { name: 'Oli Other', email: 'oli.other@example.com', vbp_plan: 'other' },
-        status: '201 Created',
-        response: {
-            user: {
-                id: 60, name: 'Oli Other', email: 'oli.other@example.com', is_active: true,
-                is_verified_partner: true, vbp_plan: 'other', is_temporary_vbp: false,
-                temporary_vbp_expires_at: null, is_trial: false, trial_allowance: 0,
-                credits: creditsFor('other'),
+        variants: planVariants((p) => ({
+            request: { name: `Sam ${p.label}`, email: `sam.${p.key}@example.com`, vbp_plan: p.key },
+            response: {
+                user: {
+                    id: 60, name: `Sam ${p.label}`, email: `sam.${p.key}@example.com`, is_active: true,
+                    is_verified_partner: true, vbp_plan: p.key, is_temporary_vbp: false,
+                    temporary_vbp_expires_at: null, is_trial: false, trial_allowance: 0,
+                    credits: p.credits,
+                },
+                pack: null,
             },
-            pack: null,
-        },
+        })),
+        status: '201 Created',
     },
     {
         id: 'convert-to-partner',
@@ -68,20 +73,22 @@ const endpoints = computed(() => [
         planField: 'Required',
         effect: 'Makes the account a full partner on the plan and adds the plan\'s credits on top of whatever it already holds.',
         rules: [
-            `A Complementary Trial keeps its leftover credits — ${tempCredits.value - tempCost.value} left + ${creditsFor('other')} for Other = ${tempCredits.value - tempCost.value + creditsFor('other')}. Its expiry is cleared and a deactivated account is reopened.`,
+            `A Complementary Trial keeps its leftover credits and gains the plan's: ${plans.value.map(p => `${tempCredits.value - tempCost.value} left + ${p.credits} for ${p.label} = ${tempCredits.value - tempCost.value + p.credits}`).join(', ')}. Its expiry is cleared and a deactivated account is reopened.`,
             'The trial ends, but the locked episodes stay locked until they spend credits to open them.',
             'Calling it again on someone who is already a full partner only changes the plan. Credits are never granted twice.',
         ],
-        request: { email: 'tess@example.com', vbp_plan: 'other' },
-        status: '200 OK',
-        response: {
-            user: {
-                id: 51, name: 'Tess Temp', email: 'tess@example.com', is_active: true,
-                is_verified_partner: true, vbp_plan: 'other', is_temporary_vbp: false,
-                temporary_vbp_expires_at: null, is_trial: false, trial_allowance: 0,
-                credits: tempCredits.value - tempEpisodes.value + creditsFor('other'),
+        variants: planVariants((p) => ({
+            request: { email: 'tess@example.com', vbp_plan: p.key },
+            response: {
+                user: {
+                    id: 51, name: 'Tess Trial', email: 'tess@example.com', is_active: true,
+                    is_verified_partner: true, vbp_plan: p.key, is_temporary_vbp: false,
+                    temporary_vbp_expires_at: null, is_trial: false, trial_allowance: 0,
+                    credits: tempCredits.value - tempCost.value + p.credits,
+                },
             },
-        },
+        })),
+        status: '200 OK',
     },
     {
         id: 'verify-partner',
@@ -95,16 +102,18 @@ const endpoints = computed(() => [
             'Use convert-to-partner instead when the member should receive the plan\'s credits.',
             'Safe to call more than once.',
         ],
-        request: { email: 'jane@example.com', vbp_plan: 'other' },
-        status: '200 OK',
-        response: {
-            user: {
-                id: 43, name: 'Jane Smith', email: 'jane@example.com', is_active: true,
-                is_verified_partner: true, vbp_plan: 'other', is_temporary_vbp: false,
-                temporary_vbp_expires_at: null, is_trial: true, trial_allowance: 1,
-                credits: 0,
+        variants: planVariants((p) => ({
+            request: { email: 'jane@example.com', vbp_plan: p.key },
+            response: {
+                user: {
+                    id: 43, name: 'Jane Smith', email: 'jane@example.com', is_active: true,
+                    is_verified_partner: true, vbp_plan: p.key, is_temporary_vbp: false,
+                    temporary_vbp_expires_at: null, is_trial: true, trial_allowance: 1,
+                    credits: 0,
+                },
             },
-        },
+        })),
+        status: '200 OK',
     },
     {
         id: 'temporary-vbp',
@@ -141,13 +150,15 @@ const endpoints = computed(() => [
             'Cannot be combined with a trial_allowance above 0. Returns 422.',
             'Responds with a flat user object rather than one nested under "user".',
         ],
-        request: { name: 'Pat Partner', email: 'pat@example.com', vbp_plan: 'other' },
+        variants: planVariants((p) => ({
+            request: { name: `Pat ${p.label}`, email: `pat.${p.key}@example.com`, vbp_plan: p.key },
+            response: {
+                id: 61, name: `Pat ${p.label}`, email: `pat.${p.key}@example.com`, tier: 'user',
+                is_verified_partner: true, vbp_plan: p.key, credits: p.credits,
+                is_trial: false, trial_allowance: 0,
+            },
+        })),
         status: '201 Created',
-        response: {
-            id: 61, name: 'Pat Partner', email: 'pat@example.com', tier: 'user',
-            is_verified_partner: true, vbp_plan: 'other', credits: creditsFor('other'),
-            is_trial: false, trial_allowance: 0,
-        },
     },
 ]);
 
@@ -253,6 +264,12 @@ Accept: application/json</code></pre>
                 <div class="flex flex-wrap gap-2 mb-4 text-xs">
                     <span class="rounded-lg border border-[#DDDDDD] bg-white px-2.5 py-1 text-[#555555]">Auth: <strong class="text-[#1A1A1A]">{{ e.auth }}</strong></span>
                     <span class="rounded-lg border border-[#DDDDDD] bg-white px-2.5 py-1 text-[#555555]"><code class="font-mono">vbp_plan</code>: <strong class="text-[#1A1A1A]">{{ e.planField }}</strong></span>
+                    <span v-if="e.variants" class="rounded-lg border border-[#DDDDDD] bg-white px-2.5 py-1 text-[#555555]">
+                        Values:
+                        <template v-for="(v, i) in e.variants" :key="v.plan">
+                            <code class="font-mono font-semibold text-[#1A1A1A]">{{ v.plan }}</code><span v-if="i < e.variants.length - 1">, </span>
+                        </template>
+                    </span>
                 </div>
 
                 <p class="text-sm text-[#555555] mb-3">{{ e.effect }}</p>
@@ -260,14 +277,20 @@ Accept: application/json</code></pre>
                     <li v-for="rule in e.rules" :key="rule">{{ rule }}</li>
                 </ul>
 
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div class="min-w-0">
-                        <p class="text-xs font-bold tracking-wider uppercase text-[#AAAAAA] mb-2">Request body</p>
-                        <pre class="bg-[#1A1A1A] text-[#F5F5F5] rounded-2xl p-5 text-xs overflow-x-auto"><code>{{ json(e.request) }}</code></pre>
-                    </div>
-                    <div class="min-w-0">
-                        <p class="text-xs font-bold tracking-wider uppercase text-[#AAAAAA] mb-2">Response · {{ e.status }}</p>
-                        <pre class="bg-[#1A1A1A] text-[#F5F5F5] rounded-2xl p-5 text-xs overflow-x-auto"><code>{{ json(e.response) }}</code></pre>
+                <div v-for="v in (e.variants ?? [{ request: e.request, response: e.response }])" :key="v.plan ?? 'single'" class="mb-6 last:mb-0">
+                    <p v-if="v.plan" class="text-sm font-bold text-[#1A1A1A] mb-2">
+                        <code class="font-mono">vbp_plan: "{{ v.plan }}"</code>
+                        <span class="font-normal text-[#888888]"> · {{ v.label }} · {{ v.credits }} plan credits</span>
+                    </p>
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold tracking-wider uppercase text-[#AAAAAA] mb-2">Request body</p>
+                            <pre class="bg-[#1A1A1A] text-[#F5F5F5] rounded-2xl p-5 text-xs overflow-x-auto"><code>{{ json(v.request) }}</code></pre>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="text-xs font-bold tracking-wider uppercase text-[#AAAAAA] mb-2">Response · {{ e.status }}</p>
+                            <pre class="bg-[#1A1A1A] text-[#F5F5F5] rounded-2xl p-5 text-xs overflow-x-auto"><code>{{ json(v.response) }}</code></pre>
+                        </div>
                     </div>
                 </div>
             </section>
