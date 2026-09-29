@@ -636,12 +636,13 @@ class AdminController extends Controller
     }
 
     /**
-     * Set how many stories a trial member may still generate. Sales uses this to
-     * give a promising lead another run; setting it on a member who is not in
-     * trial puts them into one.
+     * Set how many stories a legacy trial member may still generate. New trials
+     * are Complimentary Trials and have no allowance.
      */
     public function setTrialAllowance(Request $request, User $user)
     {
+        abort_unless($user->is_trial, 422, 'Only existing trial members have a trial allowance.');
+
         $validated = $request->validate([
             'trial_allowance' => 'required|integer|min:0|max:20',
         ]);
@@ -657,8 +658,8 @@ class AdminController extends Controller
     }
 
     /**
-     * Move an account between Trial Member and ordinary User. Turning a trial on
-     * seeds the standard allowance; turning it off ends the trial, which opens
+     * Move an account between trial and ordinary User. Turning a trial on starts
+     * a Complimentary Trial; turning off a legacy trial ends it, which opens
      * whatever their library was still withholding.
      */
     public function toggleTrial(Request $request, User $user)
@@ -669,10 +670,9 @@ class AdminController extends Controller
             return back();
         }
 
-        $user->update([
-            'is_trial' => true,
-            'trial_allowance' => max($user->trial_allowance, User::DEFAULT_TRIAL_ALLOWANCE),
-        ]);
+        abort_if($user->is_verified_partner, 422, 'A Verified Business Partner cannot be put on a trial.');
+
+        $user->becomeTemporaryPartner();
 
         return back();
     }

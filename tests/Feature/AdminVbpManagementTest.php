@@ -69,7 +69,7 @@ class AdminVbpManagementTest extends TestCase
 
         $user->refresh();
         $this->assertTrue($user->is_temporary_vbp);
-        $this->assertSame(12, $user->credits);
+        $this->assertSame(6, $user->credits);
         $this->assertNotNull($user->temporary_vbp_expires_at);
 
         $this->actingAs($this->admin)->post(route('admin.users.toggle-temporary-vbp', $user))->assertRedirect();
@@ -77,7 +77,7 @@ class AdminVbpManagementTest extends TestCase
         $user->refresh();
         $this->assertFalse($user->is_temporary_vbp);
         $this->assertNull($user->temporary_vbp_expires_at);
-        $this->assertSame(12, $user->credits);
+        $this->assertSame(6, $user->credits);
     }
 
     public function test_a_full_partner_cannot_be_made_temporary(): void
@@ -121,7 +121,7 @@ class AdminVbpManagementTest extends TestCase
         $this->assertTrue($user->is_verified_partner);
         $this->assertFalse($user->is_temporary_vbp);
         $this->assertSame('silver', $user->vbp_plan);
-        $this->assertSame(12 + 24, $user->credits);
+        $this->assertSame(6 + 24, $user->credits);
     }
 
     public function test_changing_an_existing_partners_plan_grants_nothing(): void

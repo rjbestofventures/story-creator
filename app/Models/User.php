@@ -31,11 +31,17 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public const VBP_PLAN_LABELS = ['gold' => 'Gold', 'silver' => 'Silver', 'other' => 'Other'];
 
-    /** Credits a Temporary VBP starts with: one 6-episode story, then 6 refines. */
-    public const TEMPORARY_VBP_CREDITS = 12;
+    /**
+     * Credits a Complimentary Trial (internally a Temporary VBP) starts with:
+     * the story costs 3, and the 3 that remain can only be spent on AI Refine.
+     */
+    public const TEMPORARY_VBP_CREDITS = 6;
 
-    /** The only episode count a Temporary VBP may generate. */
-    public const TEMPORARY_VBP_EPISODES = 6;
+    /** Credits its one story costs: one per readable episode. */
+    public const TEMPORARY_VBP_STORY_COST = 3;
+
+    /** The story it generates: 12 episodes, of which only 3 are readable. */
+    public const TEMPORARY_VBP_EPISODES = 12;
 
     /** How long a Temporary VBP account lasts before it is deactivated. */
     public const TEMPORARY_VBP_MONTHS = 3;
@@ -122,6 +128,15 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->is_trial && ! $this->is_verified_partner;
     }
 
+    /**
+     * Whether this member's library is always the same size, so they are never
+     * asked to choose an episode count, and arrives with most episodes locked.
+     */
+    public function hasFixedLibrary(): bool
+    {
+        return $this->spendsTrialAllowance() || $this->is_temporary_vbp;
+    }
+
     public function canRefine(): bool
     {
         return $this->isAdmin() || $this->credits > 0;
@@ -205,8 +220,8 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Start a Temporary VBP: a starting wallet for one 6-episode story plus
-     * refines, and a clock after which the account shuts unless converted.
+     * Start a Complimentary Trial (a Temporary VBP): a starting wallet for one
+     * 12-episode story with 3 readable episodes, plus 3 credits of refines, and a clock after which the account shuts unless converted.
      */
     public function becomeTemporaryPartner(): void
     {
@@ -228,7 +243,7 @@ class User extends Authenticatable implements MustVerifyEmail
         ])->save();
     }
 
-    /** A Temporary VBP gets one story; deleting it does not give it back. */
+    /** A Complimentary Trial gets one story; deleting it does not give it back. */
     public function hasUsedTemporaryStory(): bool
     {
         return $this->is_temporary_vbp && $this->temporary_story_generated_at !== null;
@@ -256,10 +271,6 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         if ($this->isAdmin()) {
             return null;
-        }
-
-        if ($this->is_temporary_vbp) {
-            return self::TEMPORARY_VBP_EPISODES;
         }
 
         $latest = $this->purchases()

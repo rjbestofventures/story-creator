@@ -26,19 +26,20 @@ class ApiUserTrialAllowanceTest extends TestCase
             ->postJson('/api/users', $payload);
     }
 
-    public function test_trial_allowance_param_puts_the_new_account_into_trial(): void
+    public function test_trial_allowance_param_puts_the_new_account_on_a_complimentary_trial(): void
     {
         $this->createUser([
             'name' => 'Trial Member',
             'email' => 'trial@example.com',
             'trial_allowance' => 1,
         ])->assertCreated()
-            ->assertJsonPath('is_trial', true)
-            ->assertJsonPath('trial_allowance', 1);
+            ->assertJsonPath('is_trial', false)
+            ->assertJsonPath('credits', User::TEMPORARY_VBP_CREDITS);
 
         $user = User::where('email', 'trial@example.com')->firstOrFail();
-        $this->assertTrue($user->is_trial);
-        $this->assertSame(1, $user->trial_allowance);
+        $this->assertTrue($user->is_temporary_vbp);
+        $this->assertFalse($user->is_trial);
+        $this->assertSame(User::TEMPORARY_VBP_CREDITS, $user->credits);
     }
 
     public function test_omitting_trial_allowance_creates_a_plain_account(): void

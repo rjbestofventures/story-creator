@@ -23,10 +23,10 @@ class PartnerApplicationController extends Controller
         $data = $request->validate([
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'phone' => ['required', 'string', 'regex:/^1\d{10}$/'],
+            'phone' => ['required', 'string', 'regex:/^\d{10}$/'],
             'email' => 'required|email|max:255',
         ], [
-            'phone.regex' => 'Enter a valid US phone number (e.g. 13478245640).',
+            'phone.regex' => 'Enter a valid US phone number (e.g. 3478245640).',
         ]);
 
         try {

@@ -89,7 +89,7 @@ const filtered = computed(() =>
 
 const kpis = computed(() => [
     { label: 'Verified Business Partners',     value: props.users.filter(u => u.is_verified_partner).length,  icon: Users,    color: '#F5A000', bg: 'bg-amber-50',  text: 'text-amber-600',  tooltip: 'Verified business partners'                       },
-    { label: 'Temporary VBPs',                 value: props.users.filter(u => u.is_temporary_vbp).length,     icon: Clock,    color: '#0EA5E9', bg: 'bg-sky-50',    text: 'text-sky-600',    tooltip: 'Temporary VBPs, deactivated after 3 months unless converted' },
+    { label: 'Complementary Trials',                 value: props.users.filter(u => u.is_temporary_vbp).length,     icon: Clock,    color: '#0EA5E9', bg: 'bg-sky-50',    text: 'text-sky-600',    tooltip: 'Temporary VBPs, deactivated after 3 months unless converted' },
     { label: 'Non-Verified Business Partners', value: props.users.filter(u => !u.is_verified_partner).length, icon: Activity, color: '#22C55E', bg: 'bg-green-50',  text: 'text-green-600',  tooltip: 'Accounts that are not verified partners'           },
     { label: 'Total Sold Packs',   value: props.stats.sold_packs,                                 icon: Package,  color: '#6366F1', bg: 'bg-indigo-50', text: 'text-indigo-600', tooltip: 'Packs purchased across all users'                 },
     { label: 'Stories',            value: props.stats.stories,                                    icon: BookOpen, color: '#8B5CF6', bg: 'bg-violet-50', text: 'text-violet-600', tooltip: 'Total stories generated across the platform'      },
@@ -438,7 +438,7 @@ const impersonate = (userId) => {
                                 variant="outline"
                                 class="bg-sky-50 text-sky-700 border-sky-200 text-[10px] px-1.5 py-0"
                             >
-                                Temporary VBP · until {{ user.temporary_vbp_expires_at }}
+                                Complementary Trial · until {{ user.temporary_vbp_expires_at }}
                             </Badge>
                             <Badge
                                 v-if="user.is_trial"
@@ -658,6 +658,7 @@ const impersonate = (userId) => {
                                 {{ user.is_verified_partner ? 'Verified Partner ✓' : 'Mark as Partner' }}
                             </button>
 
+                            <template v-if="user.is_trial">
                             <button
                                 type="button"
                                 :disabled="trialToggles[user.id]"
@@ -668,7 +669,7 @@ const impersonate = (userId) => {
                                 @click.stop="toggleTrial(user)"
                             >
                                 <Lock class="w-3.5 h-3.5" />
-                                {{ user.is_trial ? 'Trial User ✓' : 'Make Trial User' }}
+                                End legacy trial
                             </button>
 
                             <div class="flex-1 min-w-[130px]">
@@ -691,8 +692,9 @@ const impersonate = (userId) => {
                             >
                                 <Lock class="w-3.5 h-3.5" /> Set
                             </Button>
+                            </template>
                         </div>
-                        <!-- VBP program: plan + Temporary VBP -->
+                        <!-- VBP program: plan + Complementary Trial -->
                         <div class="flex flex-wrap items-end gap-3 pt-1">
                             <div class="space-y-1.5 w-[12rem]">
                                 <Label class="text-xs text-[#555555]">VBP Plan</Label>
@@ -729,7 +731,7 @@ const impersonate = (userId) => {
                                 @click.stop="toggleTemporaryVbp(user)"
                             >
                                 <Clock class="w-3.5 h-3.5" />
-                                {{ user.is_temporary_vbp ? 'Temporary VBP ✓' : 'Make Temporary VBP' }}
+                                {{ user.is_temporary_vbp ? 'Complementary Trial ✓' : 'Make Complementary Trial' }}
                             </button>
 
                             <template v-if="user.is_temporary_vbp">
@@ -943,7 +945,7 @@ const impersonate = (userId) => {
 
                         <div v-if="!userForm.is_verified_partner" class="flex items-center justify-between">
                             <div>
-                                <Label>Temporary VBP</Label>
+                                <Label>Complementary Trial</Label>
                                 <p class="text-xs text-muted-foreground">12 credits, one 6-episode story, deactivated after 3 months.</p>
                             </div>
                             <Switch v-model="userForm.is_temporary_vbp" :class="userForm.is_temporary_vbp ? '!bg-sky-500' : '!bg-gray-300'" />

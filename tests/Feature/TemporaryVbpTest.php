@@ -51,7 +51,7 @@ class TemporaryVbpTest extends TestCase
     // Creating one through the API
     // -------------------------------------------------------------------------
 
-    public function test_the_endpoint_creates_a_temporary_vbp_with_12_credits_and_a_three_month_clock(): void
+    public function test_the_endpoint_creates_a_complimentary_trial_with_6_credits_and_a_three_month_clock(): void
     {
         $this->freezeTime();
 
@@ -60,7 +60,7 @@ class TemporaryVbpTest extends TestCase
             ->assertJsonPath('user.is_temporary_vbp', true)
             ->assertJsonPath('user.is_verified_partner', false)
             ->assertJsonPath('user.is_trial', false)
-            ->assertJsonPath('user.credits', 12)
+            ->assertJsonPath('user.credits', 6)
             ->assertJsonPath('user.vbp_plan', null)
             ->assertJsonPath('user.temporary_vbp_expires_at', now()->addMonths(3)->toIso8601String());
 
@@ -87,51 +87,50 @@ class TemporaryVbpTest extends TestCase
     // Generating
     // -------------------------------------------------------------------------
 
-    public function test_the_picker_offers_6_episodes_and_locks_12_18_and_24(): void
+    public function test_the_create_page_gives_a_fixed_12_episode_library_with_3_readable(): void
     {
         $this->actingAs($this->temporaryVbp())
             ->get(route('stories.create'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('is_temporary_vbp', true)
-                ->where('max_episodes', 6)
-                ->where('episode_options', [
-                    ['count' => 6, 'locked' => false, 'unlock_label' => null],
-                    ['count' => 12, 'locked' => true, 'unlock_label' => null],
-                    ['count' => 18, 'locked' => true, 'unlock_label' => null],
-                    ['count' => 24, 'locked' => true, 'unlock_label' => null],
-                ])
+                ->where('trial_episode_count', 12)
+                ->where('trial_unlocked_episodes', 3)
+                ->where('complimentary_story_cost', 3)
             );
     }
 
-    public function test_a_6_episode_story_spends_6_credits_and_nothing_is_locked(): void
+    public function test_the_story_is_12_episodes_costs_3_credits_and_locks_9(): void
     {
         $user = $this->temporaryVbp();
         $story = $this->interviewedStory($user);
 
         $this->actingAs($user)
-            ->post(route('stories.generate', $story), ['episode_count' => 6])
+            ->post(route('stories.generate', $story))
             ->assertRedirect(route('stories.show', $story));
 
         $story->refresh();
         $user->refresh();
 
-        $this->assertSame(6, $story->episode_limit);
-        $this->assertFalse($story->created_on_trial);
-        $this->assertSame(6, $user->credits);
+        $this->assertSame(12, $story->episode_limit);
+        $this->assertTrue($story->created_on_trial);
+        $this->assertSame(3, $user->credits);
         $this->assertTrue($user->hasUsedTemporaryStory());
     }
 
-    public function test_a_temporary_vbp_cannot_generate_12_episodes(): void
+    public function test_the_locked_episodes_cannot_be_unlocked_with_the_remaining_credits(): void
     {
         $user = $this->temporaryVbp();
+        $user->update(['credits' => 20]);
         $story = $this->interviewedStory($user);
+        $story->update(['created_on_trial' => true]);
 
-        $this->actingAs($user)
-            ->post(route('stories.generate', $story), ['episode_count' => 12])
-            ->assertSessionHasErrors('episode_count');
+        $this->actingAs($user->fresh())
+            ->post(route('stories.unlock', $story))
+            ->assertForbidden();
 
-        $this->assertSame(12, $user->fresh()->credits);
+        $this->assertNull($story->fresh()->episodes_unlocked_at);
+        $this->assertSame(20, $user->fresh()->credits);
     }
 
     public function test_only_one_story_even_with_credits_left_and_after_deleting_it(): void
@@ -139,16 +138,16 @@ class TemporaryVbpTest extends TestCase
         $user = $this->temporaryVbp();
         $first = $this->interviewedStory($user);
 
-        $this->actingAs($user)->post(route('stories.generate', $first), ['episode_count' => 6]);
+        $this->actingAs($user)->post(route('stories.generate', $first));
 
         $first->delete();
         $second = $this->interviewedStory($user);
 
         $this->actingAs($user->fresh())
-            ->post(route('stories.generate', $second), ['episode_count' => 6])
+            ->post(route('stories.generate', $second))
             ->assertForbidden();
 
-        $this->assertSame(6, $user->fresh()->credits);
+        $this->assertSame(3, $user->fresh()->credits);
 
         $this->actingAs($user->fresh())
             ->get(route('stories.create'))
@@ -217,7 +216,7 @@ class TemporaryVbpTest extends TestCase
         $this->api('/api/provision/convert-to-partner', ['email' => $user->email, 'vbp_plan' => 'silver'])
             ->assertOk()
             ->assertJsonPath('user.is_active', true)
-            ->assertJsonPath('user.credits', 12 + 24);
+            ->assertJsonPath('user.credits', 6 + 24);
 
         $this->artisan('vbp:expire-temporary');
         $this->assertTrue($user->fresh()->is_active);

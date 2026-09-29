@@ -8,6 +8,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StoryController;
 use App\Http\Controllers\TourController;
+use App\Http\Controllers\TrialSignupController;
 use App\Http\Middleware\CheckLandingLock;
 use App\Models\CreditPack;
 use Illuminate\Support\Facades\Route;
@@ -37,6 +38,9 @@ Route::get('/verified-partner', function () {
 
 Route::get('/become-a-partner', [PartnerApplicationController::class, 'create'])->name('partner.apply');
 Route::post('/become-a-partner', [PartnerApplicationController::class, 'store'])->middleware('throttle:10,1')->name('partner.apply.submit');
+
+Route::get('/trial', [TrialSignupController::class, 'create'])->name('trial.signup');
+Route::post('/trial', [TrialSignupController::class, 'store'])->middleware('throttle:5,1')->name('trial.signup.submit');
 
 Route::get('/unlock', [LandingLockController::class, 'show'])->name('landing.unlock');
 Route::post('/unlock', [LandingLockController::class, 'unlock'])->name('landing.unlock.submit');
