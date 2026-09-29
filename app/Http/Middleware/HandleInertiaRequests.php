@@ -48,6 +48,7 @@ class HandleInertiaRequests extends Middleware
             'vbpPlans' => User::vbpPlans(),
             'temporaryVbpCredits' => User::TEMPORARY_VBP_CREDITS,
             'temporaryVbpEpisodes' => User::TEMPORARY_VBP_EPISODES,
+            'temporaryVbpStoryCost' => User::TEMPORARY_VBP_STORY_COST,
             'features' => [
                 'buyCreditsButtonEnabled' => (bool) SiteSetting::get('buy_credits_button_enabled', true),
             ],

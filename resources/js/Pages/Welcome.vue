@@ -2,14 +2,11 @@
 import { ref, computed } from 'vue';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, CircleHelp, ChevronDown } from '@lucide/vue';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-} from '@/Components/ui/dialog';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
 import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 
-const props = defineProps({
+defineProps({
     canLogin: Boolean,
     canRegister: Boolean,
     packs: Array,
@@ -18,7 +15,6 @@ const props = defineProps({
 const vbpPlans = computed(() => usePage().props.vbpPlans ?? []);
 
 const openFaq = ref(null);
-const learnMorePack = ref(null);
 
 // FAQ reveals 4 at a time; "See more" loads the next 4 until all are shown.
 const faqVisible = ref(4);
@@ -33,9 +29,6 @@ const whyCards = [
 ];
 const expandedCards = ref([false, false, false]);
 const toggleCard = (i) => { expandedCards.value[i] = !expandedCards.value[i]; };
-
-// Pay to Play pricing is hidden for now per stakeholder feedback.
-const showPayToPlay = false;
 
 // Signup is closed to non-partners for now: every Sign Up entry point opens the
 // partner application dialog instead of routing to /register.
@@ -56,93 +49,7 @@ const faqs = [
     { q: 'Do I still need a Social Media Manager?', a: "That's entirely up to you. StoryCreator.Bot is designed to solve one of the hardest parts of social media marketing: consistently creating authentic content. A good Social Media Manager can still add tremendous value by selecting visuals, scheduling posts, managing campaigns, and analyzing results. StoryCreator.Bot simply gives them better content to work with." },
 ];
 
-const priceDollars = (pack) => Math.round(pack.price / 100);
-
-const popularSlugIn = (list) => {
-    if (!list?.length) return null;
-    const sorted = [...list].sort((a, b) => a.price - b.price);
-    return sorted[Math.floor(sorted.length / 2)]?.slug ?? null;
-};
-
-const isAddon = (pack) => pack.type === 'addon';
-
-const tierOf = (pack) => {
-    const label = pack.label.toLowerCase();
-    if (label.includes('professional')) return 'professional';
-    if (label.includes('premium')) return 'premium';
-    return 'basic';
-};
-
-const tierContent = {
-    basic: {
-        blurb: 'A solid starting point for businesses ready to tell their story.',
-        episodes: '12 episodes per story',
-        posts: '12 posts, about 6 months of content at 2 posts/month',
-    },
-    premium: {
-        blurb: 'More flexibility for businesses building a consistent content presence.',
-        episodes: '12 or 18 episodes per story, you choose',
-        posts: 'Up to 18 posts, up to 9 months of content at 2 posts/month',
-    },
-    professional: {
-        blurb: 'Full creative range for businesses running multiple stories at once.',
-        episodes: '12, 18, or 24 episodes per story, you choose',
-        posts: 'Up to 24 posts, up to 12 months of content at 2 posts/month',
-    },
-};
-
-// Verified Business Partner renewal plans use different framing than the
-// public pay-to-play packs, even though episode counts/credits line up 1:1.
-const partnerTierContent = {
-    basic: {
-        blurb: 'THE BASIC PLAN is what you receive when you resubscribe as a Verified Business Partner. Basic Plan StoryBot credits can also be purchased to enhance story and episodic customization.',
-        episodes: '12 episodes per story',
-        posts: '12 posts, about 6 months of content at 2 posts/month',
-    },
-    premium: {
-        blurb: 'THE PREMIUM PLAN provides 50% more episodes and expanded opportunity for customization. Premium Plan StoryBot credits can be applied to existing episodes or to create new, additional episodes.',
-        episodes: '12 or 18 episodes per story, you choose',
-        posts: 'Up to 18 posts, up to 9 months of content at 2 posts/month',
-    },
-    professional: {
-        blurb: "THE PROFESSIONAL PLAN is the most flexible option. You get a year's worth of authentic content with ample opportunity to customize your story either all at once or editing individual episodes.",
-        episodes: '12, 18, or 24 episodes per story, you choose',
-        posts: 'Up to 24 posts, up to 12 months of content at 2 posts/month',
-    },
-};
-
-// Partner packs carry the "(Verified Business Partner)" designation, but some
-// labels already include it. Strip any existing occurrence so it appears once.
-const partnerPlanTitle = (pack) => {
-    const base = pack.label.replace(/\s*\(Verified Business Partner\)/gi, '').trim();
-    return pack.type === 'partner' ? `${base} (Verified Business Partner)` : base;
-};
-
-const packBlurb = (pack) => {
-    if (isAddon(pack)) return 'Wanna make changes but out of credits? Top up your credits anytime.';
-    return pack.type === 'partner' ? partnerTierContent[tierOf(pack)].blurb : tierContent[tierOf(pack)].blurb;
-};
-
-const packEpisodes = (pack) =>
-    pack.type === 'partner' ? partnerTierContent[tierOf(pack)].episodes : tierContent[tierOf(pack)].episodes;
-
-const packPosts = (pack) =>
-    pack.type === 'partner' ? partnerTierContent[tierOf(pack)].posts : tierContent[tierOf(pack)].posts;
-
-// Verified Business Partner renewal plans and public Pay to Play packs are
-// presented as two distinct pricing programs, each with its own cards.
-const partnerPacks = computed(() =>
-    [...(props.packs ?? [])].filter((p) => p.type === 'partner').sort((a, b) => a.price - b.price)
-);
-const payToPlayPacks = computed(() =>
-    [...(props.packs ?? [])]
-        .filter((p) => p.type !== 'partner')
-        .sort((a, b) => (isAddon(a) === isAddon(b) ? a.price - b.price : isAddon(a) ? 1 : -1))
-);
-const payToPlayPopularSlug = computed(() => popularSlugIn(payToPlayPacks.value.filter((p) => !isAddon(p))));
-
 const partnerFeatures = ['enough episode up to year', 'Saves time and lowers costs', 'Story credits never expire', 'Verified partner badge', 'Priority guidance', 'Episodes for every story'];
-const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customizable output', 'Limited commitment', 'Tech support', 'Your story in episodes'];
 </script>
 
 <template>
@@ -218,12 +125,20 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
             <p class="text-xs font-bold tracking-widest uppercase mb-4" style="color: #555555;">Use StoryCreator.Bot</p>
             <div class="flex flex-wrap items-center justify-center gap-4">
                 <Link
+                    :href="route('trial.signup')"
+                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
+                    style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
+                >
+                    Complementary Trial
+                </Link>
+
+                <Link
                     :href="route('demo')"
                     class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
                     style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
                 >
                     <Play class="w-4 h-4" fill="currentColor" :stroke-width="0" />
-                    Try a Live Demo
+                    Live Demo
                 </Link>
 
                 <button
@@ -232,9 +147,17 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                     class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
                     style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
                 >
-                    Sign Up
+                    Let's Go
                     <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                 </button>
+
+                <a
+                    href="mailto:info@bestofventures.com"
+                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
+                    style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
+                >
+                    Contact us
+                </a>
             </div>
         </main>
 
@@ -297,7 +220,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                 <p class="text-xs font-bold tracking-widest uppercase mb-4" style="color: #555555;">How It Works</p>
 
                 <h2 class="text-4xl md:text-5xl font-black mb-16" style="color: #1A1A1A;">
-                    Create Content That
+                    Create Social Media Content That
                     <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Delivers</span><br />
                     in Three Easy Steps
                 </h2>
@@ -359,7 +282,7 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         </div>
                         <div>
                             <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">StoryCreator.Bot Partnership Program</span>
-                            <h3 class="text-3xl md:text-4xl font-black text-white">VBP Pricing Plans</h3>
+                            <h3 class="text-3xl md:text-4xl font-black text-white">Pricing Plans</h3>
                             <p class="text-base mb-1" style="color: #888888;">Verified Local Businesses get upto 1 year
                                 <span class="font-bold uppercase" style="color: #F5A000;">FREE CONTENT</span>
                             </p>
@@ -386,178 +309,6 @@ const payToPlayFeatures = ['Low monthly fees', 'Hands-on onboarding', 'Customiza
                         <Link :href="route('partner')" class="text-sm underline" style="color: #888888;">Learn how to become a verified partner →</Link>
                     </div>
                 </div>
-
-            </div>
-        </section>
-
-        <!-- Pricing -->
-        <section class="flex flex-col justify-center px-6 py-20" style="background-color: #FAFAF8;">
-            <div class="max-w-5xl mx-auto w-full">
-
-                <!-- Header -->
-                <div class="text-center mb-10">
-                    <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #555555;">Pricing</p>
-                    <h2 class="text-4xl md:text-5xl font-black mb-3" style="color: #1A1A1A;">Simple, Transparent Pricing</h2>
-                    <p class="text-sm font-bold tracking-wide uppercase" style="color: #2BBDA8;">Renew, Refresh or Get More From Your Plan After Your Free Start-Up Package</p>
-                </div>
-
-                <!-- ═══ Verified Business Partners Pricing Plans ═══ -->
-
-                <!-- Partner Packs -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-14">
-                    <div
-                        v-for="pack in partnerPacks"
-                        :key="pack.slug"
-                        class="relative rounded-2xl bg-white p-6 flex flex-col"
-                        style="border: 2px solid #F5A000;"
-                    >
-                        <h3 class="text-base font-bold mb-3 min-h-[3rem]" style="color: #1A1A1A;">{{ partnerPlanTitle(pack) }}</h3>
-
-                        <div class="flex items-baseline gap-1 mb-1">
-                            <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
-                            <span class="text-sm" style="color: #555555;">one-time</span>
-                        </div>
-                        <p class="text-xs italic mb-5 min-h-[2.5rem]" style="color: #555555;">{{ packBlurb(pack) }}</p>
-
-                        <button
-                            type="button"
-                            @click="learnMorePack = pack"
-                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-3 transition hover:bg-amber-50 cursor-pointer"
-                            style="border: 2px solid #F5A000; color: #1A1A1A;"
-                        >
-                            Learn more
-                        </button>
-
-                        <Link
-                            :href="route('partner')"
-                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90"
-                            style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                        >
-                            Become a Verified Business Partner <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                        </Link>
-                    </div>
-                </div>
-
-                <!-- Learn more popup — shared by all pricing cards -->
-                <Dialog :open="learnMorePack !== null" @update:open="val => { if (!val) learnMorePack = null; }">
-                    <DialogContent v-if="learnMorePack" class="max-w-md">
-                        <DialogHeader>
-                            <DialogTitle>{{ partnerPlanTitle(learnMorePack) }} — ${{ priceDollars(learnMorePack) }} one-time</DialogTitle>
-                            <DialogDescription as="div" class="text-[#555555]">{{ packBlurb(learnMorePack) }}</DialogDescription>
-                        </DialogHeader>
-
-                        <!-- Standard pack details -->
-                        <div v-if="!isAddon(learnMorePack)" class="flex flex-col gap-5">
-                            <div>
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
-                                <p class="text-sm font-bold" style="color: #1A1A1A;">{{ packEpisodes(learnMorePack) }}</p>
-                                <p class="text-xs italic mt-0.5" style="color: #555555;">Each episode = 1 ready-to-post piece of content</p>
-                                <p class="text-xs mt-1" style="color: #888888;">{{ packPosts(learnMorePack) }}</p>
-                            </div>
-
-                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Your credit balance</p>
-                                <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Total StoryBot Credits:</span> {{ learnMorePack.credits }}</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to generate 1 episode:</span> 1 credit</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Cost to manually edit or redo 1 episode:</span> 1 credit</li>
-                                </ul>
-                            </div>
-
-                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
-                                <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Manual edit or redo any episode for 1 credit. No extra fees.</li>
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Unused credits never expire. They carry forward.</li>
-                                </ul>
-                            </div>
-                        </div>
-
-                        <!-- Add-on details -->
-                        <div v-else class="flex flex-col gap-5">
-                            <div>
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">What you get</p>
-                                <ul class="flex flex-col gap-1.5 text-sm" style="color: #555555;">
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Credits added to your account:</span> {{ learnMorePack.credits }} StoryBot Credits</li>
-                                    <li><span class="font-semibold" style="color: #1A1A1A;">Enough to generate or refine:</span> up to {{ learnMorePack.credits }} episodes</li>
-                                </ul>
-                            </div>
-
-                            <div class="border-t pt-4" style="border-color: #EEEEEE;">
-                                <p class="text-xs font-bold uppercase tracking-wide mb-2" style="color: #F5A000;">Good to know</p>
-                                <ul class="flex flex-col gap-2 text-sm" style="color: #555555;">
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Add-on only. Must have an active plan to purchase.</li>
-                                    <li class="flex items-start gap-2"><Check class="w-4 h-4 shrink-0 mt-0.5" style="color: #F5A000;" :stroke-width="2.5" /> Credits never expire. Use them whenever you need.</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </DialogContent>
-                </Dialog>
-
-                <!-- ═══ Pay to Play StoryCreator.Bot Pricing Options ═══ -->
-                <!-- Hidden for now — keep the markup so it's a one-line flip to bring back. -->
-                <template v-if="showPayToPlay">
-
-                <!-- Pay to Play Banner -->
-                <div id="pay-to-play" class="rounded-2xl p-6 mb-6 scroll-mt-24" style="background-color: #1A1A1A;">
-                    <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Ala Carte Payment Programs</span>
-                    <h3 class="text-2xl font-black text-white">Pay to Play StoryCreator.Bot Pricing Options</h3>
-                    <p class="text-sm mb-1" style="color: #888888;">Flexible
-                        <span class="font-bold" style="color: #F5A000;">content plans</span> for general social media use. You must be Verified to post on Best of Local.
-                    </p>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1 mt-3">
-                        <span v-for="f in payToPlayFeatures"
-                            :key="f" class="flex items-center gap-1.5 text-xs" style="color: #AAAAAA;">
-                            <Check class="w-3 h-3 shrink-0" style="color: #F5A000;" :stroke-width="3" />
-                            {{ f }}
-                        </span>
-                    </div>
-                </div>
-
-                <p class="text-sm font-bold tracking-wide uppercase mb-4" style="color: #1BDEAB;">Pay to Play Pricing Plans (For Non-Verified Business Partners Only)</p>
-
-                <!-- Pay to Play Packs -->
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div
-                        v-for="pack in payToPlayPacks"
-                        :key="pack.slug"
-                        class="relative rounded-2xl bg-white p-6 flex flex-col"
-                        style="border: 2px solid #F5A000;"
-                    >
-                        <!-- Most Popular badge -->
-                        <div v-if="pack.slug === payToPlayPopularSlug" class="absolute -top-3.5 left-1/2 -translate-x-1/2">
-                            <span class="px-3 py-1 rounded-full text-xs font-bold" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">Most Popular</span>
-                        </div>
-
-                        <h3 class="text-base font-bold mb-3 min-h-[3rem]" style="color: #1A1A1A;">{{ pack.label }}</h3>
-
-                        <div class="flex items-baseline gap-1 mb-1">
-                            <span class="text-4xl font-black" style="color: #1A1A1A;">${{ priceDollars(pack) }}</span>
-                            <span class="text-sm" style="color: #555555;">one-time</span>
-                        </div>
-                        <p class="text-xs italic mb-5 min-h-[2.5rem]" style="color: #555555;">{{ packBlurb(pack) }}</p>
-
-                        <button
-                            type="button"
-                            @click="learnMorePack = pack"
-                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm mb-3 transition hover:bg-amber-50 cursor-pointer"
-                            style="border: 2px solid #F5A000; color: #1A1A1A;"
-                        >
-                            Learn more
-                        </button>
-
-                        <button
-                            type="button"
-                            @click="signUpOpen = true"
-                            class="flex items-center justify-center gap-2 w-full py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90 cursor-pointer"
-                            style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                        >
-                            Sign Up <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                        </button>
-                    </div>
-                </div>
-
-                </template>
 
             </div>
         </section>

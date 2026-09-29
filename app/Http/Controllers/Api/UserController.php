@@ -31,7 +31,7 @@ class UserController extends Controller
             ]);
         }
 
-        // Allowance above zero is what puts an account into trial; omitting the
+        // Allowance above zero puts the account on a Complimentary Trial; omitting the
         // param keeps the previous behaviour of creating a plain account.
         $allowance = (int) ($validated['trial_allowance'] ?? 0);
 
@@ -39,14 +39,18 @@ class UserController extends Controller
             'name' => $validated['name'],
             'email' => $validated['email'],
             'password' => Hash::make(Str::random(32)),
-            'is_trial' => $allowance > 0,
-            'trial_allowance' => $allowance,
+            'is_trial' => false,
+            'trial_allowance' => 0,
         ]);
 
         $user->syncRoles([$validated['tier'] ?? 'user']);
 
         if (isset($validated['vbp_plan'])) {
             $user->convertToPartner($validated['vbp_plan']);
+        }
+
+        if ($allowance > 0) {
+            $user->becomeTemporaryPartner();
         }
 
         // The account holds an unusable password until the member sets their own

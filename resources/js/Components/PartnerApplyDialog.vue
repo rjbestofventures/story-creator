@@ -120,12 +120,12 @@ watch(open, (isOpen) => {
                         <input
                             id="dlg_phone"
                             :value="form.phone"
-                            @input="(e) => form.phone = e.target.value.replace(/\D/g, '').slice(0, 11)"
+                            @input="(e) => form.phone = e.target.value.replace(/\D/g, '').slice(0, 10)"
                             type="tel"
                             inputmode="numeric"
                             autocomplete="tel"
-                            placeholder="13478245640"
-                            maxlength="11"
+                            placeholder="3478245640"
+                            maxlength="10"
                             required
                             class="w-full px-3 py-2.5 rounded-lg text-sm outline-none transition-all duration-200"
                             style="border: 1px solid #DDDDDD; color: #1A1A1A; background: #FFFFFF;"
@@ -133,7 +133,7 @@ watch(open, (isOpen) => {
                             @focus="(e) => !form.errors.phone && (e.target.style.borderColor='#F5A000', e.target.style.boxShadow='0 0 0 3px rgba(245,160,0,0.15)')"
                             @blur="(e) => !form.errors.phone && (e.target.style.borderColor='#DDDDDD', e.target.style.boxShadow='none')"
                         />
-                        <p class="mt-1.5 text-xs" style="color: #AAAAAA;">US format, digits only — e.g. 13478245640</p>
+                        <p class="mt-1.5 text-xs" style="color: #AAAAAA;">US format, digits only — e.g. 3478245640</p>
                         <p v-if="form.errors.phone" class="mt-1.5 text-xs" style="color: #EF4444;">{{ form.errors.phone }}</p>
                     </div>
 

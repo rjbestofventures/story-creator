@@ -15,7 +15,7 @@ const page = usePage();
 const example = computed(() => {
     const user = page.props.auth?.user;
     if (user?.is_temporary_vbp) {
-        return { heading: 'Your Temporary VBP', pool: page.props.temporaryVbpCredits, episodes: page.props.temporaryVbpEpisodes, refineOnly: true };
+        return { heading: 'Your Complementary Trial', pool: page.props.temporaryVbpCredits, episodes: page.props.temporaryVbpEpisodes, cost: page.props.temporaryVbpStoryCost, refineOnly: true };
     }
     const plan = (page.props.vbpPlans ?? []).find(p => p.key === user?.vbp_plan);
     if (plan) {
@@ -23,7 +23,8 @@ const example = computed(() => {
     }
     return { heading: 'Example', pool: 48, episodes: 12 };
 });
-const leftOver = computed(() => example.value.pool - example.value.episodes);
+const storyCost = computed(() => example.value.cost ?? example.value.episodes);
+const leftOver = computed(() => example.value.pool - storyCost.value);
 </script>
 
 <template>
@@ -78,15 +79,18 @@ const leftOver = computed(() => example.value.pool - example.value.episodes);
                     <span class="text-sm font-bold text-[#1A1A1A] shrink-0">{{ example.pool }} credits</span>
                 </div>
                 <div class="flex items-baseline justify-between gap-4 mt-2">
-                    <span class="text-sm text-[#555555]">One complete {{ example.episodes }}-episode story</span>
-                    <span class="text-sm font-bold text-[#1A1A1A] shrink-0">−{{ example.episodes }} credits</span>
+                    <span class="text-sm text-[#555555]">
+                        <template v-if="example.refineOnly">Your {{ example.episodes }}-episode story (3 readable episodes)</template>
+                        <template v-else>One complete {{ example.episodes }}-episode story</template>
+                    </span>
+                    <span class="text-sm font-bold text-[#1A1A1A] shrink-0">−{{ storyCost }} credits</span>
                 </div>
                 <div class="border-t border-[#DDDDDD] mt-3 pt-3 flex items-baseline justify-between gap-4">
                     <span class="text-sm font-bold text-[#1A1A1A]">Left in your pool</span>
                     <span class="text-sm font-bold text-[#F5A000] shrink-0">{{ leftOver }} credits</span>
                 </div>
                 <p class="text-xs text-[#AAAAAA] mt-3">
-                    <template v-if="example.refineOnly">Use those {{ leftOver }} credits toward refining episodes in your story.</template>
+                    <template v-if="example.refineOnly">Use those {{ leftOver }} Complementary Credits toward AI refine.</template>
                     <template v-else>Use those {{ leftOver }} credits toward a new story, or toward refining episodes in this one.</template>
                 </p>
             </div>

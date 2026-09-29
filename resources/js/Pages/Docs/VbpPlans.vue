@@ -9,6 +9,7 @@ const creditsFor = (key) => plans.value.find(p => p.key === key)?.credits ?? 0;
 const planKeys = computed(() => plans.value.map(p => `\`${p.key}\``).join(', '));
 const tempCredits = computed(() => page.props.temporaryVbpCredits);
 const tempEpisodes = computed(() => page.props.temporaryVbpEpisodes);
+const tempCost = computed(() => page.props.temporaryVbpStoryCost);
 
 const json = (value) => JSON.stringify(value, null, 4);
 
@@ -20,16 +21,10 @@ const accountTypes = computed(() => [
         notes: 'Partner pricing in the shop. No expiry.',
     },
     {
-        name: 'Temporary VBP',
-        how: 'POST /api/provision/temporary-vbp',
+        name: 'Complementary Trial',
+        how: 'POST /api/provision/temporary-vbp, or POST /api/provision/user with trial: true',
         credits: `${tempCredits.value}`,
-        notes: `One ${tempEpisodes.value}-episode story, the rest for AI Refine. Deactivated after 3 months unless converted.`,
-    },
-    {
-        name: 'Trial member',
-        how: 'POST /api/provision/user with trial: true',
-        credits: '0',
-        notes: 'One free story; episodes after the first 3 are locked until the trial ends.',
+        notes: `One ${tempEpisodes.value}-episode story costing ${tempCost.value} credits, with only 3 episodes readable and the rest locked. The remaining ${tempCredits.value - tempCost.value} credits are for AI Refine. Deactivated after 3 months unless converted.`,
     },
     {
         name: 'Partner pricing only',
@@ -69,12 +64,12 @@ const endpoints = computed(() => [
         method: 'POST',
         path: '/api/provision/convert-to-partner',
         auth: 'Provision token',
-        title: 'Convert a trial member or Temporary VBP',
+        title: 'Convert a Complementary Trial',
         planField: 'Required',
         effect: 'Makes the account a full partner on the plan and adds the plan\'s credits on top of whatever it already holds.',
         rules: [
-            `A Temporary VBP keeps its leftover credits — ${tempCredits.value - tempEpisodes.value} left + ${creditsFor('other')} for Other = ${tempCredits.value - tempEpisodes.value + creditsFor('other')}. Its expiry is cleared and a deactivated account is reopened.`,
-            'A trial member\'s trial ends, but their locked episodes stay locked until they spend credits to open them.',
+            `A Complementary Trial keeps its leftover credits — ${tempCredits.value - tempCost.value} left + ${creditsFor('other')} for Other = ${tempCredits.value - tempCost.value + creditsFor('other')}. Its expiry is cleared and a deactivated account is reopened.`,
+            'The trial ends, but the locked episodes stay locked until they spend credits to open them.',
             'Calling it again on someone who is already a full partner only changes the plan. Credits are never granted twice.',
         ],
         request: { email: 'tess@example.com', vbp_plan: 'other' },
@@ -116,11 +111,11 @@ const endpoints = computed(() => [
         method: 'POST',
         path: '/api/provision/temporary-vbp',
         auth: 'Provision token',
-        title: 'Create a Temporary VBP',
+        title: 'Create a Complementary Trial',
         planField: 'Not accepted',
-        effect: `Creates a Temporary VBP with ${tempCredits.value} credits. Plans do not apply until it is converted.`,
+        effect: `Creates a Complementary Trial with ${tempCredits.value} credits. Plans do not apply until it is converted.`,
         rules: [
-            `Can generate one ${tempEpisodes.value}-episode story; the remaining credits are for AI Refine.`,
+            `Generates one ${tempEpisodes.value}-episode story for ${tempCost.value} credits, with 3 episodes readable and ${tempEpisodes.value - 3} locked; the remaining ${tempCredits.value - tempCost.value} credits are for AI Refine.`,
             'Deactivated 3 months after creation unless converted with convert-to-partner.',
         ],
         request: { name: 'Tess Temp', email: 'tess@example.com' },

@@ -42,20 +42,20 @@ class ProvisionTrialMemberTest extends TestCase
         ]);
     }
 
-    public function test_provisioning_with_the_trial_flag_creates_a_trial_member(): void
+    public function test_provisioning_with_the_trial_flag_creates_a_complimentary_trial(): void
     {
         Notification::fake();
 
         $this->provision(['name' => 'Jane Smith', 'email' => 'jane@example.com', 'trial' => true])
             ->assertCreated()
-            ->assertJsonPath('user.is_trial', true)
-            ->assertJsonPath('user.trial_allowance', User::DEFAULT_TRIAL_ALLOWANCE)
-            ->assertJsonPath('user.credits', 0);
+            ->assertJsonPath('user.is_trial', false)
+            ->assertJsonPath('user.is_temporary_vbp', true)
+            ->assertJsonPath('user.credits', User::TEMPORARY_VBP_CREDITS);
 
         $user = User::where('email', 'jane@example.com')->first();
 
-        $this->assertTrue($user->is_trial);
-        $this->assertSame(User::DEFAULT_TRIAL_ALLOWANCE, $user->trial_allowance);
+        $this->assertTrue($user->is_temporary_vbp);
+        $this->assertFalse($user->is_trial);
         $this->assertFalse($user->is_verified_partner);
         $this->assertNotNull($user->email_verified_at);
 

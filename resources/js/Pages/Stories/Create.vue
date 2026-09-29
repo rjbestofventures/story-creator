@@ -12,7 +12,7 @@ import {
 import {
     Tooltip, TooltipContent, TooltipProvider, TooltipTrigger,
 } from '@/Components/ui/tooltip';
-import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, AlertTriangle, Lock, Mic, Square, Loader2, Volume2, VolumeX } from 'lucide-vue-next';
+import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Pencil, CircleHelp, Lock, Mic, Square, Loader2, Volume2, VolumeX } from 'lucide-vue-next';
 
 const props = defineProps({
     profile:         Object,
@@ -23,6 +23,7 @@ const props = defineProps({
     is_temporary_vbp:         { type: Boolean, default: false },
     trial_episode_count:      { type: Number,  default: 12 },
     trial_unlocked_episodes:  { type: Number,  default: 3 },
+    complimentary_story_cost: { type: Number,  default: 3 },
     episode_options: {
         type: Array,
         default: () => [12, 18, 24].map((count) => ({ count, locked: false, unlock_label: null })),
@@ -525,14 +526,17 @@ const initEpisodeChoice = () => {
 };
 
 const isTrial = computed(() => props.is_trial);
+const isComplimentary = computed(() => props.is_temporary_vbp);
+const fixedLibrary = computed(() => isTrial.value || isComplimentary.value);
 
 const episodeCount = computed(() => {
     if (isDemoMode.value) return 3;
-    if (isTrial.value) return props.trial_episode_count;
+    if (fixedLibrary.value) return props.trial_episode_count;
     return selectedEpisodes.value ?? episodeOptions.value[0]?.count ?? 12;
 });
 
-const canAffordSelected = computed(() => isUnlimited.value || isTrial.value || creditBalance.value >= episodeCount.value);
+const canAffordSelected = computed(() => isUnlimited.value || isTrial.value
+    || creditBalance.value >= (isComplimentary.value ? props.complimentary_story_cost : episodeCount.value));
 
 const storeForm = useForm({
     format:        'social',
@@ -1415,7 +1419,7 @@ const formats = [
                     <div class="bg-white rounded-2xl border border-[#DDDDDD] p-6 space-y-8">
 
                         <!-- Trial members get a fixed library, so there is nothing to choose -->
-                        <div v-if="isTrial" class="rounded-xl p-4 border" style="background:#FEF9EC; border-color:#F5A000;">
+                        <div v-if="fixedLibrary" class="rounded-xl p-4 border" style="background:#FEF9EC; border-color:#F5A000;">
                             <p class="text-sm font-bold text-[#1A1A1A]">
                                 Your {{ trial_episode_count }}-episode library
                             </p>
@@ -1427,7 +1431,7 @@ const formats = [
                         </div>
 
                         <!-- Episode count chooser -->
-                        <div v-if="!isDemoMode && !isTrial" class="space-y-3">
+                        <div v-if="!isDemoMode && !fixedLibrary" class="space-y-3">
                             <div class="flex items-center justify-between">
                                 <Label class="text-[#1A1A1A] font-bold text-base block">How many episodes?</Label>
                                 <span v-if="!isUnlimited" class="text-xs font-semibold text-[#555555]">
@@ -1454,8 +1458,7 @@ const formats = [
                                                     v-if="!unlocked(opt)"
                                                     class="absolute top-0 inset-x-0 bg-[#1A1A1A] text-white text-[8px] font-bold uppercase tracking-wide py-0.5 truncate px-1"
                                                 >
-                                                    <template v-if="is_temporary_vbp">VBP only</template>
-                                                    <template v-else>Buy {{ opt.unlock_label || 'Pro' }} to unlock</template>
+                                                    Buy {{ opt.unlock_label || 'Pro' }} to unlock
                                                 </span>
                                                 <Lock v-if="!unlocked(opt)" class="absolute top-6 right-2 w-3 h-3 text-[#AAAAAA]" />
                                                 <span class="text-xl font-black text-[#1A1A1A]">{{ opt.count }}</span>
@@ -1465,11 +1468,7 @@ const formats = [
                                         </TooltipTrigger>
                                         <TooltipContent v-if="!unlocked(opt)" side="bottom" class="max-w-xs p-3 flex-col items-start gap-1">
                                             <p class="text-xs leading-relaxed text-white">
-                                                <template v-if="is_temporary_vbp">
-                                                    {{ opt.count }}-episode stories open once you become a
-                                                    <strong class="font-semibold text-white">Verified Business Partner</strong>.
-                                                </template>
-                                                <template v-else-if="opt.unlock_label">
+                                                <template v-if="opt.unlock_label">
                                                     Unlock {{ opt.count }}-episode stories with the
                                                     <strong class="font-semibold text-white">{{ opt.unlock_label }}</strong>.
                                                 </template>
@@ -1477,7 +1476,7 @@ const formats = [
                                                     This episode count requires a higher pack.
                                                 </template>
                                             </p>
-                                            <Link v-if="!is_temporary_vbp" :href="route('shop.index')" class="text-xs font-semibold text-[#F5A000] hover:underline">
+                                            <Link :href="route('shop.index')" class="text-xs font-semibold text-[#F5A000] hover:underline">
                                                 View packs →
                                             </Link>
                                         </TooltipContent>
@@ -1526,6 +1525,7 @@ const formats = [
                             </p>
                             <p class="text-xs text-[#555555] mt-1">
                                 <template v-if="isTrial">Free while you are on trial · </template>
+                                <template v-else-if="isComplimentary">This costs {{ complimentary_story_cost }} Complementary Credits · </template>
                                 <template v-else-if="!isUnlimited">This costs 1 StoryBot credit per episode · </template>Takes up to 3 minutes
                             </p>
                         </div>
@@ -1548,12 +1548,12 @@ const formats = [
             <DialogContent class="max-w-md">
                 <DialogHeader>
                     <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
-                        <AlertTriangle class="w-5 h-5 text-[#F5A000]" />
+                        <CircleHelp class="w-5 h-5 text-[#F5A000]" />
                     </div>
                     <DialogTitle class="text-[#1A1A1A]">Are your details correct?</DialogTitle>
                     <DialogDescription class="text-[#555555]">
                         StoryBot will base your entire story on the business details and answers you provide.
-                        Double-check your business name and links — you won't be able to change these once your story is generated.
+                        Double-check your business name and links. You won't be able to change these once your story is generated.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">
@@ -1587,6 +1587,12 @@ const formats = [
                             <li>The first <strong class="text-[#1A1A1A]">{{ trial_unlocked_episodes }}</strong> episodes are readable right away.</li>
                             <li>The rest unlock when you become a Verified Business Partner — they are written either way.</li>
                         </ul>
+                        <ul v-else-if="isComplimentary" class="mt-2 space-y-1 list-disc list-inside">
+                            <li>Current Complementary Credits: <strong class="text-[#1A1A1A]">{{ creditBalance }}</strong></li>
+                            <li>Cost: <strong class="text-[#1A1A1A]">{{ complimentary_story_cost }} credits</strong> for your one story</li>
+                            <li>The first <strong class="text-[#1A1A1A]">{{ trial_unlocked_episodes }}</strong> episodes are readable right away. The rest unlock when you become a Verified Business Partner.</li>
+                            <li>Remaining Balance After Generation: <strong class="text-[#1A1A1A]">{{ creditBalance - complimentary_story_cost }} credits</strong>, which can only be used for AI refine</li>
+                        </ul>
                         <ul v-else-if="!isUnlimited" class="mt-2 space-y-1 list-disc list-inside">
                             <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditBalance }}</strong></li>
                             <li>Cost: <strong class="text-[#1A1A1A]">{{ episodeCount }} credit{{ episodeCount === 1 ? '' : 's' }}</strong> (1 credit per episode)</li>
@@ -1594,7 +1600,7 @@ const formats = [
                         </ul>
                         <p class="mt-2 text-xs">
                             Once confirmed, StoryBot will immediately begin generating your episodes.
-                            <template v-if="isTrial"> This uses your trial, so double-check your answers first.</template>
+                            <template v-if="fixedLibrary"> This uses your trial, so double-check your answers first.</template>
                             <template v-else-if="!isUnlimited"> Credits used are non-refundable.</template>
                         </p>
                     </DialogDescription>

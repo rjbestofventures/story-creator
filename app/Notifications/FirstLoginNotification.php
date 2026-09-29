@@ -9,7 +9,7 @@ use Illuminate\Support\Facades\Notification as NotificationFacade;
 
 class FirstLoginNotification extends Notification
 {
-    private const ADMIN_EMAIL = 'dickstein@bestofventures.com';
+    public const ADMIN_EMAIL = 'dickstein@bestofventures.com';
 
     public function __construct(private readonly User $user) {}
 

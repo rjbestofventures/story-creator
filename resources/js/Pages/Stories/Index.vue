@@ -29,7 +29,7 @@ const props = defineProps({
     is_verified_partner: { type: Boolean, default: false },
     is_temporary_vbp:       { type: Boolean, default: false },
     temporary_story_used:   { type: Boolean, default: false },
-    temporary_vbp_episodes: { type: Number,  default: 6 },
+    temporary_story_cost:   { type: Number,  default: 3 },
 });
 
 const buyCreditsButtonEnabled = computed(() => usePage().props.features?.buyCreditsButtonEnabled ?? true);
@@ -49,7 +49,7 @@ const MIN_STORY_CREDITS = 12;
 // does not apply to them — their allowance does.
 const canCreateStory = computed(() => {
     if (onTrialOffer.value) return props.trial_allowance > 0;
-    if (props.is_temporary_vbp) return !props.temporary_story_used && creditBalance.value >= props.temporary_vbp_episodes;
+    if (props.is_temporary_vbp) return !props.temporary_story_used && creditBalance.value >= props.temporary_story_cost;
     return props.isAdmin || creditBalance.value >= MIN_STORY_CREDITS;
 });
 
@@ -292,15 +292,15 @@ onMounted(() => {
                     </div>
                 </div>
 
-                <!-- Temporary VBP spent: their one story exists; credits left are for refining -->
+                <!-- Complementary Trial spent: their one story exists; credits left are for refining -->
                 <div
                     v-if="is_temporary_vbp && temporary_story_used"
                     class="rounded-2xl border px-5 py-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
                     style="background:#FEF9EC; border-color:#F5A000;"
                 >
                     <p class="text-sm text-[#555555]">
-                        <strong class="font-bold text-[#1A1A1A]">Your Temporary VBP story is made.</strong>
-                        Your remaining {{ creditBalance }} credit{{ creditBalance === 1 ? '' : 's' }} are for AI Refine.
+                        <strong class="font-bold text-[#1A1A1A]">Your Complementary Trial story is made.</strong>
+                        Your remaining {{ creditBalance }} Complementary Credit{{ creditBalance === 1 ? '' : 's' }} are for AI Refine.
                         Become a Verified Business Partner to create more stories.
                     </p>
                     <Button

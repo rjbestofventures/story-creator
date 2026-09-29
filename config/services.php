@@ -47,6 +47,10 @@ return [
         'key' => env('OPENAI_API_KEY'),
     ],
 
+    'crm' => [
+        'trial_webhook' => env('CRM_TRIAL_WEBHOOK_URL'),
+    ],
+
     'elevenlabs' => [
         'key' => env('ELEVENLABS_API_KEY'),
     ],

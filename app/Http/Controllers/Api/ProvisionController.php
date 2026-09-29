@@ -37,11 +37,11 @@ class ProvisionController extends Controller
             ]);
         }
 
-        // A trial member holds no credits and their episodes arrive locked; a pack
-        // grants credits and ends a trial. Asking for both asks for opposite things.
+        // A Complimentary Trial has its own credits and its episodes arrive locked;
+        // a pack grants credits and ends a trial. Asking for both asks for opposite things.
         if ($trial && isset($validated['pack'])) {
             throw ValidationException::withMessages([
-                'pack' => 'A trial member cannot be granted a pack. Provision the trial without a pack, or grant the pack without the trial flag.',
+                'pack' => 'A Complimentary Trial cannot be granted a pack. Provision the trial without a pack, or grant the pack without the trial flag.',
             ]);
         }
 
@@ -54,8 +54,6 @@ class ProvisionController extends Controller
             'email' => $validated['email'],
             'password' => Hash::make(Str::random(32)),
             'is_verified_partner' => false,
-            'is_trial' => $trial,
-            'trial_allowance' => $trial ? User::DEFAULT_TRIAL_ALLOWANCE : 0,
             'credits' => 0,
         ]);
 
@@ -73,6 +71,10 @@ class ProvisionController extends Controller
             $user->convertToPartner($plan);
         }
 
+        if ($trial) {
+            $user->becomeTemporaryPartner();
+        }
+
         $token = Password::createToken($user);
         $user->notify(new AccountCreatedNotification($token));
 
@@ -83,7 +85,7 @@ class ProvisionController extends Controller
     }
 
     /**
-     * Create a Temporary VBP: 12 credits, one 6-episode story, and an account
+     * Create a Complimentary Trial: 6 credits, one 12-episode story with 3 readable episodes, and an account
      * that shuts after three months unless it is converted to a full partner
      * through convertToPartner.
      */
