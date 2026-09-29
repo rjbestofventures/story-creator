@@ -12,13 +12,12 @@ class TrialAccountCreatedNotification extends Notification
     public function __construct(
         private readonly User $user,
         private readonly string $phone,
-        private readonly string $businessName,
     ) {}
 
-    public static function sendFor(User $user, string $phone, string $businessName): void
+    public static function sendFor(User $user, string $phone): void
     {
         NotificationFacade::route('mail', FirstLoginNotification::ADMIN_EMAIL)
-            ->notify(new self($user, $phone, $businessName));
+            ->notify(new self($user, $phone));
     }
 
     public function via(): array
@@ -34,7 +33,6 @@ class TrialAccountCreatedNotification extends Notification
             ->line("{$this->user->name} created a Complementary Trial account from the website.")
             ->line("Email: {$this->user->email}")
             ->line("Phone: {$this->phone}")
-            ->line("Business: {$this->businessName}")
             ->salutation('StoryCreator.Bot');
     }
 }

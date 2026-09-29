@@ -20,7 +20,6 @@ class TrialSignupTest extends TestCase
         'last_name' => 'Trial',
         'email' => 'tess@example.com',
         'phone' => '5614502121',
-        'business_name' => 'Trial Bakery',
     ];
 
     protected function setUp(): void
@@ -62,7 +61,6 @@ class TrialSignupTest extends TestCase
         Http::assertSent(fn ($request) => $request->url() === 'https://crm.test/hook'
             && $request['email'] === 'tess@example.com'
             && $request['phone'] === '5614502121'
-            && $request['business_name'] === 'Trial Bakery'
             && $request['source'] === 'storybot_trial_signup');
     }
 

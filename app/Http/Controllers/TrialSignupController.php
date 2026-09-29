@@ -36,7 +36,7 @@ class TrialSignupController extends Controller
         $user->becomeTemporaryPartner();
 
         $user->notify(new AccountCreatedNotification(Password::createToken($user)));
-        TrialAccountCreatedNotification::sendFor($user, $data['phone'], $data['business_name']);
+        TrialAccountCreatedNotification::sendFor($user, $data['phone']);
 
         $this->sendToCrm($data);
 
