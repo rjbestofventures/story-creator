@@ -1,5 +1,7 @@
 # Trial Member API
 
+> **Superseded.** New trials are **Complementary Trials** (6 credits, one 12-episode story with 3 readable episodes). See [Create a Complementary Trial](./provision-api.md#create-a-complementary-trial). This document describes the legacy Trial Member and applies only to accounts created before that change.
+
 Two endpoints: create a trial member, and convert one into a Verified Business Partner.
 
 This is a focused subset of the [Provision API](./provision-api.md) — see that document for account creation with credit packs, and for deactivating accounts.
