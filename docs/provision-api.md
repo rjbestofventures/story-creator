@@ -18,7 +18,7 @@ Returns `401 Unauthorized` if the token is missing or incorrect.
 
 ## Create User
 
-Creates a new user account, optionally grants the specified credit pack, and sends the user a password-setup email.
+Creates a new user account, optionally grants the specified credit pack, and sends the user a password-setup email. If the email already belongs to an account, that account is updated instead — see [If the email already exists](#if-the-email-already-exists).
 
 **`POST /api/provision/user`**
 
@@ -27,7 +27,7 @@ Creates a new user account, optionally grants the specified credit pack, and sen
 | Field | Type | Required | Description |
 |---|---|---|---|
 | `name` | string | Yes | Full name of the user |
-| `email` | string | Yes | Email address (must be unique) |
+| `email` | string | Yes | Email address. An existing account with this email is updated, not rejected. |
 | `pack` | string | No | Credit pack slug — see [Packs](#packs). Omit to create the account with 0 credits and no pack. |
 | `trial` | boolean | No | Create the account as a [Complementary Trial](#create-a-complementary-trial). Defaults to `false`. Cannot be combined with `pack` or `vbp_plan`. |
 | `vbp_plan` | string | No | `gold`, `silver`, or `other`. Creates the account as a Verified Business Partner on that plan and grants the plan's credits (Gold 36, Silver 24, Other 36). Cannot be combined with `trial` or `pack`. |
@@ -51,6 +51,7 @@ Accept: application/json
 
 ```json
 {
+    "created": true,
     "user": {
         "id": 42,
         "name": "Jane Smith",
@@ -64,7 +65,7 @@ Accept: application/json
 }
 ```
 
-> `is_verified_partner` is set to `true` automatically when the granted pack's type is `partner`. `pack` is `null` in the response if no `pack` was requested.
+> `is_verified_partner` is set to `true` automatically when the granted pack's type is `partner`. `pack` is `null` in the response if no `pack` was requested. `created` is `true` for a new account.
 
 ### Error Responses
 
@@ -76,10 +77,40 @@ Accept: application/json
 **Example 422 response:**
 ```json
 {
-    "message": "The email has already been taken.",
+    "message": "The selected vbp plan is invalid.",
     "errors": {
-        "email": ["The email has already been taken."]
+        "vbp_plan": ["The selected vbp plan is invalid."]
     }
+}
+```
+
+### If the email already exists
+
+An email that already has an account is **updated, not rejected**. The response is `200 OK` with `"created": false`.
+
+| Request field | Applied to the existing account? |
+|---|---|
+| `vbp_plan` | Yes. Records the plan and makes them a partner. Plan credits are added only if they were not already a full partner, so credits are never granted twice. |
+| `pack` | Yes. The pack's credits are granted, exactly as when an admin grants a pack. |
+| `name` | No. The existing name is kept. |
+| `trial` | No. An existing account never starts a trial. |
+
+- No account-created or password email is sent, since they already have a login.
+- The same validation applies: `vbp_plan` cannot be combined with `trial` or `pack`, and `trial` cannot be combined with `pack`. A conflicting request returns `422` even for an existing email.
+- If neither `pack` nor `vbp_plan` is sent, nothing changes and the current account is returned.
+
+```json
+{
+    "created": false,
+    "user": {
+        "id": 42,
+        "name": "Jane Smith",
+        "email": "jane@example.com",
+        "is_verified_partner": true,
+        "vbp_plan": "silver",
+        "credits": 24
+    },
+    "pack": null
 }
 ```
 

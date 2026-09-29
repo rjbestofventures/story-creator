@@ -20,7 +20,7 @@ class ProvisionController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', Rule::unique('users', 'email')],
+            'email' => ['required', 'email'],
             'pack' => ['sometimes', 'string', Rule::exists('credit_packs', 'slug')],
             'trial' => ['sometimes', 'boolean'],
             'vbp_plan' => ['sometimes', 'string', Rule::in(array_keys(User::VBP_PLAN_CREDITS))],
@@ -48,6 +48,25 @@ class ProvisionController extends Controller
         $pack = isset($validated['pack'])
             ? CreditPack::where('slug', $validated['pack'])->firstOrFail()
             : null;
+
+        // An account that already exists is updated rather than rejected: only the
+        // pack and plan apply. Name and trial are left alone, and no
+        // account-created email goes out, since they already have a login.
+        if ($existing = User::where('email', $validated['email'])->first()) {
+            if ($pack) {
+                $pack->grantTo($existing);
+            }
+
+            if ($plan) {
+                $existing->convertToPartner($plan);
+            }
+
+            return response()->json([
+                'created' => false,
+                'user' => $this->summarize($existing->fresh()),
+                'pack' => $pack?->slug,
+            ]);
+        }
 
         $user = User::create([
             'name' => $validated['name'],
@@ -79,6 +98,7 @@ class ProvisionController extends Controller
         $user->notify(new AccountCreatedNotification($token));
 
         return response()->json([
+            'created' => true,
             'user' => $this->summarize($user->fresh()),
             'pack' => $pack?->slug,
         ], 201);

@@ -49,10 +49,12 @@ const endpoints = computed(() => [
         rules: [
             'Cannot be combined with trial or pack — the plan grants its own credits. Returns 422.',
             'The user is emailed a link to set their password.',
+            'If the email already has an account, it is updated instead of rejected: the plan and any pack are applied, the name is kept, no trial starts and no email is sent. The response is 200 with created: false (new accounts return 201 with created: true).',
         ],
         variants: planVariants((p) => ({
             request: { name: `Sam ${p.label}`, email: `sam.${p.key}@example.com`, vbp_plan: p.key },
             response: {
+                created: true,
                 user: {
                     id: 60, name: `Sam ${p.label}`, email: `sam.${p.key}@example.com`, is_active: true,
                     is_verified_partner: true, vbp_plan: p.key, is_temporary_vbp: false,
