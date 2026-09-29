@@ -114,7 +114,7 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
             </div>
 
             <h1 class="text-4xl md:text-6xl font-black leading-tight max-w-4xl mb-4 text-[#1A1A1A]">
-                Your story is your <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">business</span>
+                Your story is your<br /><span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">business</span>
             </h1>
 
             <p class="text-lg font-bold max-w-xl mb-10 text-[#1A1A1A]">
@@ -133,7 +133,7 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
 
             <div class="flex items-center gap-4 w-full max-w-2xl mt-10 mb-5">
                 <span class="h-px flex-1 bg-[#DDDDDD]" />
-                <span class="text-xs text-[#555555]">or explore first</span>
+                <span class="text-[15px] text-[#555555]">or explore first</span>
                 <span class="h-px flex-1 bg-[#DDDDDD]" />
             </div>
 
@@ -147,8 +147,8 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
                 >
                     <component :is="card.icon" class="w-[18px] h-[18px] shrink-0 text-[#555555]" :stroke-width="1.75" />
                     <span>
-                        <span class="block text-[15px] font-bold leading-tight">{{ card.title }}</span>
-                        <span class="block text-[13px] text-[#555555] mt-0.5">{{ card.sub }}</span>
+                        <span class="block text-[18px] font-bold leading-tight">{{ card.title }}</span>
+                        <span class="block text-[15px] text-[#555555] mt-0.5">{{ card.sub }}</span>
                     </span>
                 </button>
             </div>
