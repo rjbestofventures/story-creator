@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, Link, usePage } from '@inertiajs/vue3';
-import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, CircleHelp, ChevronDown } from '@lucide/vue';
+import { Head, Link, router, usePage } from '@inertiajs/vue3';
+import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, CircleHelp, ChevronDown, Gift, MessageCircle } from '@lucide/vue';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
 import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
@@ -37,6 +37,12 @@ const signUpOpen = ref(false);
 const contactOpen = ref(false);
 const trialOpen = ref(false);
 
+const exploreCards = [
+    { title: 'Free trial', sub: 'Make your first story', icon: Gift, onClick: () => { trialOpen.value = true; } },
+    { title: 'Live demo', sub: 'See how it works', icon: Play, onClick: () => router.visit(route('demo')) },
+    { title: 'Contact us', sub: 'Ask us anything', icon: MessageCircle, onClick: () => { contactOpen.value = true; } },
+];
+
 const faqs = [
     { q: 'How does StoryCreator.Bot work?', a: 'Answer a series of simple questions about your business, how you got started, and your goals. StoryCreator.Bot transforms your answers into a series of ready-to-publish posts and content ideas, all based on your unique story.' },
     { q: 'How long does it take?', a: "Most businesses complete their StoryCreator.Bot conversation in under 30 minutes. You can answer the questions by typing or simply dictating your responses using your phone or computer's microphone. From that one conversation, you'll have months of authentic, ready-to-publish content." },
@@ -63,10 +69,10 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
         <AnnouncementBar />
 
         <!-- Nav -->
-        <header class="bg-white flex items-center justify-between px-6 md:px-8 py-2.5">
+        <header class="bg-white flex items-center justify-between px-6 md:px-8 py-2.5 border-b border-[#DDDDDD]">
             <a href="/" class="flex items-center text-xl font-bold tracking-tight">
                 <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">StoryCreator</span>
-                <span style="color: #1A1A1A;">.Bot</span>
+                <span class="text-[#1A1A1A]">.Bot</span>
             </a>
 
             <nav class="flex items-center gap-3">
@@ -74,8 +80,7 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
                     <Link
                         v-if="$page.props.auth.user"
                         :href="route('dashboard')"
-                        class="px-4 py-2 text-sm font-semibold transition"
-                        style="color: #1A1A1A;"
+                        class="px-4 py-2 text-sm font-semibold text-[#1A1A1A] transition"
                     >
                         Dashboard
                     </Link>
@@ -84,17 +89,16 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
                             v-if="canRegister"
                             type="button"
                             @click="signUpOpen = true"
-                            class="px-4 py-2 text-sm font-semibold transition hover:opacity-70 cursor-pointer"
-                            style="color: #1A1A1A;"
+                            class="px-4 py-2 text-sm font-semibold text-[#1A1A1A] transition hover:opacity-70 cursor-pointer"
                         >
-                            Sign Up
+                            Sign up
                         </button>
                         <Link
                             :href="route('login')"
-                            class="px-5 py-2 rounded-lg text-sm font-bold transition hover:opacity-90"
-                            style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                            class="px-5 py-2 rounded-lg text-sm font-bold text-[#1A1A1A] transition hover:opacity-90"
+                            style="background: linear-gradient(to right, #FFC837, #F5A000);"
                         >
-                            Log In
+                            Log in
                         </Link>
                     </template>
                 </template>
@@ -104,64 +108,48 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
         <!-- Hero -->
         <main class="min-h-screen flex flex-col items-center justify-center text-center px-6 py-20">
 
-            <!-- Badge -->
-            <div
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-8"
-                style="background-color: #F5F5F5; color: #555555; border: 1px solid #DDDDDD;"
-            >
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-8 bg-[#F5F5F5] text-[#555555] border border-[#DDDDDD]">
                 <Zap class="w-4 h-4" />
-                Social Media Powered by Our Intelligence.
+                Social media powered by our intelligence
             </div>
 
-            <!-- Headline -->
-            <h1 class="text-5xl md:text-6xl font-black leading-tight max-w-3xl mb-4" style="color: #1A1A1A;">
-                Your Story is Your<br />
-                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Business</span>
+            <h1 class="text-4xl md:text-6xl font-black leading-tight max-w-4xl mb-4 text-[#1A1A1A]">
+                Your story is your <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">business</span>
             </h1>
 
-            <!-- Tagline -->
-            <p class="text-lg font-bold max-w-xl mb-10" style="color: #1A1A1A;">
-                Technology Changes. Human Nature Doesn't.
+            <p class="text-lg font-bold max-w-xl mb-10 text-[#1A1A1A]">
+                Technology changes. Human nature doesn't.
             </p>
 
-            <!-- CTAs -->
-            <p class="text-xs font-bold tracking-widest uppercase mb-4" style="color: #555555;">Use StoryCreator.Bot</p>
-            <div class="flex flex-wrap items-center justify-center gap-4">
-                <button
-                    type="button"
-                    @click="trialOpen = true"
-                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50 cursor-pointer"
-                    style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
-                >
-                    Complementary Trial
-                </button>
+            <button
+                type="button"
+                @click="signUpOpen = true"
+                class="flex items-center gap-2 px-10 py-4 rounded-lg font-bold text-base text-[#1A1A1A] transition hover:opacity-90 cursor-pointer"
+                style="background: linear-gradient(to right, #FFC837, #F5A000);"
+            >
+                Let's Go
+                <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+            </button>
 
-                <Link
-                    :href="route('demo')"
-                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
-                    style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
-                >
-                    <Play class="w-4 h-4" fill="currentColor" :stroke-width="0" />
-                    Live Demo
-                </Link>
+            <div class="flex items-center gap-4 w-full max-w-2xl mt-10 mb-5">
+                <span class="h-px flex-1 bg-[#DDDDDD]" />
+                <span class="text-xs text-[#555555]">or explore first</span>
+                <span class="h-px flex-1 bg-[#DDDDDD]" />
+            </div>
 
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full max-w-2xl text-left">
                 <button
+                    v-for="card in exploreCards"
+                    :key="card.title"
                     type="button"
-                    @click="signUpOpen = true"
-                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
-                    style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                    @click="card.onClick()"
+                    class="flex items-center gap-3 px-5 py-4 text-left rounded-lg border border-[#DDDDDD] bg-white text-[#1A1A1A] transition hover:border-[#F5A000] cursor-pointer"
                 >
-                    Let's Go
-                    <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                </button>
-
-                <button
-                    type="button"
-                    @click="contactOpen = true"
-                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50 cursor-pointer"
-                    style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
-                >
-                    Contact us
+                    <component :is="card.icon" class="w-[18px] h-[18px] shrink-0 text-[#555555]" :stroke-width="1.75" />
+                    <span>
+                        <span class="block text-[15px] font-bold leading-tight">{{ card.title }}</span>
+                        <span class="block text-[13px] text-[#555555] mt-0.5">{{ card.sub }}</span>
+                    </span>
                 </button>
             </div>
         </main>
