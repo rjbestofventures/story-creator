@@ -33,6 +33,7 @@ const toggleCard = (i) => { expandedCards.value[i] = !expandedCards.value[i]; };
 // Signup is closed to non-partners for now: every Sign Up entry point opens the
 // partner application dialog instead of routing to /register.
 const signUpOpen = ref(false);
+const contactOpen = ref(false);
 
 const faqs = [
     { q: 'How does StoryCreator.Bot work?', a: 'Answer a series of simple questions about your business, how you got started, and your goals. StoryCreator.Bot transforms your answers into a series of ready-to-publish posts and content ideas, all based on your unique story.' },
@@ -151,13 +152,14 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
                     <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                 </button>
 
-                <a
-                    href="mailto:info@bestofventures.com"
-                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50"
+                <button
+                    type="button"
+                    @click="contactOpen = true"
+                    class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base border transition hover:bg-gray-50 cursor-pointer"
                     style="background-color: #FFFFFF; color: #1A1A1A; border-color: #DDDDDD;"
                 >
                     Contact us
-                </a>
+                </button>
             </div>
         </main>
 
@@ -383,6 +385,7 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
         <Footer />
 
         <PartnerApplyDialog v-model:open="signUpOpen" />
+        <PartnerApplyDialog v-model:open="contactOpen" :show-checkout="false" />
 
     </div>
 </template>

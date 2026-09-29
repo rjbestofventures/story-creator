@@ -8,6 +8,10 @@ import {
 
 const open = defineModel('open', { default: false });
 
+defineProps({
+    showCheckout: { type: Boolean, default: true },
+});
+
 const submitted = ref(false);
 
 // "Subscribe now" sends ready-to-join visitors straight to hosted checkout,
@@ -57,7 +61,7 @@ watch(open, (isOpen) => {
                 </DialogHeader>
 
                 <!-- Ready to join now — straight to checkout -->
-                <div class="rounded-2xl p-6 mb-2" style="background-color: #1A1A1A;">
+                <div v-if="showCheckout" class="rounded-2xl p-6 mb-2" style="background-color: #1A1A1A;">
                     <h3 class="text-lg font-black text-white mb-1">Ready to join now?</h3>
                     <p class="text-sm mb-5" style="color: #AAAAAA;">Go straight to checkout and start today</p>
                     <a
@@ -73,7 +77,7 @@ watch(open, (isOpen) => {
                 </div>
 
                 <!-- Divider -->
-                <div class="flex items-center gap-3 my-2">
+                <div v-if="showCheckout" class="flex items-center gap-3 my-2">
                     <span class="h-px flex-1" style="background-color: #DDDDDD;" />
                     <span class="text-xs font-bold tracking-widest uppercase" style="color: #AAAAAA;">OR</span>
                     <span class="h-px flex-1" style="background-color: #DDDDDD;" />
