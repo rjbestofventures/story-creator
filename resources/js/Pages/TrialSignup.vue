@@ -8,17 +8,15 @@ const submitted = ref(false);
 const form = useForm({
     first_name: '',
     last_name: '',
-    email: '',
     phone: '',
-    business_name: '',
+    email: '',
 });
 
 const fields = [
     { key: 'first_name', label: 'First Name', type: 'text', autocomplete: 'given-name' },
     { key: 'last_name', label: 'Last Name', type: 'text', autocomplete: 'family-name' },
-    { key: 'email', label: 'Email', type: 'email', autocomplete: 'email' },
     { key: 'phone', label: 'Phone', type: 'tel', autocomplete: 'tel', hint: 'US format, digits only, e.g. 3478245640' },
-    { key: 'business_name', label: 'Business Name', type: 'text', autocomplete: 'organization' },
+    { key: 'email', label: 'Email', type: 'email', autocomplete: 'email' },
 ];
 
 const onInput = (key, value) => {

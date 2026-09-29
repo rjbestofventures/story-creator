@@ -11,9 +11,8 @@ class TrialSignupRequest extends FormRequest
         return [
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
-            'email' => 'required|email|max:255|unique:users,email',
             'phone' => ['required', 'string', 'regex:/^\d{10}$/'],
-            'business_name' => 'required|string|max:120',
+            'email' => 'required|email|max:255|unique:users,email',
         ];
     }
 
