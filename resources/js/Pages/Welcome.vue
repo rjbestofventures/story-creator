@@ -39,7 +39,7 @@ const trialOpen = ref(false);
 
 const exploreCards = [
     { title: 'Free trial', sub: 'Make your first story', icon: Gift, onClick: () => { trialOpen.value = true; } },
-    { title: 'Live demo', sub: 'See how it works', icon: Play, onClick: () => router.visit(route('demo')) },
+    { title: 'Demo story', sub: 'See how it works', icon: Play, onClick: () => router.visit(route('demo')) },
     { title: 'Contact us', sub: 'Ask us anything', icon: MessageCircle, onClick: () => { contactOpen.value = true; } },
 ];
 
@@ -58,7 +58,7 @@ const faqs = [
     { q: 'Do I still need a Social Media Manager?', a: "That's entirely up to you. StoryCreator.Bot is designed to solve one of the hardest parts of social media marketing: consistently creating authentic content. A good Social Media Manager can still add tremendous value by selecting visuals, scheduling posts, managing campaigns, and analyzing results. StoryCreator.Bot simply gives them better content to work with." },
 ];
 
-const partnerFeatures = ['enough episode up to year', 'Saves time and lowers costs', 'Story credits never expire', 'Verified partner badge', 'Priority guidance', 'Episodes for every story'];
+const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library', 'Story credits never expire', 'Worth thousands. Yours for free.', 'Live Customer Care', 'Episodes for every story'];
 </script>
 
 <template>
@@ -127,7 +127,7 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
                 class="flex items-center gap-2 px-10 py-4 rounded-lg font-bold text-base text-[#1A1A1A] transition hover:opacity-90 cursor-pointer"
                 style="background: linear-gradient(to right, #FFC837, #F5A000);"
             >
-                Let's Go
+                Get StoryBot
                 <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
             </button>
 
@@ -270,19 +270,19 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
                     <div class="flex items-start gap-5 flex-1">
                         <div class="relative shrink-0">
                             <div class="w-20 h-20 rounded-xl flex items-center justify-center text-white font-black text-sm text-center leading-tight" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                                BEST<br/>LOCAL
+                                Verified<br/>Business<br/>Partners
                             </div>
                         </div>
                         <div>
                             <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">StoryCreator.Bot Partnership Program</span>
                             <h3 class="text-3xl md:text-4xl font-black text-white">Pricing Plans</h3>
-                            <p class="text-base mb-1" style="color: #888888;">Verified Local Businesses get upto 1 year
+                            <p class="text-base mb-1" style="color: #888888;">Best of Local get upto 1 year
                                 <span class="font-bold uppercase" style="color: #F5A000;">FREE CONTENT</span>
                             </p>
-                            <p class="text-sm mt-3" style="color: #AAAAAA;">Free StoryBot credits when you join, by plan:</p>
+                            <p class="text-sm mt-3" style="color: #AAAAAA;">Free Storybot Credits included</p>
                             <div class="flex flex-wrap gap-2 mt-2">
                                 <span v-for="plan in vbpPlans" :key="plan.key" class="px-3 py-1 rounded-lg text-sm font-bold" style="background-color: #2A2A2A; color: #FFFFFF;">
-                                    {{ plan.label }} <span style="color: #F5A000;">{{ plan.credits }} credits</span>
+                                    {{ plan.key === 'other' ? 'Custom' : plan.label }} <span style="color: #F5A000;">{{ plan.credits }} credits</span>
                                 </span>
                             </div>
                             <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-8 gap-y-1.5 mt-4">
@@ -296,10 +296,10 @@ const partnerFeatures = ['enough episode up to year', 'Saves time and lowers cos
                     </div>
                     <!-- Right: CTA -->
                     <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
-                        <Link :href="route('login')" class="flex items-center gap-2 px-7 py-3 rounded-lg font-bold text-base transition hover:opacity-90" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                            Login <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                        </Link>
-                        <Link :href="route('partner')" class="text-sm underline" style="color: #888888;">Learn how to become a verified partner →</Link>
+                        <button type="button" @click="signUpOpen = true" class="flex items-center gap-2 px-7 py-3 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
+                            Sign Up <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
+                        </button>
+                        <Link :href="route('partner')" class="text-sm underline" style="color: #888888;">Become a Verified Business Partner</Link>
                     </div>
                 </div>
 

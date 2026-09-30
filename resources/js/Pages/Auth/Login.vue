@@ -55,11 +55,11 @@ const submit = () => {
             <div class="w-full max-w-sm">
 
                 <!-- Header -->
-                <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">Log in to your account</h1>
-                <p class="text-sm mb-8" style="color: #555555;">
+                <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">
                     Don't have an account?
-                    <button type="button" @click="signUpOpen = true" class="font-semibold underline transition hover:opacity-70 cursor-pointer" style="color: #1A1A1A;">Sign up</button>
-                </p>
+                    <button type="button" @click="signUpOpen = true" class="underline transition hover:opacity-70 cursor-pointer">Sign up</button>
+                </h1>
+                <p class="text-sm mb-8" style="color: #555555;">Log in to your account</p>
 
                 <!-- Status message -->
                 <div v-if="status" class="mb-6 rounded-lg px-4 py-3 text-sm font-medium" style="background-color: #F5F5F5; color: #1A1A1A;">
