@@ -1545,7 +1545,7 @@ const formats = [
         </div>
 
         <Dialog v-model:open="confirmStartOpen">
-            <DialogContent class="max-w-md">
+            <DialogContent class="max-w-md bg-[#FFF8EC]">
                 <DialogHeader>
                     <div class="w-11 h-11 rounded-xl bg-amber-50 flex items-center justify-center mb-2">
                         <CircleHelp class="w-5 h-5 text-[#F5A000]" />
