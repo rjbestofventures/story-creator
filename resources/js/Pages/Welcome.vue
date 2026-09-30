@@ -164,7 +164,7 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
                     <span style="color: #F5A623;">story</span> to tell
                 </h2>
 
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-7 text-left mb-14">
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-7 items-start text-left mb-14">
                     <div
                         v-for="(card, i) in whyCards"
                         :key="card.title"
@@ -213,7 +213,7 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
                 <p class="text-xs font-bold tracking-widest uppercase mb-4" style="color: #555555;">How It Works</p>
 
                 <h2 class="text-4xl md:text-5xl font-black mb-16" style="color: #1A1A1A;">
-                    Create Social Media Content That
+                    Social Media Content That
                     <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">Delivers</span><br />
                     in Three Easy Steps
                 </h2>
