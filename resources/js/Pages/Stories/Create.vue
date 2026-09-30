@@ -1552,17 +1552,17 @@ const formats = [
                     </div>
                     <DialogTitle class="text-[#1A1A1A]">Are your details correct?</DialogTitle>
                     <DialogDescription class="text-[#555555]">
-                        StoryBot will base your entire story on the business details and answers you provide.
-                        Double-check your business name and links. You won't be able to change these once your story is generated.
+                        StoryBot builds your story from your business name and the links you've provided.
+                        Double-check them before we get started. Once you continue, this information is locked in
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">
-                    <Button variant="outline" @click="confirmStartOpen = false" class="cursor-pointer">Go back &amp; review</Button>
+                    <Button variant="outline" @click="confirmStartOpen = false" class="cursor-pointer">I'll review</Button>
                     <Button
                         @click="confirmStartInterview"
                         class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
                     >
-                        Yes, start my interview
+                        I'm good, let's go
                     </Button>
                 </DialogFooter>
             </DialogContent>
