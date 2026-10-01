@@ -536,6 +536,15 @@ const requestRefine = (fn, kind = 'refine', cost = 1) => {
     confirmRefineOpen.value = true;
 };
 
+const refineShort = computed(() =>
+    ! isDemo && ! props.isAdmin && pendingRefineKind.value === 'refine' && creditsBalance.value < pendingRefineCost.value,
+);
+
+const becomePartnerFromRefine = () => {
+    confirmRefineOpen.value = false;
+    partnerOpen.value = true;
+};
+
 const confirmRefine = () => {
     confirmRefineOpen.value = false;
     const fn = pendingRefine.value;
@@ -1424,12 +1433,30 @@ const restoreRevision = async (ep) => {
                                 <li>Cost: <strong class="text-[#1A1A1A]">{{ pendingRefineCost }} credit{{ pendingRefineCost === 1 ? '' : 's' }}</strong></li>
                                 <li>Remaining Balance After Refine: <strong class="text-[#1A1A1A]">{{ creditsBalance - pendingRefineCost }} credit{{ (creditsBalance - pendingRefineCost) === 1 ? '' : 's' }}</strong></li>
                             </ul>
+                            <p v-if="refineShort" class="mt-2 text-xs" style="color:#EF4444;">
+                                You do not have enough credits for this refine.
+                            </p>
                         </template>
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">
                     <Button variant="outline" @click="confirmRefineOpen = false" class="cursor-pointer">Cancel</Button>
                     <Button
+                        v-if="refineShort && onTrialOffer"
+                        @click="becomePartnerFromRefine"
+                        class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Become a VBP to get more Credits
+                    </Button>
+                    <Link
+                        v-else-if="refineShort"
+                        :href="route('shop.index')"
+                        class="inline-flex items-center justify-center rounded-lg px-4 text-sm h-9 bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
+                    >
+                        Buy more Credits
+                    </Link>
+                    <Button
+                        v-else
                         @click="confirmRefine"
                         class="bg-gradient-to-r from-[#FFC837] to-[#F5A000] hover:bg-gradient-to-br text-[#1A1A1A] font-bold cursor-pointer"
                     >
