@@ -2,7 +2,7 @@
 import { computed, ref, onMounted } from 'vue';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
+import GetStartedDialog from '@/Components/GetStartedDialog.vue';
 import HowCreditsWorkDialog from '@/Components/HowCreditsWorkDialog.vue';
 import { runTour, runTourWhenReady } from '@/lib/tour';
 import { Button } from '@/Components/ui/button';
@@ -553,7 +553,7 @@ onMounted(() => {
             </DialogContent>
         </Dialog>
 
-        <PartnerApplyDialog v-model:open="partnerOpen" />
+        <GetStartedDialog v-model:open="partnerOpen" />
 
         <HowCreditsWorkDialog v-model:open="creditsInfoOpen" />
 

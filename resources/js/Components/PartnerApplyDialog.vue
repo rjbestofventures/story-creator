@@ -8,15 +8,7 @@ import {
 
 const open = defineModel('open', { default: false });
 
-defineProps({
-    showCheckout: { type: Boolean, default: true },
-});
-
 const submitted = ref(false);
-
-// "Subscribe now" sends ready-to-join visitors straight to hosted checkout,
-// opened in a new page so they keep this tab.
-const CHECKOUT_URL = 'https://link.bestofventures.com/payment-link/6a6b5cbc7b99151a5404158c';
 
 const form = useForm({
     first_name: '',
@@ -60,28 +52,6 @@ watch(open, (isOpen) => {
                     <DialogTitle class="text-[#1A1A1A]">Become a Best of Local Verified Business Partner</DialogTitle>
                 </DialogHeader>
 
-                <!-- Ready to join now — straight to checkout -->
-                <div v-if="showCheckout" class="rounded-2xl p-6 mb-2" style="background-color: #1A1A1A;">
-                    <h3 class="text-lg font-black text-white mb-1">Ready to join now?</h3>
-                    <p class="text-sm mb-5" style="color: #AAAAAA;">Go straight to checkout and start today</p>
-                    <a
-                        :href="CHECKOUT_URL"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        class="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm transition hover:opacity-90"
-                        style="background-color: #FFFFFF; color: #1A1A1A;"
-                    >
-                        Subscribe now <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                    </a>
-                    <p class="text-center text-xs mt-3" style="color: #888888;">Secure checkout.</p>
-                </div>
-
-                <!-- Divider -->
-                <div v-if="showCheckout" class="flex items-center gap-3 my-2">
-                    <span class="h-px flex-1" style="background-color: #DDDDDD;" />
-                    <span class="text-xs font-bold tracking-widest uppercase" style="color: #AAAAAA;">OR</span>
-                    <span class="h-px flex-1" style="background-color: #DDDDDD;" />
-                </div>
                 <p class="text-center text-sm font-black uppercase tracking-wide mb-1" style="color: #1A1A1A;">Provide your details below to learn more</p>
 
                 <form @submit.prevent="submit" class="space-y-4" novalidate>

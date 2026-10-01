@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
-import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
+import GetStartedDialog from '@/Components/GetStartedDialog.vue';
 import { Button } from '@/Components/ui/button';
 import { Badge } from '@/Components/ui/badge';
 import {
@@ -1527,7 +1527,7 @@ const restoreRevision = async (ep) => {
             </DialogContent>
         </Dialog>
 
-        <PartnerApplyDialog v-model:open="partnerOpen" />
+        <GetStartedDialog v-model:open="partnerOpen" />
 
     </AuthenticatedLayout>
 </template>
