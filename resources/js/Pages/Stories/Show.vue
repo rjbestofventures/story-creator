@@ -1431,7 +1431,7 @@ const restoreRevision = async (ep) => {
                             <ul class="mt-2 space-y-1 list-disc list-inside">
                                 <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditsBalance }}</strong></li>
                                 <li>Cost: <strong class="text-[#1A1A1A]">{{ pendingRefineCost }} credit{{ pendingRefineCost === 1 ? '' : 's' }}</strong></li>
-                                <li>Remaining Balance After Refine: <strong class="text-[#1A1A1A]">{{ creditsBalance - pendingRefineCost }} credit{{ (creditsBalance - pendingRefineCost) === 1 ? '' : 's' }}</strong></li>
+                                <li v-if="!refineShort">Remaining Balance After Refine: <strong class="text-[#1A1A1A]">{{ creditsBalance - pendingRefineCost }} credit{{ (creditsBalance - pendingRefineCost) === 1 ? '' : 's' }}</strong></li>
                             </ul>
                             <p v-if="refineShort" class="mt-2 text-xs" style="color:#EF4444;">
                                 You do not have enough credits for this refine.
@@ -1534,7 +1534,7 @@ const restoreRevision = async (ep) => {
                         <ul class="mt-2 space-y-1 list-disc list-inside">
                             <li>Current StoryBot Credits: <strong class="text-[#1A1A1A]">{{ creditsBalance }}</strong></li>
                             <li>Cost: <strong class="text-[#1A1A1A]">{{ unlock_cost }} credit{{ unlock_cost === 1 ? '' : 's' }}</strong></li>
-                            <li>Remaining Balance After Unlock: <strong class="text-[#1A1A1A]">{{ creditsBalance - unlock_cost }} credit{{ (creditsBalance - unlock_cost) === 1 ? '' : 's' }}</strong></li>
+                            <li v-if="creditsBalance >= unlock_cost">Remaining Balance After Unlock: <strong class="text-[#1A1A1A]">{{ creditsBalance - unlock_cost }} credit{{ (creditsBalance - unlock_cost) === 1 ? '' : 's' }}</strong></li>
                         </ul>
                         <p v-if="creditsBalance < unlock_cost" class="mt-2 text-xs" style="color:#EF4444;">
                             You do not have enough credits to unlock this library yet.
