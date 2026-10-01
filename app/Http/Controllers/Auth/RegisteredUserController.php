@@ -45,6 +45,8 @@ class RegisteredUserController extends Controller
             'password' => Hash::make($request->password),
         ]);
 
+        $user->markPasswordSet();
+
         Auth::login($user);
         $user->recordLogin();
 

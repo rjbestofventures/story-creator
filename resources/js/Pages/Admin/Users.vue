@@ -454,11 +454,19 @@ const impersonate = (userId) => {
                             >
                                 Current Pack: {{ user.current_pack }}
                             </Badge>
+                            <Badge
+                                variant="outline"
+                                :class="user.password_set ? 'bg-green-50 text-green-700 border-green-200' : 'bg-red-50 text-red-700 border-red-200'"
+                                class="text-[10px] px-1.5 py-0"
+                            >
+                                {{ user.password_set ? 'Password set' : 'Password not set' }}
+                            </Badge>
                         </div>
                         <div class="flex items-center gap-1 mt-1">
                             <Mail class="w-3 h-3 shrink-0 text-muted-foreground" />
                             <span class="text-xs text-muted-foreground truncate">{{ user.email }}</span>
                             <span class="hidden md:inline text-xs text-muted-foreground ml-2">· joined {{ user.created_at }}</span>
+                            <span class="hidden md:inline text-xs text-muted-foreground ml-2">· {{ user.login_count }} {{ user.login_count === 1 ? 'login' : 'logins' }}<template v-if="user.last_login_at">, last {{ user.last_login_at }}</template><template v-else>, never logged in</template></span>
                         </div>
                     </div>
 

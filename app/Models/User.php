@@ -51,6 +51,8 @@ class User extends Authenticatable implements MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'last_login_at' => 'datetime',
+            'login_count' => 'integer',
+            'password_set_at' => 'datetime',
             'tour_completed_at' => 'datetime',
             'password' => 'hashed',
             'is_active' => 'boolean',
@@ -101,7 +103,13 @@ class User extends Authenticatable implements MustVerifyEmail
             FirstLoginNotification::sendFor($this);
         }
 
-        $this->forceFill(['last_login_at' => now()])->save();
+        $this->forceFill(['last_login_at' => now(), 'login_count' => $this->login_count + 1])->save();
+    }
+
+    /** Provisioned accounts hold a random password until the member picks their own. */
+    public function markPasswordSet(): void
+    {
+        $this->forceFill(['password_set_at' => now()])->save();
     }
 
     // -------------------------------------------------------------------------

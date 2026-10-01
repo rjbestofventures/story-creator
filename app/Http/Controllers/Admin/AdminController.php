@@ -58,6 +58,9 @@ class AdminController extends Controller
                 'credits' => $user->credits,
                 'stories_total' => $user->stories_count,
                 'created_at' => $user->created_at->format('n/j/Y'),
+                'login_count' => $user->login_count,
+                'last_login_at' => $user->last_login_at?->format('n/j/Y'),
+                'password_set' => $user->password_set_at !== null,
                 'current_pack' => $user->purchases
                     ->first(fn ($p) => in_array($p->creditPack?->type, ['partner', 'storybot']))
                     ?->creditPack?->label,
