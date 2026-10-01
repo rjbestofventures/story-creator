@@ -1,9 +1,10 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { Head, Link, router, usePage } from '@inertiajs/vue3';
-import { MessageSquare, Sparkles, Download, Zap, ArrowRight, Play, Check, CircleHelp, ChevronDown, Gift, MessageCircle } from '@lucide/vue';
+import { MessageSquare, Sparkles, Download, Zap, ArrowRight, ArrowDown, Play, Check, CircleHelp, ChevronDown, Gift, MessageCircle } from '@lucide/vue';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
+import GetStartedDialog from '@/Components/GetStartedDialog.vue';
 import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
 import TrialSignupDialog from '@/Components/TrialSignupDialog.vue';
 
@@ -38,10 +39,15 @@ const contactOpen = ref(false);
 const trialOpen = ref(false);
 
 const exploreCards = [
-    { title: 'Free trial', sub: 'Make your first story', icon: Gift, onClick: () => { trialOpen.value = true; } },
     { title: 'Demo story', sub: 'See how it works', icon: Play, onClick: () => router.visit(route('demo')) },
+    { title: 'Free trial', sub: 'Make your first story', icon: Gift, onClick: () => { trialOpen.value = true; } },
     { title: 'Contact us', sub: 'Ask us anything', icon: MessageCircle, onClick: () => { contactOpen.value = true; } },
 ];
+
+const scrollToNext = () => {
+    const target = document.getElementById('why-this-matters');
+    if (target) window.scrollTo({ top: target.getBoundingClientRect().top + window.scrollY, behavior: 'smooth' });
+};
 
 const faqs = [
     { q: 'How does StoryCreator.Bot work?', a: 'Answer a series of simple questions about your business, how you got started, and your goals. StoryCreator.Bot transforms your answers into a series of ready-to-publish posts and content ideas, all based on your unique story.' },
@@ -58,7 +64,7 @@ const faqs = [
     { q: 'Do I still need a Social Media Manager?', a: "That's entirely up to you. StoryCreator.Bot is designed to solve one of the hardest parts of social media marketing: consistently creating authentic content. A good Social Media Manager can still add tremendous value by selecting visuals, scheduling posts, managing campaigns, and analyzing results. StoryCreator.Bot simply gives them better content to work with." },
 ];
 
-const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library', 'Story credits never expire', 'Worth thousands. Yours for free.', 'Live Customer Care', 'Episodes for every story'];
+const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library', 'Story credits never expire', 'Worth thousands. Yours for free.', 'Live Customer Care', 'Simple Edit Features'];
 </script>
 
 <template>
@@ -152,10 +158,19 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
                     </span>
                 </button>
             </div>
+
+            <button
+                type="button"
+                @click="scrollToNext"
+                class="flex flex-col items-center gap-1 mt-12 text-sm font-semibold text-[#555555] transition hover:text-[#1A1A1A] cursor-pointer"
+            >
+                Learn More
+                <ArrowDown class="w-4 h-4" :stroke-width="2.5" />
+            </button>
         </main>
 
         <!-- Why This Matters -->
-        <section class="px-6 py-20" style="background-color: #FFFFFF;">
+        <section id="why-this-matters" class="px-6 py-20" style="background-color: #FFFFFF;">
             <div class="max-w-6xl mx-auto text-center">
 
                 <p class="text-xs font-bold tracking-widest uppercase mb-3" style="color: #8A8F98;">Because Trust Matters</p>
@@ -270,13 +285,13 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
                     <div class="flex items-start gap-5 flex-1">
                         <div class="relative shrink-0">
                             <div class="w-20 h-20 rounded-xl flex items-center justify-center text-white font-black text-sm text-center leading-tight" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                                Verified<br/>Business<br/>Partners
+                                Best Of<br/>Local
                             </div>
                         </div>
                         <div>
                             <span class="inline-block text-xs font-bold tracking-widest uppercase px-2 py-0.5 rounded mb-1" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">StoryCreator.Bot Partnership Program</span>
                             <h3 class="text-3xl md:text-4xl font-black text-white">Pricing Plans</h3>
-                            <p class="text-base mb-1" style="color: #888888;">Best of Local get upto 1 year
+                            <p class="text-base mb-1" style="color: #888888;">Verified Business Partner get upto 1 year
                                 <span class="font-bold uppercase" style="color: #F5A000;">FREE CONTENT</span>
                             </p>
                             <p class="text-sm mt-3" style="color: #AAAAAA;">Free Storybot Credits included</p>
@@ -375,8 +390,8 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
 
         <Footer />
 
-        <PartnerApplyDialog v-model:open="signUpOpen" />
-        <PartnerApplyDialog v-model:open="contactOpen" :show-checkout="false" />
+        <GetStartedDialog v-model:open="signUpOpen" />
+        <PartnerApplyDialog v-model:open="contactOpen" />
         <TrialSignupDialog v-model:open="trialOpen" />
 
     </div>

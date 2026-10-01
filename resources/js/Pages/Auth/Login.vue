@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Mail, Lock, Eye, EyeOff, ArrowRight } from '@lucide/vue';
 import Footer from '@/Components/Footer.vue';
-import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
+import GetStartedDialog from '@/Components/GetStartedDialog.vue';
 
 defineProps({
     canResetPassword: Boolean,
@@ -185,6 +185,6 @@ const submit = () => {
       </div>
       <Footer />
 
-      <PartnerApplyDialog v-model:open="signUpOpen" />
+      <GetStartedDialog v-model:open="signUpOpen" />
     </div>
 </template>

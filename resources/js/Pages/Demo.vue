@@ -9,7 +9,7 @@ import { Badge } from '@/Components/ui/badge';
 import { ArrowLeft, ArrowRight, Sparkles, Send, Check, Lock, Volume2, VolumeX, Loader2, Headphones, Square } from 'lucide-vue-next';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
-import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
+import GetStartedDialog from '@/Components/GetStartedDialog.vue';
 
 defineProps({
     canLogin: Boolean,
@@ -955,7 +955,7 @@ const goBack = () => {
 
         <Footer v-if="phase !== 1" />
 
-        <PartnerApplyDialog v-model:open="signUpOpen" />
+        <GetStartedDialog v-model:open="signUpOpen" />
 
     </div>
 </template>

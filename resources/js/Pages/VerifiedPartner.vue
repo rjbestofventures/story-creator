@@ -4,7 +4,7 @@ import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Check, ArrowRight, Star, Building2, Users, Zap, ShieldCheck, Calendar, TrendingUp, Radio, Award, Mail, Phone } from '@lucide/vue';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import Footer from '@/Components/Footer.vue';
-import PartnerApplyDialog from '@/Components/PartnerApplyDialog.vue';
+import GetStartedDialog from '@/Components/GetStartedDialog.vue';
 
 defineProps({
     canLogin: Boolean,
@@ -355,7 +355,7 @@ const partnerBenefits = [
 
         <Footer />
 
-        <PartnerApplyDialog v-model:open="applyOpen" />
+        <GetStartedDialog v-model:open="applyOpen" />
 
     </div>
 </template>
