@@ -8,6 +8,8 @@ import {
 
 const open = defineModel('open', { default: false });
 
+const CHECKOUT_URL = 'https://link.bestofventures.com/payment-link/6a6b5cbc7b99151a5404158c';
+
 const isLoggedIn = computed(() => !!usePage().props.auth?.user);
 
 const goTo = (url) => {
@@ -18,8 +20,6 @@ const goTo = (url) => {
     }
     router.visit(url);
 };
-
-const imIn = () => goTo(route('partner'));
 
 const notYet = () => {
     if (isLoggedIn.value) {
@@ -39,15 +39,17 @@ const notYet = () => {
 
             <div class="rounded-2xl overflow-hidden" style="border: 1px solid #DDDDDD;">
                 <div class="flex items-center gap-5 p-3" style="background-color: #FFFDF8;">
-                    <button
-                        type="button"
-                        @click="imIn"
+                    <a
+                        :href="CHECKOUT_URL"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        @click="open = false"
                         class="w-24 h-24 shrink-0 rounded-xl flex flex-col items-center justify-center gap-1 font-bold text-sm transition hover:opacity-90 cursor-pointer"
                         style="background: linear-gradient(to bottom right, #FFC837, #F5A000); color: #1A1A1A;"
                     >
                         I'm In
                         <ArrowRight class="w-7 h-7" :stroke-width="2.5" />
-                    </button>
+                    </a>
                     <p class="text-base leading-relaxed" style="color: #555555;">We're psyched to get you started! Pick your plan and launch your storybot.</p>
                 </div>
 
