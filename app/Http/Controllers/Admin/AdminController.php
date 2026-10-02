@@ -10,6 +10,7 @@ use App\Models\Story;
 use App\Models\User;
 use App\Models\UserCredit;
 use App\Notifications\AccountCreatedNotification;
+use App\Notifications\AccountReactivationNotification;
 use App\Notifications\EpisodesReactivatedNotification;
 use App\Services\ElevenLabsService;
 use App\Services\TextToSpeechService;
@@ -602,6 +603,14 @@ class AdminController extends Controller
         Password::sendResetLink(['email' => $user->email]);
 
         return back()->with('password_reset_sent', $user->email);
+    }
+
+    /** Email the member a fresh setup-password link. */
+    public function reactivate(User $user)
+    {
+        $user->notify(new AccountReactivationNotification(Password::createToken($user)));
+
+        return back()->with('reactivation_sent', $user->email);
     }
 
     public function assignPlan(Request $request, User $user)

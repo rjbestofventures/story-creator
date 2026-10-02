@@ -155,6 +155,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::post('/users/{user}/toggle-status', [AdminController::class, 'toggleStatus'])->name('users.toggle-status');
     Route::post('/users/{user}/toggle-partner', [AdminController::class, 'togglePartner'])->name('users.toggle-partner');
     Route::post('/users/{user}/password', [AdminController::class, 'resetPassword'])->name('users.password');
+    Route::post('/users/{user}/reactivate', [AdminController::class, 'reactivate'])->name('users.reactivate');
     Route::post('/users/{user}/grant-pack', [AdminController::class, 'assignPlan'])->name('users.assign-plan');
     Route::post('/users/{user}/gift-credits', [AdminController::class, 'giftCredits'])->name('users.gift-credits');
     Route::post('/users/{user}/trial-allowance', [AdminController::class, 'setTrialAllowance'])->name('users.trial-allowance');

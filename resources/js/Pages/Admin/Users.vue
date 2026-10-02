@@ -326,6 +326,20 @@ const submitUser = () => {
     }
 };
 
+const reactivatingId = ref(null);
+const reactivatedIds = ref([]);
+
+const reactivate = (user) => {
+    if (! window.confirm(`Email ${user.email} a new setup password link?`)) return;
+
+    reactivatingId.value = user.id;
+    router.post(route('admin.users.reactivate', user.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => { reactivatedIds.value.push(user.id); },
+        onFinish: () => { reactivatingId.value = null; },
+    });
+};
+
 const passwordResetSent = ref(false);
 
 const submitPassword = () => {
@@ -506,6 +520,21 @@ const impersonate = (userId) => {
                                 </Button>
                             </TooltipTrigger>
                             <TooltipContent>Reset password</TooltipContent>
+                        </Tooltip>
+
+                        <Tooltip v-if="!user.password_set">
+                            <TooltipTrigger as-child>
+                                <Button
+                                    variant="outline" size="sm"
+                                    class="h-8 px-2.5 text-xs font-semibold cursor-pointer"
+                                    :disabled="reactivatingId === user.id"
+                                    @click.stop="reactivate(user)"
+                                >
+                                    <Mail class="w-3.5 h-3.5" />
+                                    {{ reactivatedIds.includes(user.id) ? 'Sent' : 'Reactivate' }}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>Email {{ user.email }} a new setup password link</TooltipContent>
                         </Tooltip>
 
                         <template v-if="user.id !== $page.props.auth.user.id">
