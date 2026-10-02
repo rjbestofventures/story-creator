@@ -86,9 +86,10 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
                     <Link
                         v-if="$page.props.auth.user"
                         :href="route('dashboard')"
-                        class="px-4 py-2 text-sm font-semibold text-[#1A1A1A] transition"
+                        class="px-5 py-2 rounded-lg text-sm font-bold text-[#1A1A1A] transition hover:opacity-90"
+                        style="background: linear-gradient(to right, #FFC837, #F5A000);"
                     >
-                        Dashboard
+                        Go Back to Story Library
                     </Link>
                     <template v-else>
                         <button
