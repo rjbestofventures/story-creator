@@ -9,8 +9,6 @@ use App\Models\SiteSetting;
 use App\Models\Story;
 use App\Models\User;
 use App\Models\UserCredit;
-use App\Notifications\AccountCreatedNotification;
-use App\Notifications\AccountReactivationNotification;
 use App\Notifications\EpisodesReactivatedNotification;
 use App\Services\ElevenLabsService;
 use App\Services\TextToSpeechService;
@@ -573,8 +571,7 @@ class AdminController extends Controller
             $user->becomeTemporaryPartner();
         }
 
-        $token = Password::createToken($user);
-        $user->notify(new AccountCreatedNotification($token));
+        $user->sendWelcomeEmail();
 
         return back();
     }
@@ -605,10 +602,10 @@ class AdminController extends Controller
         return back()->with('password_reset_sent', $user->email);
     }
 
-    /** Email the member a fresh setup-password link. */
+    /** Email the member a fresh temporary password and one-click login links. */
     public function reactivate(User $user)
     {
-        $user->notify(new AccountReactivationNotification(Password::createToken($user)));
+        $user->sendWelcomeEmail();
 
         return back()->with('reactivation_sent', $user->email);
     }

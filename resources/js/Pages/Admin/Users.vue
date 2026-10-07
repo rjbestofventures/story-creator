@@ -534,7 +534,7 @@ const impersonate = (userId) => {
                                     {{ reactivatedIds.includes(user.id) ? 'Sent' : 'Reactivate' }}
                                 </Button>
                             </TooltipTrigger>
-                            <TooltipContent>Email {{ user.email }} a new setup password link</TooltipContent>
+                            <TooltipContent>Email {{ user.email }} a new temporary password and login link</TooltipContent>
                         </Tooltip>
 
                         <template v-if="user.id !== $page.props.auth.user.id">
@@ -1005,7 +1005,7 @@ const impersonate = (userId) => {
                         </div>
                     </template>
 
-                    <p v-if="userModalMode === 'create'" class="text-xs" style="color: #888888;">A password reset link will be emailed to the user automatically.</p>
+                    <p v-if="userModalMode === 'create'" class="text-xs" style="color: #888888;">A temporary password and login link will be emailed to the user automatically.</p>
                 </div>
 
                 <DialogFooter>

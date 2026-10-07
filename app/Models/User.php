@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Notifications\AccountCreatedNotification;
 use App\Notifications\FirstLoginNotification;
 use App\Notifications\VerifyEmailNotification;
 use Database\Factories\UserFactory;
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\URL;
+use Illuminate\Support\Str;
 use Laravel\Cashier\Billable;
 use Spatie\Permission\Traits\HasRoles;
 
@@ -45,6 +48,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /** How long a Temporary VBP account lasts before it is deactivated. */
     public const TEMPORARY_VBP_MONTHS = 3;
+
+    /** How long the one-click login links in the welcome email keep working. */
+    public const LOGIN_LINK_DAYS = 7;
 
     protected function casts(): array
     {
@@ -110,6 +116,34 @@ class User extends Authenticatable implements MustVerifyEmail
     public function markPasswordSet(): void
     {
         $this->forceFill(['password_set_at' => now()])->save();
+    }
+
+    /** Give the member a fresh temporary password and email it with one-click login links. */
+    public function sendWelcomeEmail(): void
+    {
+        $password = Str::password(12, symbols: false);
+
+        $this->forceFill(['password' => $password, 'password_set_at' => null])->save();
+
+        $this->notify(new AccountCreatedNotification($password));
+    }
+
+    /**
+     * A link that signs the member in and lands them on the given page. It is
+     * tied to their current password, so it stops working once they change it.
+     */
+    public function loginLink(string $destination): string
+    {
+        return URL::temporarySignedRoute('login.link', now()->addDays(self::LOGIN_LINK_DAYS), [
+            'user' => $this->id,
+            'destination' => $destination,
+            'hash' => $this->loginLinkHash(),
+        ]);
+    }
+
+    public function loginLinkHash(): string
+    {
+        return sha1($this->password);
     }
 
     // -------------------------------------------------------------------------

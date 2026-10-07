@@ -4,13 +4,11 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\TrialSignupRequest;
 use App\Models\User;
-use App\Notifications\AccountCreatedNotification;
 use App\Notifications\TrialAccountCreatedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -35,7 +33,7 @@ class TrialSignupController extends Controller
         $user->assignRole('user');
         $user->becomeTemporaryPartner();
 
-        $user->notify(new AccountCreatedNotification(Password::createToken($user)));
+        $user->sendWelcomeEmail();
         TrialAccountCreatedNotification::sendFor($user, $data['phone']);
 
         $this->sendToCrm($data);
