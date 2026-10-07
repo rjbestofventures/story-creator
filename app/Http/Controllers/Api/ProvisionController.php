@@ -5,11 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\CreditPack;
 use App\Models\User;
-use App\Notifications\AccountCreatedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -94,8 +92,7 @@ class ProvisionController extends Controller
             $user->becomeTemporaryPartner();
         }
 
-        $token = Password::createToken($user);
-        $user->notify(new AccountCreatedNotification($token));
+        $user->sendWelcomeEmail();
 
         return response()->json([
             'created' => true,
@@ -127,7 +124,7 @@ class ProvisionController extends Controller
         $user->assignRole('user');
         $user->becomeTemporaryPartner();
 
-        $user->notify(new AccountCreatedNotification(Password::createToken($user)));
+        $user->sendWelcomeEmail();
 
         return response()->json([
             'user' => $this->summarize($user->fresh()),

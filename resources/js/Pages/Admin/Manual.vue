@@ -69,7 +69,7 @@ import { ShieldCheck, Users, BookOpen, LogIn, KeyRound, Trash2, Search, FileText
                             <li>• <strong>Role</strong> — User or Admin</li>
                         </ul>
                         <p class="text-sm leading-relaxed" style="color: #555555;">
-                            A password is auto-generated and a <strong>secure login link</strong> is sent to the user's email automatically. The account is created with email verified, so the user can set their password and log in immediately.
+                            A temporary password is auto-generated and emailed to the user along with a <strong>one-click login link</strong>. The account is created with email verified, so the user can log in immediately and change the password from their profile.
                         </p>
                     </div>
 

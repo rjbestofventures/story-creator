@@ -4,7 +4,6 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
-use App\Notifications\AccountCreatedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -53,9 +52,8 @@ class UserController extends Controller
             $user->becomeTemporaryPartner();
         }
 
-        // The account holds an unusable password until the member sets their own
-        // through this reset link.
-        $user->notify(new AccountCreatedNotification(Password::createToken($user)));
+        // The welcome email carries a generated password and one-click login links.
+        $user->sendWelcomeEmail();
 
         return response()->json([
             'id' => $user->id,

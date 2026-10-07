@@ -18,7 +18,7 @@ Returns `401 Unauthorized` if the token is missing or incorrect.
 
 ## Create User
 
-Creates a new user account, optionally grants the specified credit pack, and sends the user a password-setup email. If the email already belongs to an account, that account is updated instead — see [If the email already exists](#if-the-email-already-exists).
+Creates a new user account, optionally grants the specified credit pack, and emails the user a generated temporary password with a one-click login link. If the email already belongs to an account, that account is updated instead — see [If the email already exists](#if-the-email-already-exists).
 
 **`POST /api/provision/user`**
 
@@ -118,7 +118,7 @@ An email that already has an account is **updated, not rejected**. The response 
 
 ## Create a Complementary Trial
 
-There is one trial: the **Complementary Trial** (shown as the account type in the admin panel). Its credits are called **Complementary Credits** inside StoryBot. It replaces the old Trial Member and Temporary VBP, so both requests below create the same account. Either way, the user is emailed a password-setup link.
+There is one trial: the **Complementary Trial** (shown as the account type in the admin panel). Its credits are called **Complementary Credits** inside StoryBot. It replaces the old Trial Member and Temporary VBP, so both requests below create the same account. Either way, the user is emailed a generated temporary password and a one-click login link.
 
 A Complementary Trial:
 
@@ -345,6 +345,6 @@ Credits are one-time grants and never expire — there is no subscription or bil
 ## Notes
 
 - The user's email is automatically marked as verified — no confirmation step required.
-- A password-setup email is sent to the user immediately after creation.
+- A welcome email with a generated temporary password and a one-click login link is sent to the user immediately after creation.
 - 1 credit = 1 episode generation, or 1 episode refine/redo.
 - Credits never expire and there is no subscription to manage — granting a pack is a one-time, permanent credit top-up.
