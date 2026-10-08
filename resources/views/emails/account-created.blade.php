@@ -12,7 +12,7 @@
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width: 560px; background-color: #FFFFFF; border-radius: 8px; overflow: hidden;">
                 <tr>
                     <td align="center" style="background-color: #000000; padding: 24px 16px;">
-                        <div style="color: #FFD000; font-size: 26px; font-weight: bold; line-height: 1.2;">Best of Delray</div>
+                        <div style="color: #FFD000; font-size: 26px; font-weight: bold; line-height: 1.2;">BEST OF DELRAY BEACH</div>
                         <div style="color: #FFFFFF; font-size: 13px; font-weight: bold; margin-top: 4px;">StoryCreator.Bot</div>
                     </td>
                 </tr>
@@ -22,7 +22,7 @@
 
                         <p style="margin: 0 0 16px; color: #000000; font-size: 16px; font-weight: bold; line-height: 1.5;">Your enhanced business profile will appear on the Best of Local App within 48 hrs.</p>
 
-                        <p style="margin: 0 0 16px; color: #F26B21; font-size: 16px; font-weight: bold; line-height: 1.5;">Look for Best of Newsletter, where your feedback and everything you need to know about getting top performance from your social media posts will be delivered monthly.</p>
+                        <p style="margin: 0 0 16px; color: #F26B21; font-size: 16px; font-weight: bold; line-height: 1.5;">Look for Best of Newsletter. Where your feedback and everything you need to know about getting top performance from your social media posts, will be delivered monthly.</p>
 
                         <p style="margin: 0 0 20px; color: #222222; font-size: 16px; line-height: 1.5;">Your StoryCreator.Bot account, the fastest and easiest way to make social media content, has been launched! Here is the account information and login details to get you started.</p>
 
@@ -53,7 +53,7 @@
 
                         <p style="margin: 0 0 20px; color: #555555; font-size: 14px; line-height: 1.5;">Go to <a href="{{ $profileUrl }}" style="color: #F26B21; font-weight: bold;">this link</a> to reset your password.</p>
 
-                        <p style="margin: 0; color: #222222; font-size: 15px; line-height: 1.5;">Regards,<br>Best of Delray</p>
+                        <p style="margin: 0; color: #222222; font-size: 15px; line-height: 1.5;">Regards,<br>Best of Delray Beach</p>
                     </td>
                 </tr>
                 <tr>

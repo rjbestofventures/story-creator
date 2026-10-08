@@ -62,17 +62,17 @@ class WelcomeEmailTest extends TestCase
         $html = $this->sendWelcomeTo(User::factory()->create());
 
         foreach ([
-            'Best of Delray',
+            'BEST OF DELRAY BEACH',
             'Welcome! Start enjoying Best of Benefits!',
             'Your enhanced business profile will appear on the Best of Local App within 48 hrs.',
-            'Look for Best of Newsletter, where your feedback and everything you need to know about getting top performance from your social media posts will be delivered monthly.',
+            'Look for Best of Newsletter. Where your feedback and everything you need to know about getting top performance from your social media posts, will be delivered monthly.',
             'Your StoryCreator.Bot account, the fastest and easiest way to make social media content, has been launched! Here is the account information and login details to get you started.',
             'Temporary Password:',
             'Log In Now',
             'This button logs you in automatically. You can also log in anytime with the email and password above.',
             'The password above is temporary. You can reset it anytime from your account dashboard.',
             'to reset your password.',
-            'Regards,<br>Best of Delray',
+            'Regards,<br>Best of Delray Beach',
         ] as $copy) {
             $this->assertStringContainsString($copy, html_entity_decode($html, ENT_QUOTES));
         }
