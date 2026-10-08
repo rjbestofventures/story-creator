@@ -10,6 +10,7 @@ use App\Models\Story;
 use App\Models\User;
 use App\Models\UserCredit;
 use App\Notifications\EpisodesReactivatedNotification;
+use App\Notifications\SetPasswordReminderNotification;
 use App\Services\ElevenLabsService;
 use App\Services\TextToSpeechService;
 use Illuminate\Http\JsonResponse;
@@ -602,10 +603,10 @@ class AdminController extends Controller
         return back()->with('password_reset_sent', $user->email);
     }
 
-    /** Email the member a fresh temporary password and one-click login links. */
+    /** Remind the member to set their password, with a fresh set-password link. */
     public function reactivate(User $user)
     {
-        $user->sendWelcomeEmail();
+        $user->notify(new SetPasswordReminderNotification(Password::createToken($user)));
 
         return back()->with('reactivation_sent', $user->email);
     }
