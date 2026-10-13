@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onUnmounted } from 'vue';
+import { csrfHeaders } from '@/lib/csrf';
 import { Head, Link } from '@inertiajs/vue3';
 import { ArrowLeft, ClipboardList, MessageSquare, Headphones, Square, Loader2 } from 'lucide-vue-next';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
@@ -45,7 +46,7 @@ const synthesize = async (number, part) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
             },
             body: JSON.stringify({ number, part, voice: answerVoice.value }),
         });

@@ -1,5 +1,6 @@
 <script setup>
 import { computed, ref, onMounted } from 'vue';
+import { csrfHeaders } from '@/lib/csrf';
 import { Head, Link, useForm, router, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import GetStartedDialog from '@/Components/GetStartedDialog.vue';
@@ -112,7 +113,7 @@ const markTourDone = () => {
     fetch(route('tour.complete'), {
         method: 'POST',
         headers: {
-            'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+            ...csrfHeaders(),
             'Content-Type': 'application/json',
         },
     }).catch(() => {});
