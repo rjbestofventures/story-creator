@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
+import { csrfHeaders } from '@/lib/csrf';
 import { Head, Link, router } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import GetStartedDialog from '@/Components/GetStartedDialog.vue';
@@ -142,7 +143,7 @@ const retryGeneration = async () => {
         await fetch(route('stories.retry', props.story.id), {
             method: 'POST',
             headers: {
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
                 Accept: 'application/json',
             },
         });
@@ -191,7 +192,7 @@ const synthesizeEpisodeAudio = async (ep) => {
     try {
         const res = await fetch(route('stories.episode.speak', { story: props.story.id, episode: ep.id }), {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+            headers: { ...csrfHeaders() },
         });
         if (!res.ok) throw new Error('Text-to-speech failed.');
         const url = URL.createObjectURL(await res.blob());
@@ -470,7 +471,7 @@ const saveEdit = async (ep) => {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
                 Accept: 'application/json',
             },
             body: JSON.stringify({ title: state.title, content: state.content }),
@@ -512,7 +513,7 @@ const persistRefineInstruction = (ep, value) => {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
                 Accept: 'application/json',
             },
             body: JSON.stringify({ custom_refine_instruction: value }),
@@ -563,7 +564,7 @@ const applyTone = async (ep, toneKey) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
                 Accept: 'application/json',
             },
             body: JSON.stringify({ tone: toneKey }),
@@ -607,7 +608,7 @@ const applyCustomRefine = async (ep) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
                 Accept: 'application/json',
             },
             body: JSON.stringify({ tone: 'custom', custom_instruction: instruction }),
@@ -678,7 +679,7 @@ const runBulkRefine = async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
                 Accept: 'application/json',
             },
             body: JSON.stringify({
@@ -736,7 +737,7 @@ const restoreRevision = async (ep) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
                 Accept: 'application/json',
             },
         });

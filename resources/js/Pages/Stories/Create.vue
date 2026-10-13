@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, nextTick, onMounted, onUnmounted } from 'vue';
-import { useForm, router, Head, Link } from '@inertiajs/vue3';
+import { csrfHeaders } from '@/lib/csrf';
+import { useForm, router, Head, Link, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -140,7 +141,7 @@ const fetchMsgAudio = async (text, idx) => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                    ...csrfHeaders(),
                 },
                 body: JSON.stringify({ text }),
             });
@@ -287,6 +288,20 @@ const basics = ref({
     social_url:    props.profile?.social_url     ?? '',
     instagram_url: props.profile?.instagram_url  ?? '',
 });
+// Kept in the browser so a logout/login (or a failed start) doesn't wipe what the user typed.
+const basicsDraftKey = `sc_story_basics_draft_${usePage().props.auth.user?.id}`;
+const saveBasicsDraft = () => {
+    try { localStorage.setItem(basicsDraftKey, JSON.stringify(basics.value)); } catch {}
+};
+const restoreBasicsDraft = () => {
+    try {
+        const draft = JSON.parse(localStorage.getItem(basicsDraftKey) ?? 'null');
+        if (draft) basics.value = { ...basics.value, ...draft };
+    } catch {}
+};
+const clearBasicsDraft = () => {
+    try { localStorage.removeItem(basicsDraftKey); } catch {}
+};
 const hasOneUrl = computed(() =>
     basics.value.business_url.trim().length > 0 ||
     basics.value.linkedin_url.trim().length > 0 ||
@@ -436,7 +451,7 @@ const transcribeRecording = async () => {
 
         const res = await fetch(route('stories.transcribe'), {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '' },
+            headers: { ...csrfHeaders() },
             body: formData,
         });
 
@@ -600,7 +615,7 @@ const callInterview = async (isAnswer = false) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
             },
             body: JSON.stringify({
                 messages,
@@ -678,7 +693,7 @@ const saveProgress = async (status = null) => {
             method: 'PATCH',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
             },
             body: JSON.stringify({ messages, status }),
         });
@@ -691,6 +706,7 @@ const confirmStartOpen = ref(false);
 const requestStartInterview = () => {
     if (!canStartInterview.value) return;
     if (isDemoMode.value) { startInterview(); return; }
+    saveBasicsDraft();
     confirmStartOpen.value = true;
 };
 
@@ -728,7 +744,7 @@ const startInterview = async () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                    ...csrfHeaders(),
                 },
                 body: JSON.stringify({
                     business_name: basics.value.business_name,
@@ -741,8 +757,10 @@ const startInterview = async () => {
                     instagram_url: basics.value.instagram_url,
                 }),
             });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             storyId.value = data.story_id;
+            clearBasicsDraft();
         } catch {
             chatError.value = 'Could not start the interview. Please try again.';
             return;
@@ -763,6 +781,7 @@ const startInterview = async () => {
 onMounted(async () => {
     initEpisodeChoice();
     localStorage.removeItem('sc_interview_session');
+    if (!props.story) restoreBasicsDraft();
     if (props.story) {
         storyId.value = props.story.id;
 
@@ -1130,6 +1149,8 @@ const formats = [
                         <div v-if="formErrors.length > 0 && basics.business_name.trim()" class="space-y-1">
                             <p v-for="err in formErrors" :key="err" class="text-xs text-red-500">{{ err }}</p>
                         </div>
+
+                        <p v-if="chatError" class="text-xs text-red-500">{{ chatError }}</p>
 
                         <Button
                             type="button"
@@ -1553,7 +1574,7 @@ const formats = [
                     <DialogTitle class="text-[#1A1A1A]">Are your details correct?</DialogTitle>
                     <DialogDescription class="text-[#555555]">
                         StoryBot builds your story from your business name and the links you've provided.
-                        Double-check them before we get started. Once you continue, this information is locked in
+                        Double-check them before we get started. Once you continue, this information is locked in.
                     </DialogDescription>
                 </DialogHeader>
                 <DialogFooter class="gap-2">
@@ -1565,6 +1586,9 @@ const formats = [
                         I'm good, let's go
                     </Button>
                 </DialogFooter>
+                <p class="text-xs text-red-600 leading-relaxed">
+                    If the “good to go” button does not start the interview, there is a compatibility issue that is easily solved by logging out and in into StoryCreator.Bot. Should this issue continue, please contact your account executive.
+                </p>
             </DialogContent>
         </Dialog>
 

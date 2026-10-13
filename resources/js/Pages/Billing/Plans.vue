@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { csrfHeaders } from '@/lib/csrf';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { Check, Zap, ArrowRight, Loader2 } from 'lucide-vue-next';
 
@@ -40,7 +41,7 @@ const selectPlan = async (plan) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
             },
             body: JSON.stringify({ plan_id: plan.id, interval: interval.value }),
         });

@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
+import { csrfHeaders } from '@/lib/csrf';
 import { Head, Link } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 import { Sparkles, Zap, ArrowRight, Check, ShoppingBag, Coins, Lock } from 'lucide-vue-next';
@@ -32,7 +33,7 @@ const buy = async (pack) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
             },
             body: JSON.stringify({ pack_id: pack.id }),
         });

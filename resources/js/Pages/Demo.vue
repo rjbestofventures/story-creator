@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, nextTick, onUnmounted } from 'vue';
+import { csrfHeaders } from '@/lib/csrf';
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { Button } from '@/Components/ui/button';
 import { Input } from '@/Components/ui/input';
@@ -167,7 +168,7 @@ const cacheAudioUrl = async (text, idx) => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
             },
             body: JSON.stringify({ text }),
             signal: controller.signal,

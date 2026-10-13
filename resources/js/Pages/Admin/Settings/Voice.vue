@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch, onMounted, onUnmounted } from 'vue';
+import { csrfHeaders } from '@/lib/csrf';
 import { Head, useForm } from '@inertiajs/vue3';
 import SettingsLayout from '@/Layouts/SettingsLayout.vue';
 import ElevenLabsVoicePicker from '@/Components/ElevenLabsVoicePicker.vue';
@@ -80,7 +81,7 @@ const previewVoice = async (voiceId, scope = 'tts_voice') => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
             },
             body: JSON.stringify({ voice: voiceId, instructions: form.tts_instructions }),
         });
@@ -148,7 +149,7 @@ const playEleven = async () => {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content ?? '',
+                ...csrfHeaders(),
             },
             body: JSON.stringify({ voice_id: elevenVoiceId.value, text: elevenText.value }),
         });
