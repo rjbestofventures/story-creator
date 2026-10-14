@@ -1,9 +1,11 @@
 <?php
 
+use App\Http\Middleware\BlockSuspiciousRequests;
 use App\Http\Middleware\CheckLandingLock;
 use App\Http\Middleware\EnsureEmailIsVerifiedOrPartner;
 use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LogRequest;
 use App\Http\Middleware\RequiresCredits;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -21,7 +23,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend([LogRequest::class, BlockSuspiciousRequests::class]);
+
         $middleware->web(append: [
+            'throttle:web',
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             EnsureUserIsActive::class,

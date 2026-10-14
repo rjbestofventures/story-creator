@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Admin\AdminController;
 use App\Http\Controllers\Admin\GrillController;
+use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\LandingLockController;
 use App\Http\Controllers\PartnerApplicationController;
 use App\Http\Controllers\ProfileController;
@@ -42,8 +43,13 @@ Route::post('/become-a-partner', [PartnerApplicationController::class, 'store'])
 Route::get('/trial', [TrialSignupController::class, 'create'])->name('trial.signup');
 Route::post('/trial', [TrialSignupController::class, 'store'])->middleware('throttle:5,1')->name('trial.signup.submit');
 
+// Standalone Non-VBP signup page, shared by direct link only — not linked from the landing page.
+Route::get('/signup', fn () => Inertia::render('Signup', [
+    'links' => config('services.signup_links'),
+]))->name('signup');
+
 Route::get('/unlock', [LandingLockController::class, 'show'])->name('landing.unlock');
-Route::post('/unlock', [LandingLockController::class, 'unlock'])->name('landing.unlock.submit');
+Route::post('/unlock', [LandingLockController::class, 'unlock'])->middleware('throttle:10,1')->name('landing.unlock.submit');
 
 // Public demo — no signup required. A single shared, fully templated walkthrough
 // (Tammy Spa). Runs entirely client-side; no AI tokens, no database writes.
@@ -132,6 +138,7 @@ Route::middleware(['auth', 'role:admin|super_admin'])->prefix('admin')->name('ad
     Route::get('/stories/{story}', [AdminController::class, 'storyShow'])->name('stories.show');
     Route::get('/manual', fn () => Inertia::render('Admin/Manual'))->name('manual');
     Route::get('/billing', [AdminController::class, 'billingIndex'])->name('billing.index');
+    Route::get('/logs', [LogController::class, 'index'])->name('logs.index');
     Route::get('/settings', [AdminController::class, 'settingsIndex'])->name('settings.index');
     Route::get('/settings/access', [AdminController::class, 'accessSettingsIndex'])->name('settings.access');
     Route::post('/settings/access', [AdminController::class, 'updateAccessSettings'])->name('settings.access.update');

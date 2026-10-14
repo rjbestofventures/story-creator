@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\RequestLog;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -10,3 +11,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('trial:notify-reactivations')->hourly();
 Schedule::command('vbp:expire-temporary')->hourly();
+Schedule::command('model:prune', ['--model' => [RequestLog::class]])->daily();

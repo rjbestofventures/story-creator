@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
 import { Link, usePage } from '@inertiajs/vue3';
-import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings, FileText } from '@lucide/vue';
+import { ArrowLeft, ShieldCheck, Users, BookOpen, Layers, TrendingUp, Settings, FileText, Activity } from '@lucide/vue';
 import { TooltipProvider } from '@/Components/ui/tooltip';
 import Footer from '@/Components/Footer.vue';
 
@@ -13,6 +13,7 @@ const allNav = [
     { label: 'Credit Packs',    name: 'admin.packs.index',    icon: Layers,     match: 'admin.packs.*',    superOnly: true  },
     { label: 'All Stories',     name: 'admin.stories.index',  icon: BookOpen,   match: 'admin.stories.*',  superOnly: false },
     { label: 'Usage & Billing', name: 'admin.billing.index',  icon: TrendingUp, match: 'admin.billing.*',  superOnly: true  },
+    { label: 'Logs',            name: 'admin.logs.index',     icon: Activity,   match: 'admin.logs.*',     superOnly: true  },
     { label: 'Settings',        name: 'admin.settings.index', icon: Settings,   match: 'admin.settings.*', superOnly: true  },
 ];
 

@@ -744,6 +744,7 @@ const startInterview = async () => {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    Accept: 'application/json',
                     ...csrfHeaders(),
                 },
                 body: JSON.stringify({
@@ -757,7 +758,12 @@ const startInterview = async () => {
                     instagram_url: basics.value.instagram_url,
                 }),
             });
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            if (res.status === 422) {
+                const body = await res.json().catch(() => ({}));
+                chatError.value = Object.values(body.errors ?? {})[0]?.[0] ?? body.message ?? 'Please check your details and try again.';
+                return;
+            }
+            if (!res.ok || !res.headers.get('content-type')?.includes('application/json')) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             storyId.value = data.story_id;
             clearBasicsDraft();
@@ -1006,6 +1012,7 @@ const formats = [
                             <Input
                                 id="business_name"
                                 v-model="basics.business_name"
+                                maxlength="120"
                                 placeholder="e.g. Bright Path Consulting"
                                 class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                 @keyup.enter="requestStartInterview"
@@ -1023,6 +1030,7 @@ const formats = [
                                         <Input
                                             id="business_url"
                                             v-model="basics.business_url"
+                                            maxlength="255"
                                             placeholder="https://..."
                                             class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                             v-bind="hintEvents('business_url')"
@@ -1041,6 +1049,7 @@ const formats = [
                                         <Input
                                             id="industry"
                                             v-model="basics.industry"
+                                            maxlength="255"
                                             placeholder="e.g. Landscaping"
                                             class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                             v-bind="hintEvents('industry')"
@@ -1061,6 +1070,7 @@ const formats = [
                                         <Input
                                             id="linkedin_url"
                                             v-model="basics.linkedin_url"
+                                            maxlength="255"
                                             placeholder="linkedin.com/in/..."
                                             class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                             v-bind="hintEvents('linkedin_url')"
@@ -1078,6 +1088,7 @@ const formats = [
                                         <Input
                                             id="social_url"
                                             v-model="basics.social_url"
+                                            maxlength="255"
                                             placeholder="facebook.com/..."
                                             class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                             v-bind="hintEvents('social_url')"
@@ -1097,6 +1108,7 @@ const formats = [
                                     <Input
                                         id="instagram_url"
                                         v-model="basics.instagram_url"
+                                        maxlength="255"
                                         placeholder="instagram.com/..."
                                         class="h-11 border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000]"
                                         v-bind="hintEvents('instagram_url')"
@@ -1116,6 +1128,7 @@ const formats = [
                                     <Textarea
                                         id="biography"
                                         v-model="basics.biography"
+                                        maxlength="5000"
                                         placeholder="Tell us about yourself, your background, what drives you, your journey into this business..."
                                         rows="3"
                                         class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"
@@ -1136,6 +1149,7 @@ const formats = [
                                     <Textarea
                                         id="services"
                                         v-model="basics.services"
+                                        maxlength="5000"
                                         placeholder="e.g. Espresso drinks, in-house roasting, catering for local events..."
                                         rows="3"
                                         class="border-[#DDDDDD] focus:border-[#F5A000] focus:ring-[#F5A000] resize-none"

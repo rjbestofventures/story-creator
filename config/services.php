@@ -51,6 +51,12 @@ return [
         'trial_webhook' => env('CRM_TRIAL_WEBHOOK_URL'),
     ],
 
+    // Hosted payment links behind the Non-VBP signup page's Silver and Gold buttons.
+    'signup_links' => [
+        'silver' => env('SIGNUP_SILVER_URL', 'https://link.bestofventures.com/payment-link/6a6b5cbc7b99151a5404158c'),
+        'gold' => env('SIGNUP_GOLD_URL', 'https://link.bestofventures.com/payment-link/6a6b5cbc7b99151a5404158c'),
+    ],
+
     'elevenlabs' => [
         'key' => env('ELEVENLABS_API_KEY'),
     ],

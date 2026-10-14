@@ -201,7 +201,7 @@ class TemporaryVbpTest extends TestCase
 
         $user->refresh();
 
-        $this->assertSame(12, $user->maxEpisodes());
+        $this->assertSame(24, $user->maxEpisodes());
         $this->assertFalse($user->hasUsedTemporaryStory());
     }
 

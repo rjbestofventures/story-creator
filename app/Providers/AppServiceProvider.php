@@ -5,7 +5,10 @@ namespace App\Providers;
 use App\Models\Episode;
 use App\Models\SiteSetting;
 use App\Policies\EpisodePolicy;
+use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Vite;
 use Illuminate\Support\ServiceProvider;
 
@@ -28,6 +31,9 @@ class AppServiceProvider extends ServiceProvider
         $this->overrideStripeConfig();
 
         Gate::policy(Episode::class, EpisodePolicy::class);
+
+        // Per-IP ceiling across every web route, well above what a real visitor needs.
+        RateLimiter::for('web', fn (Request $request) => Limit::perMinute(240)->by($request->ip()));
     }
 
     private function overrideStripeConfig(): void
