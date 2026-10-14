@@ -34,6 +34,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public const VBP_PLAN_LABELS = ['gold' => 'Gold', 'silver' => 'Silver', 'other' => 'Other'];
 
+    /** The largest library each VBP plan may generate, smallest plan first. */
+    public const VBP_PLAN_MAX_EPISODES = ['silver' => 18, 'gold' => 24, 'other' => 24];
+
     /**
      * Credits a Complimentary Trial (internally a Temporary VBP) starts with:
      * the story costs 3, and the 3 that remain can only be spent on AI Refine.
@@ -307,7 +310,8 @@ class User extends Authenticatable implements MustVerifyEmail
      * recently purchased main pack (partner/storybot). Add-ons do not affect
      * tier. Downgrading (e.g. buying Basic after Premium) drops the limit back
      * down, since it always follows the most recent purchase. Falls back to
-     * the Basic tier (12); null means unlimited (admins).
+     * the Basic tier (12); null means unlimited (admins). A full partner's VBP
+     * plan sets a floor of its own, so a Gold partner reaches 24 without a pack.
      */
     public function maxEpisodes(): ?int
     {
@@ -320,7 +324,29 @@ class User extends Authenticatable implements MustVerifyEmail
             ->with('creditPack:id,max_episodes')
             ->first();
 
-        return max(12, (int) ($latest?->creditPack?->max_episodes ?? 0));
+        return max(12, (int) ($latest?->creditPack?->max_episodes ?? 0), $this->vbpPlanMaxEpisodes() ?? 0);
+    }
+
+    /** The episode ceiling this member's VBP plan grants, if they are a full partner on one. */
+    public function vbpPlanMaxEpisodes(): ?int
+    {
+        if (! $this->is_verified_partner || $this->is_temporary_vbp) {
+            return null;
+        }
+
+        return self::VBP_PLAN_MAX_EPISODES[$this->vbp_plan] ?? null;
+    }
+
+    /** The smallest VBP plan that opens a library of the given size, e.g. "Gold". */
+    public static function vbpPlanLabelFor(int $episodes): ?string
+    {
+        foreach (self::VBP_PLAN_MAX_EPISODES as $plan => $max) {
+            if ($max >= $episodes) {
+                return self::VBP_PLAN_LABELS[$plan];
+            }
+        }
+
+        return null;
     }
 
     /**

@@ -56,12 +56,16 @@ class StoryController extends Controller
             ->orderBy('max_episodes')
             ->get(['label', 'max_episodes']);
 
-        return array_map(function (int $count) use ($max, $packs) {
+        $onVbpPlan = $user->vbpPlanMaxEpisodes() !== null;
+
+        return array_map(function (int $count) use ($max, $packs, $onVbpPlan) {
             $locked = $max !== null && $count > $max;
 
-            $unlock = $locked
-                ? $packs->firstWhere('max_episodes', '>=', $count)?->label
-                : null;
+            $unlock = match (true) {
+                ! $locked => null,
+                $onVbpPlan => $this->vbpUnlockLabel($count),
+                default => $packs->firstWhere('max_episodes', '>=', $count)?->label,
+            };
 
             return [
                 'count' => $count,
@@ -69,6 +73,13 @@ class StoryController extends Controller
                 'unlock_label' => $unlock,
             ];
         }, self::EPISODE_OPTIONS);
+    }
+
+    private function vbpUnlockLabel(int $count): ?string
+    {
+        $plan = User::vbpPlanLabelFor($count);
+
+        return $plan ? "{$plan} Plan" : null;
     }
 
     /**
@@ -138,12 +149,14 @@ class StoryController extends Controller
             return;
         }
 
-        $unlock = CreditPack::query()
-            ->active()
-            ->ofType(CreditPack::audienceType($user))
-            ->where('max_episodes', '>=', $count)
-            ->orderBy('max_episodes')
-            ->value('label');
+        $unlock = $user->vbpPlanMaxEpisodes() !== null
+            ? $this->vbpUnlockLabel($count)
+            : CreditPack::query()
+                ->active()
+                ->ofType(CreditPack::audienceType($user))
+                ->where('max_episodes', '>=', $count)
+                ->orderBy('max_episodes')
+                ->value('label');
 
         throw ValidationException::withMessages([
             'episode_count' => $unlock
@@ -247,9 +260,9 @@ class StoryController extends Controller
         $data = $request->validate([
             'business_name' => 'required|string|max:120',
             'business_url' => 'nullable|string|max:255',
-            'industry' => 'nullable|string|max:80',
-            'biography' => 'nullable|string|max:1000',
-            'services' => 'nullable|string|max:1000',
+            'industry' => 'nullable|string|max:255',
+            'biography' => 'nullable|string|max:5000',
+            'services' => 'nullable|string|max:5000',
             'linkedin_url' => 'nullable|string|max:255',
             'social_url' => 'nullable|string|max:255',
             'instagram_url' => 'nullable|string|max:255',
@@ -383,7 +396,7 @@ class StoryController extends Controller
             'messages.*.content' => 'required|string',
             'business_name' => 'required|string|max:120',
             'business_url' => 'nullable|string|max:255',
-            'industry' => 'nullable|string|max:80',
+            'industry' => 'nullable|string|max:255',
         ]);
 
         $storyId = $request->input('story_id');
@@ -451,7 +464,7 @@ class StoryController extends Controller
         $data = $request->validate([
             'business_name' => 'required|string|max:120',
             'business_url' => 'nullable|url|max:255',
-            'industry' => 'nullable|string|max:80',
+            'industry' => 'nullable|string|max:255',
             'messages' => 'required|array|min:2',
             'messages.*.role' => 'required|in:user,assistant',
             'messages.*.content' => 'required|string',

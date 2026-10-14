@@ -53,6 +53,42 @@ class EpisodeTierGateTest extends TestCase
         $this->assertSame(12, $user->fresh()->maxEpisodes());
     }
 
+    public function test_vbp_silver_partner_reaches_18_episodes(): void
+    {
+        $user = User::factory()->create(['is_verified_partner' => true, 'vbp_plan' => 'silver']);
+
+        $this->assertSame(18, $user->maxEpisodes());
+    }
+
+    public function test_vbp_gold_and_other_partners_reach_24_episodes(): void
+    {
+        $gold = User::factory()->create(['is_verified_partner' => true, 'vbp_plan' => 'gold']);
+        $other = User::factory()->create(['is_verified_partner' => true, 'vbp_plan' => 'other']);
+
+        $this->assertSame(24, $gold->maxEpisodes());
+        $this->assertSame(24, $other->maxEpisodes());
+    }
+
+    public function test_complimentary_trial_does_not_get_a_vbp_ceiling(): void
+    {
+        $user = User::factory()->create(['is_verified_partner' => true, 'vbp_plan' => 'gold', 'is_temporary_vbp' => true]);
+
+        $this->assertSame(12, $user->maxEpisodes());
+    }
+
+    public function test_silver_partner_sees_24_locked_behind_gold_plan(): void
+    {
+        $user = User::factory()->create(['is_verified_partner' => true, 'vbp_plan' => 'silver', 'credits' => 24]);
+        $user->assignRole(Role::findOrCreate('user'));
+
+        $this->actingAs($user)->get(route('stories.create'))
+            ->assertInertia(fn ($page) => $page
+                ->where('episode_options.0.locked', false)
+                ->where('episode_options.1.locked', false)
+                ->where('episode_options.2.locked', true)
+                ->where('episode_options.2.unlock_label', 'Gold Plan'));
+    }
+
     public function test_admin_has_unlimited_max_episodes(): void
     {
         Role::findOrCreate('admin');
