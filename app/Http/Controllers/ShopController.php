@@ -152,7 +152,13 @@ class ShopController extends Controller
 
         $pack = CreditPack::active()
             ->where('slug', config("services.signup_packs.{$data['plan']}"))
-            ->firstOrFail();
+            ->first();
+
+        if (! $pack) {
+            Log::warning('Signup checkout plan has no active pack', ['plan' => $data['plan']]);
+
+            return back()->withErrors(['checkout' => 'This plan is not available right now. Please contact us to sign up.']);
+        }
 
         try {
             Stripe::setApiKey(config('services.stripe.secret'));
