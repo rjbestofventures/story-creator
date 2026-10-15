@@ -47,10 +47,16 @@ const toggleFaq = (i) => { openFaq.value = openFaq.value === i ? null : i; };
 
 // Silver and Gold go straight to Stripe Checkout; the account is created once payment clears.
 const checkingOut = ref(null);
+const checkoutError = ref('');
 const checkout = (plan) => {
     if (checkingOut.value) return;
     checkingOut.value = plan;
-    router.post(route('signup.checkout'), { plan }, { onFinish: () => { checkingOut.value = null; } });
+    checkoutError.value = '';
+    router.post(route('signup.checkout'), { plan }, {
+        preserveScroll: true,
+        onError: (errors) => { checkoutError.value = errors.checkout || errors.plan || ''; },
+        onFinish: () => { checkingOut.value = null; },
+    });
 };
 
 const form = useForm({ first_name: '', last_name: '', phone: '', email: '' });
@@ -151,6 +157,7 @@ const gradText = 'bg-gradient-to-br from-[#FFC93C] to-[#F59E0B] bg-clip-text tex
                             {{ tier.name }} Signup <ArrowRight class="w-4 h-4" :stroke-width="2.2" />
                         </button>
                     </div>
+                    <p v-if="checkoutError" role="alert" class="mt-3 text-sm font-semibold text-[#B42318]">{{ checkoutError }}</p>
                     <div class="flex items-center gap-3 mt-6 mb-5 text-sm font-semibold text-[#555555] before:content-[''] before:flex-1 before:h-px before:bg-[#E6E2D6] after:content-[''] after:flex-1 after:h-px after:bg-[#E6E2D6]">
                         Or start your trial first
                     </div>
@@ -202,6 +209,7 @@ const gradText = 'bg-gradient-to-br from-[#FFC93C] to-[#F59E0B] bg-clip-text tex
 
             <h3 class="text-sm font-bold tracking-[0.08em] text-[#444444]">PAY TO PLAY PRICING PLANS (FOR NON-VERIFIED BUSINESS PARTNERS ONLY)</h3>
 
+            <p v-if="checkoutError" role="alert" class="-mb-3 text-sm font-semibold text-[#B42318]">{{ checkoutError }}</p>
             <div class="flex flex-wrap gap-6 items-stretch">
                 <div v-for="tier in tiers" :key="tier.key" class="relative flex-[1_1_280px] min-w-0 bg-white border-2 border-[#F59E0B] rounded-2xl p-7 flex flex-col gap-3">
                     <div v-if="tier.popular" :class="gradBg" class="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[#1A1A1A] text-xs font-bold px-3.5 py-1 rounded-full whitespace-nowrap">Most Popular</div>

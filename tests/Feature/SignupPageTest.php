@@ -71,6 +71,17 @@ class SignupPageTest extends TestCase
         $this->post(route('signup.checkout'), ['plan' => 'platinum'])->assertSessionHasErrors('plan');
     }
 
+    public function test_checkout_that_stripe_refuses_shows_an_error_instead_of_a_500(): void
+    {
+        $this->silverPack();
+        config(['services.stripe.secret' => null]);
+
+        $this->from(route('signup'))
+            ->post(route('signup.checkout'), ['plan' => 'silver'])
+            ->assertRedirect(route('signup'))
+            ->assertSessionHasErrors('checkout');
+    }
+
     public function test_paid_signup_checkout_creates_the_account_and_grants_the_pack(): void
     {
         Notification::fake();

@@ -12,6 +12,7 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Stripe\Checkout\Session;
+use Stripe\Exception\ApiErrorException;
 use Stripe\Exception\SignatureVerificationException;
 use Stripe\Stripe;
 use Stripe\Webhook;
@@ -153,17 +154,23 @@ class ShopController extends Controller
             ->where('slug', config("services.signup_packs.{$data['plan']}"))
             ->firstOrFail();
 
-        Stripe::setApiKey(config('services.stripe.secret'));
+        try {
+            Stripe::setApiKey(config('services.stripe.secret'));
 
-        $session = Session::create([
-            'mode' => 'payment',
-            'line_items' => [$this->lineItemFor($pack, ucfirst($data['plan']))],
-            'customer_creation' => 'always',
-            'phone_number_collection' => ['enabled' => true],
-            'success_url' => route('signup.success').'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route('signup').'#pricing',
-            'metadata' => ['pack_id' => (string) $pack->id, 'signup' => '1'],
-        ]);
+            $session = Session::create([
+                'mode' => 'payment',
+                'line_items' => [$this->lineItemFor($pack, ucfirst($data['plan']))],
+                'customer_creation' => 'always',
+                'phone_number_collection' => ['enabled' => true],
+                'success_url' => route('signup.success').'?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => route('signup').'#pricing',
+                'metadata' => ['pack_id' => (string) $pack->id, 'signup' => '1'],
+            ]);
+        } catch (ApiErrorException $e) {
+            Log::error('Stripe signup checkout failed', ['plan' => $data['plan'], 'error' => $e->getMessage()]);
+
+            return back()->withErrors(['checkout' => "We couldn't open checkout right now. Please try again in a moment."]);
+        }
 
         return Inertia::location($session->url);
     }
