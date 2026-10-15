@@ -51,10 +51,10 @@ return [
         'trial_webhook' => env('CRM_TRIAL_WEBHOOK_URL'),
     ],
 
-    // Hosted payment links behind the Non-VBP signup page's Silver and Gold buttons.
-    'signup_links' => [
-        'silver' => env('SIGNUP_SILVER_URL', 'https://link.bestofventures.com/payment-link/6a6b5cbc7b99151a5404158c'),
-        'gold' => env('SIGNUP_GOLD_URL', 'https://link.bestofventures.com/payment-link/6a6b5cbc7b99151a5404158c'),
+    // Credit packs the Non-VBP signup page's Silver and Gold buttons sell through Stripe Checkout.
+    'signup_packs' => [
+        'silver' => env('SIGNUP_SILVER_PACK', 'storybot-basic'),
+        'gold' => env('SIGNUP_GOLD_PACK', 'storybot-premium'),
     ],
 
     'elevenlabs' => [
