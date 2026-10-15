@@ -134,76 +134,6 @@ class ShopController extends Controller
             ->with('notice', 'Your credits have been added! You\'re ready to create.');
     }
 
-    // -------------------------------------------------------------------------
-    // Non-VBP signup page — guests buy Silver or Gold, the account follows payment
-    // -------------------------------------------------------------------------
-
-    public function signup(Request $request): \Inertia\Response
-    {
-        return Inertia::render('Signup', [
-            'purchasedEmail' => session('purchased_email'),
-        ]);
-    }
-
-    public function signupCheckout(Request $request): \Symfony\Component\HttpFoundation\Response
-    {
-        $data = $request->validate(['plan' => 'required|in:silver,gold']);
-
-        $pack = CreditPack::active()
-            ->where('slug', config("services.signup_packs.{$data['plan']}"))
-            ->firstOrFail();
-
-        Stripe::setApiKey(config('services.stripe.secret'));
-
-        $session = Session::create([
-            'mode' => 'payment',
-            'line_items' => [$this->lineItemFor($pack, ucfirst($data['plan']))],
-            'customer_creation' => 'always',
-            'phone_number_collection' => ['enabled' => true],
-            'success_url' => route('signup.success').'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route('signup').'#pricing',
-            'metadata' => ['pack_id' => (string) $pack->id, 'signup' => '1'],
-        ]);
-
-        return Inertia::location($session->url);
-    }
-
-    public function signupSuccess(Request $request): RedirectResponse
-    {
-        $email = null;
-
-        try {
-            Stripe::setApiKey(config('services.stripe.secret'));
-            $session = Session::retrieve((string) $request->query('session_id'));
-
-            if ($session->payment_status === 'paid') {
-                $this->handleCheckoutCompleted($session);
-                $email = $session->customer_details?->email;
-            }
-        } catch (\Exception $e) {
-            Log::error('Stripe signup success error', ['error' => $e->getMessage()]);
-        }
-
-        return to_route('signup')->with('purchased_email', $email);
-    }
-
-    /** A pack without a Stripe price yet is charged at its listed price. */
-    private function lineItemFor(CreditPack $pack, string $planName): array
-    {
-        if ($pack->stripe_price_id) {
-            return ['price' => $pack->stripe_price_id, 'quantity' => 1];
-        }
-
-        return [
-            'price_data' => [
-                'currency' => 'usd',
-                'unit_amount' => $pack->price,
-                'product_data' => ['name' => "StoryCreator.Bot {$planName}"],
-            ],
-            'quantity' => 1,
-        ];
-    }
-
     public function webhook(Request $request): Response
     {
         $payload = $request->getContent();
@@ -246,9 +176,7 @@ class ShopController extends Controller
             return;
         }
 
-        $user = $session->client_reference_id
-            ? User::find($session->client_reference_id)
-            : $this->signupBuyer($session);
+        $user = User::find($session->client_reference_id);
         if (! $user) {
             return;
         }
@@ -261,17 +189,5 @@ class ShopController extends Controller
         $amount = isset($session->amount_total) ? (int) $session->amount_total : $pack->price;
 
         $pack->grantTo($user, $session->id, $amount);
-    }
-
-    /** The account a signup-page checkout pays for, created on the spot for a new email. */
-    private function signupBuyer(object $session): ?User
-    {
-        $email = $session->customer_details?->email ?? null;
-
-        if (($session->metadata->signup ?? null) !== '1' || ! $email) {
-            return null;
-        }
-
-        return User::provisionForPurchase($email, $session->customer_details?->name ?? null);
     }
 }

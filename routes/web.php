@@ -44,9 +44,9 @@ Route::get('/trial', [TrialSignupController::class, 'create'])->name('trial.sign
 Route::post('/trial', [TrialSignupController::class, 'store'])->middleware('throttle:5,1')->name('trial.signup.submit');
 
 // Standalone Non-VBP signup page, shared by direct link only — not linked from the landing page.
-Route::get('/signup', [ShopController::class, 'signup'])->name('signup');
-Route::post('/signup/checkout', [ShopController::class, 'signupCheckout'])->middleware('throttle:10,1')->name('signup.checkout');
-Route::get('/signup/success', [ShopController::class, 'signupSuccess'])->name('signup.success');
+Route::get('/signup', fn () => Inertia::render('Signup', [
+    'links' => config('services.signup_links'),
+]))->name('signup');
 
 Route::get('/unlock', [LandingLockController::class, 'show'])->name('landing.unlock');
 Route::post('/unlock', [LandingLockController::class, 'unlock'])->middleware('throttle:10,1')->name('landing.unlock.submit');

@@ -132,30 +132,6 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * The account a guest pays for on the signup page. An email we already know
-     * keeps its account; a new one gets an account and the welcome email.
-     */
-    public static function provisionForPurchase(string $email, ?string $name): self
-    {
-        $existing = static::where('email', $email)->first();
-
-        if ($existing) {
-            return $existing;
-        }
-
-        $user = static::create([
-            'name' => trim((string) $name) ?: Str::before($email, '@'),
-            'email' => $email,
-            'password' => Str::random(32),
-        ]);
-
-        $user->assignRole('user');
-        $user->sendWelcomeEmail();
-
-        return $user;
-    }
-
-    /**
      * A link that signs the member in and lands them on the given page. It is
      * tied to their current password, so it stops working once they change it.
      */
