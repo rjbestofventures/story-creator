@@ -21,6 +21,9 @@ const isAdmin = computed(() => {
 });
 const impersonating = computed(() => page.props.impersonating ?? null);
 
+const notice = computed(() => page.props.notice ?? null);
+const noticeDismissed = ref(false);
+
 const menuOpen = ref(false);
 const feedbackOpen = ref(false);
 </script>
@@ -190,6 +193,16 @@ const feedbackOpen = ref(false);
             >
                 Switch to your Account
             </Link>
+        </div>
+
+        <!-- One-off message from the last action, e.g. a completed purchase -->
+        <div
+            v-if="notice && !noticeDismissed"
+            role="status"
+            class="flex items-center justify-between gap-3 px-4 md:px-8 py-2.5 bg-amber-50 border-b border-[#F5A000]/40 text-sm font-semibold text-[#1A1A1A]"
+        >
+            <span>{{ notice }}</span>
+            <button type="button" class="text-xs font-semibold text-[#555555] hover:text-[#1A1A1A] cursor-pointer shrink-0" @click="noticeDismissed = true">Dismiss</button>
         </div>
 
         <!-- Page content — grows so the footer is pinned to the bottom on short pages -->

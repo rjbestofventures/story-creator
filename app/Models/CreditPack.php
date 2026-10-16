@@ -65,7 +65,20 @@ class CreditPack extends Model
                 $user->endTrial();
                 $user->unlockTrialLibraries();
             }
+
+            // Buying a Retail Pack is how a Complimentary Trial becomes a paying member.
+            if ($this->type === 'storybot' && $user->is_temporary_vbp) {
+                $user->endTemporaryPartnership();
+            }
         });
+    }
+
+    /** The active Retail Pack sold as the given signup plan (silver or gold). */
+    public static function forRetailPlan(string $plan): ?self
+    {
+        $slug = config("services.signup_packs.{$plan}");
+
+        return $slug ? static::active()->where('slug', $slug)->first() : null;
     }
 
     public function formattedPrice(): string

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CreditPack;
 use App\Models\User;
 use App\Models\UserCredit;
+use App\Notifications\RetailPackPurchasedNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,7 +42,6 @@ class ShopController extends Controller
             'addon' => $addon,
             'canBuyAddon' => $this->canBuyAddon($user),
             'credits' => $user->isAdmin() ? null : $user->credits,
-            'notice' => session('notice'),
         ]);
     }
 
@@ -69,12 +69,19 @@ class ShopController extends Controller
     {
         $data = $request->validate([
             'pack_id' => 'required|integer|exists:credit_packs,id',
+            'from' => 'nullable|in:plan',
         ]);
 
         $pack = CreditPack::where('id', $data['pack_id'])->active()->firstOrFail();
         $user = $request->user();
 
-        abort_if($user->is_temporary_vbp, 403, 'Temporary VBPs become a Verified Business Partner to get more credits.');
+        // A Complimentary Trial ends by buying a Retail Pack; add-ons stay off
+        // limits until they hold one.
+        abort_if(
+            $user->is_temporary_vbp && $pack->type !== 'storybot',
+            403,
+            'Choose Silver or Gold to keep going after your Complimentary Trial.'
+        );
 
         // Add-on can only be bought once the user holds a main pack
         // (verified partners qualify automatically).
@@ -91,26 +98,24 @@ class ShopController extends Controller
             'This pack is not available for your account.'
         );
 
-        abort_if(
-            is_null($pack->stripe_price_id),
-            422,
-            'This pack is not yet configured for online payment. Please contact support.'
-        );
+        try {
+            Stripe::setApiKey(config('services.stripe.secret'));
 
-        Stripe::setApiKey(config('services.stripe.secret'));
+            $session = Session::create([
+                'payment_method_types' => ['card'],
+                'mode' => 'payment',
+                'line_items' => [$this->lineItemFor($pack)],
+                'customer_email' => $user->email,
+                'success_url' => route('shop.success').'?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url' => ($data['from'] ?? null) === 'plan' ? route('plans.choose') : route('shop.index'),
+                'client_reference_id' => (string) $user->id,
+                'metadata' => ['pack_id' => (string) $pack->id],
+            ]);
+        } catch (ApiErrorException $e) {
+            Log::error('Stripe checkout failed', ['pack' => $pack->slug, 'error' => $e->getMessage()]);
 
-        $session = Session::create([
-            'payment_method_types' => ['card'],
-            'mode' => 'payment',
-            'line_items' => [[
-                'price' => $pack->stripe_price_id,
-                'quantity' => 1,
-            ]],
-            'success_url' => route('shop.success').'?session_id={CHECKOUT_SESSION_ID}',
-            'cancel_url' => route('shop.index'),
-            'client_reference_id' => (string) $user->id,
-            'metadata' => ['pack_id' => (string) $pack->id],
-        ]);
+            return response()->json(['message' => "We couldn't open checkout right now. Please try again in a moment."], 502);
+        }
 
         return response()->json(['url' => $session->url]);
     }
@@ -131,71 +136,18 @@ class ShopController extends Controller
             }
         }
 
+        // A first purchase goes straight to writing the first story.
+        if (! $request->user()->stories()->exists()) {
+            return to_route('stories.create')
+                ->with('notice', 'Payment received. Your credits are ready, let\'s create your first story.');
+        }
+
         return redirect()->route('stories.index')
             ->with('notice', 'Your credits have been added! You\'re ready to create.');
     }
 
-    // -------------------------------------------------------------------------
-    // Non-VBP signup page — guests buy Silver or Gold, the account follows payment
-    // -------------------------------------------------------------------------
-
-    public function signup(Request $request): \Inertia\Response
-    {
-        return Inertia::render('Signup', [
-            'purchasedEmail' => session('purchased_email'),
-        ]);
-    }
-
-    public function signupCheckout(Request $request): \Symfony\Component\HttpFoundation\Response
-    {
-        $data = $request->validate(['plan' => 'required|in:silver,gold']);
-
-        $pack = CreditPack::active()
-            ->where('slug', config("services.signup_packs.{$data['plan']}"))
-            ->firstOrFail();
-
-        try {
-            Stripe::setApiKey(config('services.stripe.secret'));
-
-            $session = Session::create([
-                'mode' => 'payment',
-                'line_items' => [$this->lineItemFor($pack, ucfirst($data['plan']))],
-                'customer_creation' => 'always',
-                'phone_number_collection' => ['enabled' => true],
-                'success_url' => route('signup.success').'?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url' => route('signup').'#pricing',
-                'metadata' => ['pack_id' => (string) $pack->id, 'signup' => '1'],
-            ]);
-        } catch (ApiErrorException $e) {
-            Log::error('Stripe signup checkout failed', ['plan' => $data['plan'], 'error' => $e->getMessage()]);
-
-            return back()->withErrors(['checkout' => "We couldn't open checkout right now. Please try again in a moment."]);
-        }
-
-        return Inertia::location($session->url);
-    }
-
-    public function signupSuccess(Request $request): RedirectResponse
-    {
-        $email = null;
-
-        try {
-            Stripe::setApiKey(config('services.stripe.secret'));
-            $session = Session::retrieve((string) $request->query('session_id'));
-
-            if ($session->payment_status === 'paid') {
-                $this->handleCheckoutCompleted($session);
-                $email = $session->customer_details?->email;
-            }
-        } catch (\Exception $e) {
-            Log::error('Stripe signup success error', ['error' => $e->getMessage()]);
-        }
-
-        return to_route('signup')->with('purchased_email', $email);
-    }
-
     /** A pack without a Stripe price yet is charged at its listed price. */
-    private function lineItemFor(CreditPack $pack, string $planName): array
+    private function lineItemFor(CreditPack $pack): array
     {
         if ($pack->stripe_price_id) {
             return ['price' => $pack->stripe_price_id, 'quantity' => 1];
@@ -205,7 +157,7 @@ class ShopController extends Controller
             'price_data' => [
                 'currency' => 'usd',
                 'unit_amount' => $pack->price,
-                'product_data' => ['name' => "StoryCreator.Bot {$planName}"],
+                'product_data' => ['name' => "StoryCreator.Bot {$pack->label}"],
             ],
             'quantity' => 1,
         ];
@@ -253,9 +205,7 @@ class ShopController extends Controller
             return;
         }
 
-        $user = $session->client_reference_id
-            ? User::find($session->client_reference_id)
-            : $this->signupBuyer($session);
+        $user = User::find($session->client_reference_id);
         if (! $user) {
             return;
         }
@@ -268,17 +218,9 @@ class ShopController extends Controller
         $amount = isset($session->amount_total) ? (int) $session->amount_total : $pack->price;
 
         $pack->grantTo($user, $session->id, $amount);
-    }
 
-    /** The account a signup-page checkout pays for, created on the spot for a new email. */
-    private function signupBuyer(object $session): ?User
-    {
-        $email = $session->customer_details?->email ?? null;
-
-        if (($session->metadata->signup ?? null) !== '1' || ! $email) {
-            return null;
+        if ($pack->type === 'storybot') {
+            RetailPackPurchasedNotification::sendFor($user, $pack, $amount);
         }
-
-        return User::provisionForPurchase($email, $session->customer_details?->name ?? null);
     }
 }

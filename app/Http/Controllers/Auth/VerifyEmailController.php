@@ -41,9 +41,11 @@ class VerifyEmailController extends Controller
             event(new Verified($user));
         }
 
-        return redirect(session()->pull(
-            'post_verify_redirect',
-            route('dashboard', absolute: false).'?verified=1'
-        ));
+        // A Non-VBP sign-up confirms their plan next; everyone else goes to their library.
+        if ($user->signup_plan && ! $user->isFullPartner() && ! $user->hasBoughtMainPack()) {
+            return to_route('plans.choose', ['verified' => 1]);
+        }
+
+        return redirect(route('dashboard', absolute: false).'?verified=1');
     }
 }
