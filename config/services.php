@@ -51,10 +51,10 @@ return [
         'trial_webhook' => env('CRM_TRIAL_WEBHOOK_URL'),
     ],
 
-    // Credit packs the Non-VBP signup page's Silver and Gold buttons sell through Stripe Checkout.
+    // The Retail Packs sold as Silver and Gold on the signup and plan pages, by slug.
     'signup_packs' => [
-        'silver' => env('SIGNUP_SILVER_PACK', 'storybot-basic'),
-        'gold' => env('SIGNUP_GOLD_PACK', 'storybot-premium'),
+        'silver' => env('SIGNUP_SILVER_PACK', 'storybot-silver'),
+        'gold' => env('SIGNUP_GOLD_PACK', 'storybot-gold'),
     ],
 
     'elevenlabs' => [
