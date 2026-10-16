@@ -46,6 +46,7 @@ class AdminController extends Controller
                 'id' => $user->id,
                 'name' => $user->name,
                 'email' => $user->email,
+                'phone' => $user->phone,
                 'tier' => $user->roles->first()?->name ?? 'user',
                 'is_active' => $user->is_active,
                 'is_verified_partner' => $user->is_verified_partner,

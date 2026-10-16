@@ -10,7 +10,6 @@ const props = defineProps({
     addon:       Object,
     canBuyAddon: Boolean,
     credits:     { type: Number, default: null },
-    notice:      String,
 });
 
 const loadingPackId = ref(null);
@@ -94,9 +93,6 @@ const episodeOptionsLabel = (pack) => {
 
             <div class="max-w-5xl mx-auto px-4 md:px-8 py-10">
 
-                <div v-if="notice" class="mb-6 bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 text-sm text-[#1A1A1A]">
-                    {{ notice }}
-                </div>
                 <div v-if="error" class="mb-6 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-600">
                     {{ error }}
                 </div>

@@ -2,61 +2,51 @@
 
 namespace App\Http\Controllers\Auth;
 
-use App\Actions\SeedDemoStoriesForUser;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\RegisterRequest;
 use App\Models\User;
+use App\Notifications\NonVbpSignupNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\Rules;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
 class RegisteredUserController extends Controller
 {
     /**
-     * Display the registration view.
+     * The Non-VBP sign-up page. The plan picked on the signup page rides along
+     * so it can be saved on the new account.
      */
-    public function create(): Response
+    public function create(Request $request): Response
     {
+        $plan = $request->query('plan');
+
         return Inertia::render('Auth/Register', [
-            'isDemo' => session('post_register_intent') === 'demo',
+            'plan' => in_array($plan, User::RETAIL_PLANS, true) ? $plan : null,
         ]);
     }
 
-    /**
-     * Handle an incoming registration request.
-     *
-     * @throws ValidationException
-     */
-    public function store(Request $request): RedirectResponse
+    public function store(RegisterRequest $request): RedirectResponse
     {
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'email' => 'required|string|lowercase|email|max:255|unique:'.User::class,
-            'password' => ['required', 'confirmed', Rules\Password::defaults()],
-        ]);
+        $data = $request->validated();
 
         $user = User::create([
-            'name' => $request->name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
+            'name' => "{$data['first_name']} {$data['last_name']}",
+            'email' => $data['email'],
+            'phone' => $data['phone'],
+            'password' => Hash::make($data['password']),
+            'signup_plan' => $data['plan'] ?? null,
         ]);
 
+        $user->assignRole('user');
         $user->markPasswordSet();
 
         Auth::login($user);
         $user->recordLogin();
 
-        $intent = session()->pull('post_register_intent');
-
-        if ($intent === 'demo') {
-            $torresStory = (new SeedDemoStoriesForUser)->handle($user);
-            session(['post_verify_redirect' => route('stories.resume', ['story' => $torresStory->id], absolute: false)]);
-        }
-
+        NonVbpSignupNotification::sendFor($user);
         $user->sendEmailVerificationNotification();
 
         return redirect()->route('verification.notice');

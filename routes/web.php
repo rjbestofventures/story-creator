@@ -6,12 +6,14 @@ use App\Http\Controllers\Admin\LogController;
 use App\Http\Controllers\LandingLockController;
 use App\Http\Controllers\PartnerApplicationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RetailPlanController;
 use App\Http\Controllers\ShopController;
 use App\Http\Controllers\StoryController;
 use App\Http\Controllers\TourController;
 use App\Http\Controllers\TrialSignupController;
 use App\Http\Middleware\CheckLandingLock;
 use App\Models\CreditPack;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -44,9 +46,8 @@ Route::get('/trial', [TrialSignupController::class, 'create'])->name('trial.sign
 Route::post('/trial', [TrialSignupController::class, 'store'])->middleware('throttle:5,1')->name('trial.signup.submit');
 
 // Standalone Non-VBP signup page, shared by direct link only — not linked from the landing page.
-Route::get('/signup', [ShopController::class, 'signup'])->name('signup');
-Route::post('/signup/checkout', [ShopController::class, 'signupCheckout'])->middleware('throttle:10,1')->name('signup.checkout');
-Route::get('/signup/success', [ShopController::class, 'signupSuccess'])->name('signup.success');
+Route::get('/signup', fn () => Inertia::render('Signup'))->name('signup');
+Route::get('/signup/{plan}', [RetailPlanController::class, 'start'])->whereIn('plan', User::RETAIL_PLANS)->name('signup.plan');
 
 Route::get('/unlock', [LandingLockController::class, 'show'])->name('landing.unlock');
 Route::post('/unlock', [LandingLockController::class, 'unlock'])->middleware('throttle:10,1')->name('landing.unlock.submit');
@@ -65,6 +66,7 @@ Route::get('/dashboard', function () {
 
 // Shop — auth + verified
 Route::middleware(['auth', 'verified'])->group(function () {
+    Route::get('/choose-plan', [RetailPlanController::class, 'show'])->name('plans.choose');
     Route::get('/shop', [ShopController::class, 'index'])->name('shop.index');
     Route::post('/shop/checkout', [ShopController::class, 'checkout'])->name('shop.checkout');
     Route::get('/shop/success', [ShopController::class, 'success'])->name('shop.success');

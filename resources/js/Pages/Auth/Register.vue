@@ -1,300 +1,104 @@
 <script setup>
-import { ref } from 'vue';
+import { computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
-import { Mail, Lock, User, Eye, EyeOff, ArrowRight, Zap } from '@lucide/vue';
-import Footer from '@/Components/Footer.vue';
-import {
-    Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
-} from '@/Components/ui/dialog';
+import { ArrowRight, Check } from '@lucide/vue';
+import AnnouncementBar from '@/Components/AnnouncementBar.vue';
+import { retailPlans, gradBg } from '@/lib/retailPlans';
 
-const props = defineProps({ isDemo: Boolean });
-
-const testimonials = [
-    {
-        quote: 'We recently went from zero social presence to scheduling a full content calendar in one afternoon. StoryCreator.Bot is the real deal.',
-        initials: 'GE',
-        name: 'Gabe Espisito',
-        company: 'Tropic Charters',
-    },
-    {
-        quote: 'I dreaded posting before I used StoryCreator.bot. Now it takes me less than a half hour to get 12 authentic sounding chapters of my story. And they work! I have never had so much online engagement and bookings!',
-        initials: 'VB',
-        name: 'Vase Bari',
-        company: 'Short Term Rentals.',
-    },
-    {
-        quote: 'I thought I knew so much as a seasoned user of digital marketing and then along comes Best of Delray Beach and StoryCreator.bot. Together, they are a game changer. My company has quadrupled in size and every post has my phone rings of the hook.',
-        initials: 'SS',
-        name: 'Steve Silverman',
-        company: 'Diamond Limosine',
-    },
-];
-
-const showPassword        = ref(false);
-const showPasswordConfirm = ref(false);
-const confirmPartnerOpen  = ref(false);
-
-const form = useForm({
-    name:                  '',
-    email:                 '',
-    password:              '',
-    password_confirmation: '',
+const props = defineProps({
+    plan: { type: String, default: null },
 });
 
-const doRegister = () => {
+const chosen = computed(() => retailPlans.find((p) => p.key === props.plan) ?? null);
+
+const form = useForm({
+    first_name: '',
+    last_name: '',
+    phone: '',
+    email: '',
+    password: '',
+    password_confirmation: '',
+    plan: props.plan,
+});
+
+const fields = [
+    { key: 'first_name', label: 'First Name', type: 'text', autocomplete: 'given-name' },
+    { key: 'last_name', label: 'Last Name', type: 'text', autocomplete: 'family-name' },
+    { key: 'phone', label: 'Phone', type: 'tel', autocomplete: 'tel-national', hint: 'US format, digits only, e.g. 3478245640' },
+    { key: 'email', label: 'Email', type: 'email', autocomplete: 'email' },
+    { key: 'password', label: 'Password', type: 'password', autocomplete: 'new-password' },
+    { key: 'password_confirmation', label: 'Confirm Password', type: 'password', autocomplete: 'new-password' },
+];
+
+const onInput = (key, value) => {
+    form[key] = key === 'phone' ? value.replace(/\D/g, '').slice(0, 10) : value;
+};
+
+const emailTaken = computed(() => form.errors.email?.startsWith('You already have an account'));
+const loginHref = computed(() => route('login', props.plan ? { plan: props.plan } : {}));
+
+const submit = () => {
     form.post(route('register'), {
         onFinish: () => form.reset('password', 'password_confirmation'),
     });
 };
 
-const submit = () => {
-    if (props.isDemo) { doRegister(); return; }
-    confirmPartnerOpen.value = true;
-};
-
-const proceedStoryBotOnly = () => {
-    confirmPartnerOpen.value = false;
-    doRegister();
-};
+const inputClass = 'h-12 px-3.5 text-base rounded-[10px] border bg-white outline-none focus:border-[#F59E0B] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#1A1A1A] focus-visible:outline-offset-2';
 </script>
 
 <template>
-    <Head :title="props.isDemo ? 'Create demo account' : 'Create account'" />
+    <Head title="Create Your Account" />
 
-    <div class="min-h-screen flex flex-col">
-      <div class="flex-1 flex">
+    <div class="min-h-screen bg-[#F8F6F0] text-[#1A1A1A]">
+        <AnnouncementBar />
 
-        <!-- Left: Brand panel -->
-        <div
-            class="hidden lg:flex lg:w-1/2 flex-col justify-between p-12 relative overflow-hidden"
-            style="background: radial-gradient(ellipse at 30% 50%, #FEF9EC 0%, #F5F5F0 55%, #EBEBE6 100%);"
-        >
-            <Link href="/" class="flex items-center text-xl font-bold tracking-tight">
-                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">StoryCreator</span>
-                <span style="color: #1A1A1A;">.Bot</span>
-            </Link>
+        <header class="bg-white flex items-center px-5 sm:px-7 py-2.5">
+            <Link :href="route('signup')"><img src="/images/storycreator-logo.png" width="160" height="40" alt="StoryCreator.Bot" class="block w-40 h-10" /></Link>
+        </header>
 
-            <div class="max-w-sm">
-                <div
-                    class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-6"
-                    style="background-color: #F5F5F5; color: #555555; border: 1px solid #DDDDDD;"
-                >
-                    <Zap class="w-3.5 h-3.5" />
-                    Coded engineering, AI-powered content development
+        <main class="max-w-[520px] mx-auto w-full px-5 py-10">
+            <section class="bg-white border border-[#E6E2D6] rounded-[20px] p-6 sm:p-9 shadow-[0_8px_30px_rgba(26,26,26,0.06)]">
+                <div v-if="chosen" class="flex items-center justify-between gap-3 mb-6 px-4 py-3 rounded-xl bg-amber-50 border border-[#F59E0B]/40">
+                    <div class="flex items-center gap-2 text-sm">
+                        <Check class="w-4 h-4 text-[#F59E0B]" :stroke-width="3" />
+                        <span>You picked <b>{{ chosen.name }}</b> · {{ chosen.price }} one-time</span>
+                    </div>
+                    <Link :href="route('signup') + '#pricing'" class="text-xs font-semibold text-[#555555] hover:text-[#1A1A1A] underline">Change</Link>
                 </div>
 
-                <h2 class="text-4xl font-black leading-tight mb-4" style="color: #1A1A1A;">
-                    Start telling your
-                    <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">story.</span>
-                </h2>
+                <h1 class="text-2xl font-extrabold tracking-[-0.01em]">Create Your Account</h1>
+                <p class="mt-2 text-base leading-normal text-[#555555]">Sign up, confirm your email, then choose your plan and start your first story.</p>
 
-                <p class="text-base leading-relaxed mb-10" style="color: #555555;">
-                    Join our other Verified Business Partners that create professional content in minutes.
-                </p>
-
-                <div class="space-y-4 mb-10">
-                    <div
-                        v-for="t in testimonials"
-                        :key="t.name"
-                        class="rounded-2xl p-5"
-                        style="background-color: #FFFFFF; border: 1px solid #DDDDDD;"
-                    >
-                        <p class="text-sm leading-relaxed mb-4" style="color: #1A1A1A;">
-                            "{{ t.quote }}"
+                <form novalidate @submit.prevent="submit">
+                    <div v-for="f in fields" :key="f.key" class="flex flex-col gap-1.5 mt-5">
+                        <label :for="f.key" class="text-sm font-bold">{{ f.label }}</label>
+                        <input
+                            :id="f.key"
+                            :value="form[f.key]"
+                            :type="f.type"
+                            :autocomplete="f.autocomplete"
+                            :inputmode="f.key === 'phone' ? 'numeric' : undefined"
+                            :maxlength="f.key === 'phone' ? 10 : undefined"
+                            :class="[inputClass, form.errors[f.key] ? 'border-[#B42318]' : 'border-[#CFCABB]']"
+                            @input="(e) => onInput(f.key, e.target.value)"
+                        />
+                        <span v-if="f.hint" class="text-[13px] text-[#666666]">{{ f.hint }}</span>
+                        <p v-if="form.errors[f.key]" role="alert" class="text-sm font-semibold text-[#B42318]">
+                            {{ form.errors[f.key] }}
+                            <Link v-if="f.key === 'email' && emailTaken" :href="loginHref" class="underline text-[#1A1A1A]">Log in</Link>
                         </p>
-                        <div class="flex items-center gap-3">
-                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
-                                {{ t.initials }}
-                            </div>
-                            <div>
-                                <p class="text-xs font-bold" style="color: #1A1A1A;">{{ t.name }}</p>
-                                <p class="text-xs" style="color: #555555;">{{ t.company }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <p class="text-xs" style="color: #555555;">
-                Trusted by <span class="font-bold" style="color: #1A1A1A;">10,000+</span> businesses telling their story
-            </p>
-
-            <div
-                class="absolute -bottom-24 -right-24 w-72 h-72 rounded-full opacity-30 pointer-events-none"
-                style="background: radial-gradient(circle, #FFC837, transparent);"
-            />
-        </div>
-
-        <!-- Right: Register form -->
-        <div class="flex-1 flex flex-col items-center justify-center px-6 py-12" style="background-color: #FFFFFF;">
-
-            <Link href="/" class="flex items-center text-xl font-bold tracking-tight mb-10 lg:hidden">
-                <span style="background: linear-gradient(to right, #FFC837, #F5A000); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;">StoryCreator</span>
-                <span style="color: #1A1A1A;">.Bot</span>
-            </Link>
-
-            <div class="w-full max-w-sm">
-
-                <h1 class="text-2xl font-black mb-1" style="color: #1A1A1A;">{{ props.isDemo ? 'Create your demo account' : 'Create your account' }}</h1>
-                <p class="text-sm mb-8" style="color: #555555;">
-                    Already have an account?
-                    <Link :href="route('login')" class="font-semibold underline transition hover:opacity-70" style="color: #1A1A1A;">Log in</Link>
-                </p>
-
-                <form @submit.prevent="submit" class="space-y-4" novalidate>
-
-                    <!-- Name -->
-                    <div>
-                        <label for="name" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Full name</label>
-                        <div class="relative">
-                            <User class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color: #AAAAAA;" />
-                            <input
-                                id="name"
-                                v-model="form.name"
-                                type="text"
-                                autocomplete="name"
-                                autofocus
-                                required
-                                placeholder="Jane Smith"
-                                class="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm outline-none transition-all duration-200"
-                                style="border: 1px solid #DDDDDD; color: #1A1A1A; background: #FFFFFF;"
-                                :style="form.errors.name ? 'border-color:#EF4444;box-shadow:0 0 0 3px rgba(239,68,68,0.1)' : ''"
-                                @focus="(e) => !form.errors.name && (e.target.style.borderColor='#F5A000', e.target.style.boxShadow='0 0 0 3px rgba(245,160,0,0.15)')"
-                                @blur="(e) => !form.errors.name && (e.target.style.borderColor='#DDDDDD', e.target.style.boxShadow='none')"
-                            />
-                        </div>
-                        <p v-if="form.errors.name" class="mt-1.5 text-xs" style="color: #EF4444;">{{ form.errors.name }}</p>
                     </div>
 
-                    <!-- Email -->
-                    <div>
-                        <label for="email" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Email</label>
-                        <div class="relative">
-                            <Mail class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color: #AAAAAA;" />
-                            <input
-                                id="email"
-                                v-model="form.email"
-                                type="email"
-                                autocomplete="username"
-                                required
-                                placeholder="you@company.com"
-                                class="w-full pl-9 pr-4 py-2.5 rounded-lg text-sm outline-none transition-all duration-200"
-                                style="border: 1px solid #DDDDDD; color: #1A1A1A; background: #FFFFFF;"
-                                :style="form.errors.email ? 'border-color:#EF4444;box-shadow:0 0 0 3px rgba(239,68,68,0.1)' : ''"
-                                @focus="(e) => !form.errors.email && (e.target.style.borderColor='#F5A000', e.target.style.boxShadow='0 0 0 3px rgba(245,160,0,0.15)')"
-                                @blur="(e) => !form.errors.email && (e.target.style.borderColor='#DDDDDD', e.target.style.boxShadow='none')"
-                            />
-                        </div>
-                        <p v-if="form.errors.email" class="mt-1.5 text-xs" style="color: #EF4444;">{{ form.errors.email }}</p>
-                    </div>
-
-                    <!-- Password -->
-                    <div>
-                        <label for="password" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Password</label>
-                        <div class="relative">
-                            <Lock class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color: #AAAAAA;" />
-                            <input
-                                id="password"
-                                v-model="form.password"
-                                :type="showPassword ? 'text' : 'password'"
-                                autocomplete="new-password"
-                                required
-                                placeholder="Min. 8 characters"
-                                class="w-full pl-9 pr-10 py-2.5 rounded-lg text-sm outline-none transition-all duration-200"
-                                style="border: 1px solid #DDDDDD; color: #1A1A1A; background: #FFFFFF;"
-                                :style="form.errors.password ? 'border-color:#EF4444;box-shadow:0 0 0 3px rgba(239,68,68,0.1)' : ''"
-                                @focus="(e) => !form.errors.password && (e.target.style.borderColor='#F5A000', e.target.style.boxShadow='0 0 0 3px rgba(245,160,0,0.15)')"
-                                @blur="(e) => !form.errors.password && (e.target.style.borderColor='#DDDDDD', e.target.style.boxShadow='none')"
-                            />
-                            <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer transition-opacity hover:opacity-70" style="color:#AAAAAA;" @click="showPassword = !showPassword">
-                                <EyeOff v-if="showPassword" class="w-4 h-4" />
-                                <Eye v-else class="w-4 h-4" />
-                            </button>
-                        </div>
-                        <p v-if="form.errors.password" class="mt-1.5 text-xs" style="color: #EF4444;">{{ form.errors.password }}</p>
-                    </div>
-
-                    <!-- Confirm password -->
-                    <div>
-                        <label for="password_confirmation" class="block text-sm font-semibold mb-1.5" style="color: #1A1A1A;">Confirm password</label>
-                        <div class="relative">
-                            <Lock class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 pointer-events-none" style="color: #AAAAAA;" />
-                            <input
-                                id="password_confirmation"
-                                v-model="form.password_confirmation"
-                                :type="showPasswordConfirm ? 'text' : 'password'"
-                                autocomplete="new-password"
-                                required
-                                placeholder="Repeat your password"
-                                class="w-full pl-9 pr-10 py-2.5 rounded-lg text-sm outline-none transition-all duration-200"
-                                style="border: 1px solid #DDDDDD; color: #1A1A1A; background: #FFFFFF;"
-                                :style="form.errors.password_confirmation ? 'border-color:#EF4444;box-shadow:0 0 0 3px rgba(239,68,68,0.1)' : ''"
-                                @focus="(e) => !form.errors.password_confirmation && (e.target.style.borderColor='#F5A000', e.target.style.boxShadow='0 0 0 3px rgba(245,160,0,0.15)')"
-                                @blur="(e) => !form.errors.password_confirmation && (e.target.style.borderColor='#DDDDDD', e.target.style.boxShadow='none')"
-                            />
-                            <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 cursor-pointer transition-opacity hover:opacity-70" style="color:#AAAAAA;" @click="showPasswordConfirm = !showPasswordConfirm">
-                                <EyeOff v-if="showPasswordConfirm" class="w-4 h-4" />
-                                <Eye v-else class="w-4 h-4" />
-                            </button>
-                        </div>
-                        <p v-if="form.errors.password_confirmation" class="mt-1.5 text-xs" style="color: #EF4444;">{{ form.errors.password_confirmation }}</p>
-                    </div>
-
-                    <!-- Submit -->
-                    <button
-                        type="submit"
-                        :disabled="form.processing"
-                        class="w-full flex items-center justify-center gap-2 py-3 rounded-lg font-bold text-sm transition-opacity duration-200 cursor-pointer mt-2"
-                        :class="{ 'opacity-60 cursor-not-allowed': form.processing }"
-                        style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                    >
-                        <span v-if="form.processing">{{ props.isDemo ? 'Creating demo account…' : 'Creating account…' }}</span>
-                        <template v-else>
-                            {{ props.isDemo ? 'Create demo account' : 'Create account' }} <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
-                        </template>
+                    <button type="submit" :disabled="form.processing" :class="gradBg" class="mt-6 w-full h-14 rounded-xl text-[17px] font-bold text-[#1A1A1A] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60">
+                        Create My Account <ArrowRight class="w-[18px] h-[18px]" :stroke-width="2.2" />
                     </button>
-
-                    <p class="text-xs text-center pt-1" style="color: #AAAAAA;">
-                        By signing up you agree to our
-                        <a href="#" class="underline hover:opacity-70" style="color: #555555;">Terms</a>
-                        and
-                        <a href="#" class="underline hover:opacity-70" style="color: #555555;">Privacy Policy</a>.
-                    </p>
-
                 </form>
-            </div>
-        </div>
 
-      </div>
-      <Footer />
-
-        <Dialog v-model:open="confirmPartnerOpen">
-            <DialogContent class="max-w-md">
-                <DialogHeader>
-                    <DialogTitle class="text-[#1A1A1A]">Are you sure you don't want to become a Verified Business Partner?</DialogTitle>
-                    <DialogDescription class="text-[#555555]">
-                        As a Verified Business Partner, you'll receive <strong class="text-[#1A1A1A]">free access to StoryBot</strong>, along with other exclusive partner benefits.
-                        You can learn more about the benefits and submit your application through the link below.
-                    </DialogDescription>
-                </DialogHeader>
-                <DialogFooter class="flex-col sm:flex-col gap-2">
-                    <button
-                        type="button"
-                        @click="proceedStoryBotOnly"
-                        class="w-full py-2.5 rounded-lg border font-semibold text-sm transition hover:bg-gray-50 cursor-pointer"
-                        style="border-color: #DDDDDD; color: #1A1A1A;"
-                    >
-                        StoryBot Only
-                    </button>
-                    <Link
-                        :href="route('partner')"
-                        class="w-full inline-flex items-center justify-center gap-2 py-2.5 rounded-lg font-bold text-sm transition hover:opacity-90"
-                        style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
-                    >
-                        Become a Verified Business Partner
-                    </Link>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
+                <p class="mt-5 text-sm text-center text-[#555555]">
+                    Already have an account?
+                    <Link :href="loginHref" class="font-bold text-[#1A1A1A] underline">Log in</Link>
+                </p>
+            </section>
+        </main>
     </div>
 </template>

@@ -1,12 +1,9 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, router, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { Zap, ArrowRight, Play, MessageSquare, Sparkles, Download, Check, ChevronDown } from '@lucide/vue';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
-
-const props = defineProps({
-    purchasedEmail: { type: String, default: null },
-});
+import { retailPlans as tiers, gradBg, gradText } from '@/lib/retailPlans';
 
 const steps = [
     { n: 'STEP 1', title: 'Answer a Few Questions', body: "Share your work history, insights about how you got here, what gets you up in the morning and what you're proud of.", icon: MessageSquare },
@@ -18,11 +15,6 @@ const perks = [
     ['Low monthly fees', 'Limited commitment'],
     ['Hands-on onboarding', 'Tech support'],
     ['Customizable output', 'Your story in chapters'],
-];
-
-const tiers = [
-    { key: 'silver', name: 'Silver', price: '$180', desc: 'A solid starting point for businesses ready to tell their story.', features: ['12 episode story option', '24 credits'] },
-    { key: 'gold', name: 'Gold', price: '$270', desc: 'More flexibility for businesses building a consistent content presence.', features: ['Choose an 18 or 24 episode story option', '36 credits'], popular: true },
 ];
 
 const faqs = [
@@ -44,20 +36,6 @@ const faqExpanded = ref(false);
 const visibleFaqs = computed(() => (faqExpanded.value ? faqs : faqs.slice(0, 3)));
 const openFaq = ref(null);
 const toggleFaq = (i) => { openFaq.value = openFaq.value === i ? null : i; };
-
-// Silver and Gold go straight to Stripe Checkout; the account is created once payment clears.
-const checkingOut = ref(null);
-const checkoutError = ref('');
-const checkout = (plan) => {
-    if (checkingOut.value) return;
-    checkingOut.value = plan;
-    checkoutError.value = '';
-    router.post(route('signup.checkout'), { plan }, {
-        preserveScroll: true,
-        onError: (errors) => { checkoutError.value = errors.checkout || errors.plan || ''; },
-        onFinish: () => { checkingOut.value = null; },
-    });
-};
 
 const form = useForm({ first_name: '', last_name: '', phone: '', email: '' });
 const clientError = ref('');
@@ -84,8 +62,6 @@ const submit = () => {
 };
 
 const inputClass = 'h-12 px-3.5 text-base rounded-[10px] border border-[#CFCABB] bg-white outline-none focus:border-[#F59E0B] focus-visible:outline focus-visible:outline-[3px] focus-visible:outline-[#1A1A1A] focus-visible:outline-offset-2';
-const gradBg = 'bg-gradient-to-br from-[#FFC93C] to-[#F59E0B]';
-const gradText = 'bg-gradient-to-br from-[#FFC93C] to-[#F59E0B] bg-clip-text text-transparent';
 </script>
 
 <template>
@@ -133,16 +109,7 @@ const gradText = 'bg-gradient-to-br from-[#FFC93C] to-[#F59E0B] bg-clip-text tex
             </section>
 
             <section id="signup" class="flex-[1_1_400px] min-w-0 max-w-[520px] bg-white border border-[#E6E2D6] rounded-[20px] p-6 sm:p-9 shadow-[0_8px_30px_rgba(26,26,26,0.06)]">
-                <div v-if="purchasedEmail" class="flex flex-col gap-4 items-start" aria-live="polite">
-                    <div :class="gradBg" class="w-14 h-14 rounded-2xl flex items-center justify-center">
-                        <Check class="w-[26px] h-[26px]" :stroke-width="2.4" />
-                    </div>
-                    <h2 class="text-[28px] font-extrabold">You're in.</h2>
-                    <p class="text-[17px] leading-relaxed text-[#444444]">Thanks for your purchase. We sent your StoryCreator.Bot login details to {{ purchasedEmail }} so you can start your first story.</p>
-                    <p class="text-[17px] leading-relaxed font-bold text-[#1A1A1A]">Your story is your business.</p>
-                </div>
-
-                <div v-else-if="submitted" class="flex flex-col gap-4 items-start" aria-live="polite">
+                <div v-if="submitted" class="flex flex-col gap-4 items-start" aria-live="polite">
                     <div :class="gradBg" class="w-14 h-14 rounded-2xl flex items-center justify-center">
                         <Check class="w-[26px] h-[26px]" :stroke-width="2.4" />
                     </div>
@@ -153,11 +120,10 @@ const gradText = 'bg-gradient-to-br from-[#FFC93C] to-[#F59E0B] bg-clip-text tex
 
                 <form v-else novalidate @submit.prevent="submit">
                     <div class="flex flex-wrap gap-3">
-                        <button v-for="tier in tiers" :key="tier.key" type="button" :disabled="checkingOut !== null" @click="checkout(tier.key)" :class="gradBg" class="flex-[1_1_140px] flex items-center justify-center gap-2 h-12 px-3 rounded-[10px] text-[15px] font-bold text-[#1A1A1A] cursor-pointer disabled:opacity-60">
+                        <a v-for="tier in tiers" :key="tier.key" :href="route('signup.plan', tier.key)" :class="gradBg" class="flex-[1_1_140px] flex items-center justify-center gap-2 h-12 px-3 rounded-[10px] text-[15px] font-bold text-[#1A1A1A]">
                             {{ tier.name }} Signup <ArrowRight class="w-4 h-4" :stroke-width="2.2" />
-                        </button>
+                        </a>
                     </div>
-                    <p v-if="checkoutError" role="alert" class="mt-3 text-sm font-semibold text-[#B42318]">{{ checkoutError }}</p>
                     <div class="flex items-center gap-3 mt-6 mb-5 text-sm font-semibold text-[#555555] before:content-[''] before:flex-1 before:h-px before:bg-[#E6E2D6] after:content-[''] after:flex-1 after:h-px after:bg-[#E6E2D6]">
                         Or start your trial first
                     </div>
@@ -209,7 +175,6 @@ const gradText = 'bg-gradient-to-br from-[#FFC93C] to-[#F59E0B] bg-clip-text tex
 
             <h3 class="text-sm font-bold tracking-[0.08em] text-[#444444]">PAY TO PLAY PRICING PLANS (FOR NON-VERIFIED BUSINESS PARTNERS ONLY)</h3>
 
-            <p v-if="checkoutError" role="alert" class="-mb-3 text-sm font-semibold text-[#B42318]">{{ checkoutError }}</p>
             <div class="flex flex-wrap gap-6 items-stretch">
                 <div v-for="tier in tiers" :key="tier.key" class="relative flex-[1_1_280px] min-w-0 bg-white border-2 border-[#F59E0B] rounded-2xl p-7 flex flex-col gap-3">
                     <div v-if="tier.popular" :class="gradBg" class="absolute -top-3.5 left-1/2 -translate-x-1/2 text-[#1A1A1A] text-xs font-bold px-3.5 py-1 rounded-full whitespace-nowrap">Most Popular</div>
@@ -224,9 +189,9 @@ const gradText = 'bg-gradient-to-br from-[#FFC93C] to-[#F59E0B] bg-clip-text tex
                             <Check class="w-4 h-4 text-[#F59E0B]" :stroke-width="3" />{{ f }}
                         </li>
                     </ul>
-                    <button type="button" :disabled="checkingOut !== null" @click="checkout(tier.key)" :class="gradBg" class="flex items-center justify-center gap-2 h-12 px-[22px] rounded-[10px] text-[15px] font-bold text-[#1A1A1A] cursor-pointer disabled:opacity-60">
+                    <a :href="route('signup.plan', tier.key)" :class="gradBg" class="flex items-center justify-center gap-2 h-12 px-[22px] rounded-[10px] text-[15px] font-bold text-[#1A1A1A]">
                         Sign Up <ArrowRight class="w-4 h-4" :stroke-width="2.2" />
-                    </button>
+                    </a>
                 </div>
             </div>
         </section>

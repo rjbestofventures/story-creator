@@ -45,6 +45,7 @@ class HandleInertiaRequests extends Middleware
                 'admin_id' => $adminId,
                 'admin_name' => User::find($adminId)?->name,
             ] : null,
+            'notice' => fn () => $request->session()->get('notice'),
             'vbpPlans' => User::vbpPlans(),
             'temporaryVbpCredits' => User::TEMPORARY_VBP_CREDITS,
             'temporaryVbpEpisodes' => User::TEMPORARY_VBP_EPISODES,

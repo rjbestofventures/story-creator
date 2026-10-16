@@ -19,7 +19,7 @@ use Illuminate\Support\Str;
 use Laravel\Cashier\Billable;
 use Spatie\Permission\Traits\HasRoles;
 
-#[Fillable(['name', 'email', 'password', 'is_active', 'credits', 'is_verified_partner', 'vbp_plan', 'is_trial', 'trial_allowance', 'is_temporary_vbp', 'temporary_vbp_expires_at'])]
+#[Fillable(['name', 'email', 'phone', 'password', 'is_active', 'credits', 'is_verified_partner', 'vbp_plan', 'is_trial', 'trial_allowance', 'is_temporary_vbp', 'temporary_vbp_expires_at', 'signup_plan'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -31,6 +31,9 @@ class User extends Authenticatable implements MustVerifyEmail
 
     /** Credits a member is given when they become a partner on each VBP plan. */
     public const VBP_PLAN_CREDITS = ['gold' => 36, 'silver' => 24, 'other' => 36];
+
+    /** The Retail Packs a member may pick on the signup page and the plan page. */
+    public const RETAIL_PLANS = ['silver', 'gold'];
 
     public const VBP_PLAN_LABELS = ['gold' => 'Gold', 'silver' => 'Silver', 'other' => 'Other'];
 
@@ -132,30 +135,6 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * The account a guest pays for on the signup page. An email we already know
-     * keeps its account; a new one gets an account and the welcome email.
-     */
-    public static function provisionForPurchase(string $email, ?string $name): self
-    {
-        $existing = static::where('email', $email)->first();
-
-        if ($existing) {
-            return $existing;
-        }
-
-        $user = static::create([
-            'name' => trim((string) $name) ?: Str::before($email, '@'),
-            'email' => $email,
-            'password' => Str::random(32),
-        ]);
-
-        $user->assignRole('user');
-        $user->sendWelcomeEmail();
-
-        return $user;
-    }
-
-    /**
      * A link that signs the member in and lands them on the given page. It is
      * tied to their current password, so it stops working once they change it.
      */
@@ -237,6 +216,12 @@ class User extends Authenticatable implements MustVerifyEmail
             ->where('created_on_trial', true)
             ->whereNull('episodes_unlocked_at')
             ->update(['episodes_unlocked_at' => now()]);
+    }
+
+    /** A Verified Partner on the team's books, as opposed to a Complimentary Trial. */
+    public function isFullPartner(): bool
+    {
+        return $this->is_verified_partner && ! $this->is_temporary_vbp;
     }
 
     /**

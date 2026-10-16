@@ -81,6 +81,7 @@ const filtered = computed(() =>
     props.users.filter(u =>
         u.name.toLowerCase().includes(search.value.toLowerCase()) ||
         u.email.toLowerCase().includes(search.value.toLowerCase()) ||
+        (u.phone ?? '').includes(search.value.trim()) ||
         u.tier.toLowerCase().includes(search.value.toLowerCase()) ||
         (u.vbp_plan ?? '').includes(search.value.toLowerCase()) ||
         (u.is_temporary_vbp && 'temporary vbp'.includes(search.value.toLowerCase()))
@@ -479,6 +480,7 @@ const impersonate = (userId) => {
                         <div class="flex items-center gap-1 mt-1">
                             <Mail class="w-3 h-3 shrink-0 text-muted-foreground" />
                             <span class="text-xs text-muted-foreground truncate">{{ user.email }}</span>
+                            <span v-if="user.phone" class="text-xs text-muted-foreground ml-2">· {{ user.phone }}</span>
                             <span class="hidden md:inline text-xs text-muted-foreground ml-2">· joined {{ user.created_at }}</span>
                             <span class="hidden md:inline text-xs text-muted-foreground ml-2">· {{ user.login_count }} {{ user.login_count === 1 ? 'login' : 'logins' }}<template v-if="user.last_login_at">, last {{ user.last_login_at }}</template><template v-else>, never logged in</template></span>
                         </div>
