@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed } from 'vue';
-import { Head, useForm } from '@inertiajs/vue3';
+import { Head, useForm, usePage } from '@inertiajs/vue3';
 import { Zap, ArrowRight, Play, MessageSquare, Sparkles, Download, Check, ChevronDown } from '@lucide/vue';
 import AnnouncementBar from '@/Components/AnnouncementBar.vue';
 import { retailPlans as tiers, gradBg, gradText } from '@/lib/retailPlans';
@@ -31,6 +31,9 @@ const faqs = [
     { q: 'Is my information kept private?', a: 'Yes. What you share is used to create your story and is covered by the StoryCreator.Bot Privacy Policy.' },
     { q: 'Do I still need a Social Media Manager?', a: 'StoryCreator.Bot takes care of the hardest part, your content. Your episodes can be used by anyone who manages your social media. Whether you keep a manager depends on what else you need from them.' },
 ];
+
+const loggedIn = computed(() => !!usePage().props.auth?.user);
+const disabledClass = 'bg-[#DDDDDD] text-[#888888] cursor-not-allowed pointer-events-none';
 
 const faqExpanded = ref(false);
 const visibleFaqs = computed(() => (faqExpanded.value ? faqs : faqs.slice(0, 3)));
@@ -114,13 +117,13 @@ const inputClass = 'h-12 px-3.5 text-base rounded-[10px] border border-[#CFCABB]
                         <Check class="w-[26px] h-[26px]" :stroke-width="2.4" />
                     </div>
                     <h2 class="text-[28px] font-extrabold">You're in.</h2>
-                    <p class="text-[17px] leading-relaxed text-[#444444]">Thanks, {{ form.first_name.trim() }}. We'll send your StoryCreator.Bot welcome to {{ form.email.trim() }} so you can start your first story.</p>
+                    <p class="text-[17px] leading-relaxed text-[#444444]">Thanks, {{ form.first_name.trim() }}. Expect an email from StoryBot at {{ form.email.trim() }} with your login link.</p>
                     <p class="text-[17px] leading-relaxed font-bold text-[#1A1A1A]">Your story is your business.</p>
                 </div>
 
                 <form v-else novalidate @submit.prevent="submit">
                     <div class="flex flex-wrap gap-3">
-                        <a v-for="tier in tiers" :key="tier.key" :href="route('signup.plan', tier.key)" :class="gradBg" class="flex-[1_1_140px] flex items-center justify-center gap-2 h-12 px-3 rounded-[10px] text-[15px] font-bold text-[#1A1A1A]">
+                        <a v-for="tier in tiers" :key="tier.key" :href="route('signup.plan', tier.key)" :aria-disabled="loggedIn" :tabindex="loggedIn ? -1 : undefined" :class="loggedIn ? disabledClass : gradBg" class="flex-[1_1_140px] flex items-center justify-center gap-2 h-12 px-3 rounded-[10px] text-[15px] font-bold text-[#1A1A1A]">
                             {{ tier.name }} Signup <ArrowRight class="w-4 h-4" :stroke-width="2.2" />
                         </a>
                     </div>
@@ -150,7 +153,7 @@ const inputClass = 'h-12 px-3.5 text-base rounded-[10px] border border-[#CFCABB]
 
                     <p v-if="error" role="alert" class="mt-5 text-sm font-semibold text-[#B42318]">{{ error }}</p>
 
-                    <button type="submit" :disabled="form.processing" :class="gradBg" class="mt-6 w-full h-14 rounded-xl text-[17px] font-bold text-[#1A1A1A] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60">
+                    <button type="submit" :disabled="form.processing || loggedIn" :class="loggedIn ? disabledClass : gradBg" class="mt-6 w-full h-14 rounded-xl text-[17px] font-bold text-[#1A1A1A] flex items-center justify-center gap-2 cursor-pointer disabled:opacity-60">
                         Start My Trial <ArrowRight class="w-[18px] h-[18px]" :stroke-width="2.2" />
                     </button>
                     <p class="mt-4 text-[13px] leading-normal text-[#555555] text-center">No membership required.</p>
@@ -189,7 +192,7 @@ const inputClass = 'h-12 px-3.5 text-base rounded-[10px] border border-[#CFCABB]
                             <Check class="w-4 h-4 text-[#F59E0B]" :stroke-width="3" />{{ f }}
                         </li>
                     </ul>
-                    <a :href="route('signup.plan', tier.key)" :class="gradBg" class="flex items-center justify-center gap-2 h-12 px-[22px] rounded-[10px] text-[15px] font-bold text-[#1A1A1A]">
+                    <a :href="route('signup.plan', tier.key)" :aria-disabled="loggedIn" :tabindex="loggedIn ? -1 : undefined" :class="loggedIn ? disabledClass : gradBg" class="flex items-center justify-center gap-2 h-12 px-[22px] rounded-[10px] text-[15px] font-bold text-[#1A1A1A]">
                         Sign Up <ArrowRight class="w-4 h-4" :stroke-width="2.2" />
                     </a>
                 </div>

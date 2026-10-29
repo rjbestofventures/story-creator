@@ -53,7 +53,7 @@ watch(open, (isOpen) => {
                         <Check class="w-6 h-6" style="color: #F5A000;" />
                     </div>
                     <h2 class="text-xl font-black mb-2" style="color: #1A1A1A;">Check your email</h2>
-                    <p class="text-sm" style="color: #555555;">Your Complementary Trial account is ready. We sent you a link to set your password and get started.</p>
+                    <p class="text-sm" style="color: #555555;">Your Complementary Trial account is ready. Expect an email from StoryBot with your login link.</p>
                 </div>
             </template>
 

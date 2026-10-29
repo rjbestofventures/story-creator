@@ -62,7 +62,7 @@ const feedbackOpen = ref(false);
                             </span>
                         </Link>
 
-                        <!-- Try Live Demo -->
+                        <!-- Try Demo -->
                         <Button
                             as-child
                             variant="outline"
@@ -71,7 +71,7 @@ const feedbackOpen = ref(false);
                         >
                             <Link id="tour-demo" :href="route('demo')" style="color: #1A1A1A;">
                                 <PlayCircle class="w-4 h-4" />
-                                Try Live Demo
+                                Try Demo
                             </Link>
                         </Button>
 

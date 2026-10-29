@@ -195,6 +195,21 @@ class ProvisionController extends Controller
         ]);
     }
 
+    public function deleteUser(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->firstOrFail();
+        $user->delete();
+
+        return response()->json([
+            'deleted' => true,
+            'email' => $validated['email'],
+        ]);
+    }
+
     public function deactivateAccount(Request $request): JsonResponse
     {
         $validated = $request->validate([

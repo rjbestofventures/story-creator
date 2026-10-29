@@ -120,7 +120,7 @@ const markTourDone = () => {
 };
 
 const dashboardTourSteps = [
-    { target: '#tour-demo', title: 'Try the live demo', content: 'See StoryBot in action on a sample business — no credits used.', order: 1 },
+    { target: '#tour-demo', title: 'Try the demo', content: 'See StoryBot in action on a sample business — no credits used.', order: 1 },
     { target: '#tour-feedback', title: 'Send feedback', content: 'Share an idea or report an issue anytime.', order: 2 },
     { target: '#tour-new-story', title: 'Create a story', content: 'Start here. Answer a few quick questions and StoryBot writes your episodes.', order: 3 },
     { target: '#tour-credits', title: 'Your StoryBot credits', content: 'Your credit balance. Credits power episode generation and refinements — and they never expire.', order: 4 },
