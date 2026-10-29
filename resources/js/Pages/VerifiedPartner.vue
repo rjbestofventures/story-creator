@@ -12,6 +12,7 @@ defineProps({
 });
 
 const applyOpen = ref(false);
+const loggedIn = computed(() => !!usePage().props.auth?.user);
 
 const steps = [
     {
@@ -120,9 +121,11 @@ const partnerBenefits = [
                 <button
                     v-if="canRegister"
                     type="button"
+                    :disabled="loggedIn"
                     @click="applyOpen = true"
-                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition hover:opacity-90 cursor-pointer"
-                    style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                    class="flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition"
+                    :class="loggedIn ? 'cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'"
+                    :style="loggedIn ? { background: '#DDDDDD', color: '#888888' } : { background: 'linear-gradient(to right, #FFC837, #F5A000)', color: '#1A1A1A' }"
                 >
                     Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                 </button>

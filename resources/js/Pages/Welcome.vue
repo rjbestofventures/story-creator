@@ -15,6 +15,8 @@ defineProps({
 });
 
 const vbpPlans = computed(() => usePage().props.vbpPlans ?? []);
+const loggedIn = computed(() => !!usePage().props.auth?.user);
+const ctaStyle = computed(() => loggedIn.value ? { background: '#DDDDDD', color: '#888888' } : { background: 'linear-gradient(to right, #FFC837, #F5A000)', color: '#1A1A1A' });
 
 const openFaq = ref(null);
 
@@ -40,7 +42,7 @@ const trialOpen = ref(false);
 
 const exploreCards = [
     { title: 'Demo story', sub: 'See how it works', icon: Play, onClick: () => router.visit(route('demo')) },
-    { title: 'Free trial', sub: 'Make your first story', icon: Gift, onClick: () => { trialOpen.value = true; } },
+    { title: 'Free trial', sub: 'Make your first story', icon: Gift, signup: true, onClick: () => { trialOpen.value = true; } },
     { title: 'Contact us', sub: 'Ask us anything', icon: MessageCircle, onClick: () => { contactOpen.value = true; } },
 ];
 
@@ -130,9 +132,11 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
 
             <button
                 type="button"
+                :disabled="loggedIn"
                 @click="signUpOpen = true"
-                class="flex items-center gap-2 px-10 py-4 rounded-lg font-bold text-base text-[#1A1A1A] transition hover:opacity-90 cursor-pointer"
-                style="background: linear-gradient(to right, #FFC837, #F5A000);"
+                class="flex items-center gap-2 px-10 py-4 rounded-lg font-bold text-base transition"
+                :class="loggedIn ? 'cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'"
+                :style="ctaStyle"
             >
                 Get StoryBot
                 <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
@@ -149,8 +153,10 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
                     v-for="card in exploreCards"
                     :key="card.title"
                     type="button"
+                    :disabled="card.signup && loggedIn"
                     @click="card.onClick()"
-                    class="flex items-center gap-3 px-5 py-4 text-left rounded-lg border border-[#DDDDDD] bg-white text-[#1A1A1A] transition hover:border-[#F5A000] cursor-pointer"
+                    class="flex items-center gap-3 px-5 py-4 text-left rounded-lg border border-[#DDDDDD] transition"
+                    :class="card.signup && loggedIn ? 'bg-[#EEEEEE] text-[#999999] cursor-not-allowed' : 'bg-white text-[#1A1A1A] hover:border-[#F5A000] cursor-pointer'"
                 >
                     <component :is="card.icon" class="w-[18px] h-[18px] shrink-0 text-[#555555]" :stroke-width="1.75" />
                     <span>
@@ -312,7 +318,7 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
                     </div>
                     <!-- Right: CTA -->
                     <div class="flex flex-col items-start md:items-end gap-2 shrink-0">
-                        <button type="button" @click="signUpOpen = true" class="flex items-center gap-2 px-7 py-3 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer" style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;">
+                        <button type="button" :disabled="loggedIn" @click="signUpOpen = true" class="flex items-center gap-2 px-7 py-3 rounded-lg font-bold text-base transition" :class="loggedIn ? 'cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'" :style="ctaStyle">
                             Sign Up <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </button>
                         <Link :href="route('partner')" class="text-sm underline" style="color: #888888;">Become a Verified Business Partner</Link>
@@ -380,9 +386,11 @@ const partnerFeatures = ['Done in minutes.', 'Build a post-ready content library
             <h2 class="text-3xl md:text-4xl font-black mb-6" style="color: #1A1A1A;">Ready? Let's Get Your Story.</h2>
             <button
                 type="button"
+                :disabled="loggedIn"
                 @click="signUpOpen = true"
-                class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
-                style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                class="flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition"
+                :class="loggedIn ? 'cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'"
+                :style="ctaStyle"
             >
                 Sign Up
                 <ArrowRight class="w-4 h-4" :stroke-width="2.5" />

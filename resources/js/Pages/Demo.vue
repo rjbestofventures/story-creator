@@ -19,7 +19,8 @@ defineProps({
 
 // Logged-in users land here from their dashboard, not the homepage — send them
 // back to the library instead of hardcoding '/' and losing where they came from.
-const exitHref = computed(() => usePage().props.auth?.user ? route('stories.index') : '/');
+const loggedIn = computed(() => !!usePage().props.auth?.user);
+const exitHref = computed(() => loggedIn.value ? route('stories.index') : '/');
 
 // Signup is closed to non-partners for now: Get Started opens the partner
 // application dialog instead of routing to /register.
@@ -598,7 +599,7 @@ const goBack = () => {
 </script>
 
 <template>
-    <Head title="Live Demo — StoryCreator.Bot" />
+    <Head title="Demo — StoryCreator.Bot" />
 
     <div class="bg-[#FAFAF8] flex flex-col" :class="phase !== 1 && 'min-h-screen'" :style="phase === 1 ? 'height: 100vh; height: 100dvh; overflow: hidden;' : ''">
 
@@ -621,7 +622,7 @@ const goBack = () => {
                 <div class="flex-1 max-w-sm">
                     <div class="flex items-center justify-between mb-1">
                         <span class="text-xs font-semibold text-[#555555]">
-                            <template v-if="phase === 0">Live Demo — Barnacle Busters</template>
+                            <template v-if="phase === 0">Demo — Barnacle Busters</template>
                             <template v-else-if="phase === 1">{{ complete ? 'Interview complete' : `${answerCount} of 3 answered` }}</template>
                             <template v-else>Your story library</template>
                         </span>
@@ -936,9 +937,11 @@ const goBack = () => {
                         <button
                             v-if="canRegister"
                             type="button"
+                            :disabled="loggedIn"
                             @click="signUpOpen = true"
-                            class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition hover:opacity-90 cursor-pointer"
-                            style="background: linear-gradient(to right, #FFC837, #F5A000); color: #1A1A1A;"
+                            class="inline-flex items-center gap-2 px-7 py-3.5 rounded-lg font-bold text-base transition"
+                            :class="loggedIn ? 'cursor-not-allowed' : 'hover:opacity-90 cursor-pointer'"
+                            :style="loggedIn ? { background: '#DDDDDD', color: '#888888' } : { background: 'linear-gradient(to right, #FFC837, #F5A000)', color: '#1A1A1A' }"
                         >
                             Get Started <ArrowRight class="w-4 h-4" :stroke-width="2.5" />
                         </button>

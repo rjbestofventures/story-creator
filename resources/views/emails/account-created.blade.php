@@ -20,7 +20,7 @@
                     <td style="padding: 32px 32px 24px;">
                         <h1 style="margin: 0 0 20px; color: #000000; font-size: 24px; line-height: 1.3;">Welcome! Start enjoying Best of Benefits!</h1>
 
-                        <p style="margin: 0 0 16px; color: #000000; font-size: 16px; font-weight: bold; line-height: 1.5;">Your enhanced business profile will appear on the Best of Local App within 48 hrs.</p>
+                        <p style="margin: 0 0 16px; color: #000000; font-size: 16px; font-weight: bold; line-height: 1.5;">Check your enhanced business profile it will appear on the Best of Local App within 48 hrs.</p>
 
                         <p style="margin: 0 0 16px; color: #F26B21; font-size: 16px; font-weight: bold; line-height: 1.5;">Look for Best of Newsletter. Where your feedback and everything you need to know about getting top performance from your social media posts, will be delivered monthly.</p>
 

@@ -64,7 +64,7 @@ class WelcomeEmailTest extends TestCase
         foreach ([
             'BEST OF DELRAY BEACH',
             'Welcome! Start enjoying Best of Benefits!',
-            'Your enhanced business profile will appear on the Best of Local App within 48 hrs.',
+            'Check your enhanced business profile it will appear on the Best of Local App within 48 hrs.',
             'Look for Best of Newsletter. Where your feedback and everything you need to know about getting top performance from your social media posts, will be delivered monthly.',
             'Your StoryCreator.Bot account, the fastest and easiest way to make social media content, has been launched! Here is the account information and login details to get you started.',
             'Temporary Password:',
